@@ -11,8 +11,6 @@ jobs:
   smart-contract:
     name: Anchor program
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "--cfg procmacro2_semver_exempt"
 
     steps:
       - name: Checkout
