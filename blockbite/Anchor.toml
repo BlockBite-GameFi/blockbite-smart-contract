@@ -1,0 +1,18 @@
+[toolchain]
+anchor_version = "0.30.0"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+blockblast = "BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[hooks]
