@@ -75,12 +75,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: blockbite/package-lock.json
+          cache: 'yarn'
+          cache-dependency-path: ./blockbite/yarn.lock
 
       - name: Install Node dependencies
         working-directory: ./blockbite
-        run: npm ci --legacy-peer-deps
+        run: yarn install --frozen-lockfile
 
       - name: Build program
         working-directory: ./blockbite
