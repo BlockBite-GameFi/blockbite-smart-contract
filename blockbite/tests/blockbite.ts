@@ -37,14 +37,17 @@ describe("blockbite", () => {
   let endTime: number;
 
   before(async () => {
-    await provider.connection.requestAirdrop(
+    const creatorAirdrop = await provider.connection.requestAirdrop(
       creator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    const recipientAirdrop = await provider.connection.requestAirdrop(
       recipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+
+    await provider.connection.confirmTransaction(creatorAirdrop, "confirmed");
+    await provider.connection.confirmTransaction(recipientAirdrop, "confirmed");
 
     mint = await createMint(
       provider.connection,
@@ -185,10 +188,11 @@ describe("blockbite", () => {
 
   it("Withdraw by non-recipient fails", async () => {
     const nonRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig = await provider.connection.requestAirdrop(
       nonRecipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig, "confirmed");
 
     const ix = createWithdrawIx(
       programId,
@@ -211,14 +215,16 @@ describe("blockbite", () => {
   it("Cancel mid-stream", async () => {
     const cancelCreator = Keypair.generate();
     const cancelRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig1 = await provider.connection.requestAirdrop(
       cancelCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    const sig2 = await provider.connection.requestAirdrop(
       cancelRecipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
 
     const cancelMint = await createMint(
       provider.connection,
@@ -312,10 +318,11 @@ describe("blockbite", () => {
 
   it("Cancel by non-creator fails", async () => {
     const nonCreator = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig = await provider.connection.requestAirdrop(
       nonCreator.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig, "confirmed");
 
     const ix = createCancelIx(
       programId,
@@ -339,14 +346,16 @@ describe("blockbite", () => {
   it("Withdraw from cancelled stream fails", async () => {
     const cancelCreator = Keypair.generate();
     const cancelRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig1 = await provider.connection.requestAirdrop(
       cancelCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    const sig2 = await provider.connection.requestAirdrop(
       cancelRecipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
 
     const cancelMint = await createMint(
       provider.connection,
@@ -448,10 +457,11 @@ describe("blockbite", () => {
   it("Zero amount create fails", async () => {
     const zeroCreator = Keypair.generate();
     const zeroRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig = await provider.connection.requestAirdrop(
       zeroCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig, "confirmed");
 
     const zeroMint = await createMint(
       provider.connection,
@@ -510,10 +520,11 @@ describe("blockbite", () => {
 
   it("Same creator and recipient fails", async () => {
     const sameCreator = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig = await provider.connection.requestAirdrop(
       sameCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig, "confirmed");
 
     const sameMint = await createMint(
       provider.connection,
@@ -573,14 +584,16 @@ describe("blockbite", () => {
   it("Cancel already cancelled fails", async () => {
     const cancelCreator = Keypair.generate();
     const cancelRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig1 = await provider.connection.requestAirdrop(
       cancelCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    const sig2 = await provider.connection.requestAirdrop(
       cancelRecipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
 
     const cancelMint = await createMint(
       provider.connection,
@@ -681,14 +694,16 @@ describe("blockbite", () => {
   it("Withdraw before cliff returns 0", async () => {
     const cliffCreator = Keypair.generate();
     const cliffRecipient = Keypair.generate();
-    await provider.connection.requestAirdrop(
+    const sig1 = await provider.connection.requestAirdrop(
       cliffCreator.publicKey,
       2 * anchor.web3.LAMPORTS_PER_SOL
     );
-    await provider.connection.requestAirdrop(
+    const sig2 = await provider.connection.requestAirdrop(
       cliffRecipient.publicKey,
       1 * anchor.web3.LAMPORTS_PER_SOL
     );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
 
     const cliffMint = await createMint(
       provider.connection,
