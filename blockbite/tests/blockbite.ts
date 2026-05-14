@@ -18,9 +18,8 @@ describe("blockbite", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  const programId = new PublicKey(
-    "BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc"
-  );
+  const program = anchor.workspace.blockbite;
+  const programId = program.programId;
 
   const creator = Keypair.generate();
   const recipient = Keypair.generate();
