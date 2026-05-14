@@ -9,7 +9,7 @@ on:
 jobs:
   # Job untuk Smart Contract Solana (Anchor)
   smart-contract:
-    name: Build and test Anchor program
+    name: Anchor program
     runs-on: ubuntu-latest
 
     steps:
@@ -47,6 +47,7 @@ jobs:
           anchor --version
 
       - name: Restore program keypair
+        working-directory: ./blockbite
         # The program keypair is stored as a GitHub Secret (base58 array JSON).
         # CI always uses the same keypair so declare_id! and PROGRAM_ID always match.
         # To set: Settings → Secrets → ANCHOR_PROGRAM_KEYPAIR → paste contents of
@@ -65,6 +66,7 @@ jobs:
           fi
 
       - name: Sync program ID
+        working-directory: ./blockbite
         # Updates declare_id! in lib.rs to match the keypair we just wrote.
         # This is safe because tests read PROGRAM_ID from IDL.address (not hardcoded).
         run: anchor keys sync
@@ -74,11 +76,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: blockbite/package-lock.json
 
       - name: Install Node dependencies
+        working-directory: ./blockbite
         run: npm ci --legacy-peer-deps
 
       - name: Build program
+        working-directory: ./blockbite
         shell: bash
         run: |
           set +e
@@ -92,35 +97,9 @@ jobs:
           fi
 
       - name: Run tests
+        working-directory: ./blockbite
         # anchor test auto-deploys to local validator; tests read PROGRAM_ID from IDL.
         run: anchor test --skip-build
 
-  # Job untuk Frontend (Next.js/React)
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-      - name: Install & Build Frontend
-        working-directory: ./app
-        run: |
-          npm install
-          npm run build
 
-  # Job untuk Backend (Node.js)
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-      - name: Install & Test Backend
-        working-directory: ./backend
-        run: |
-          npm install
-          # npm test (aktifkan jika sudah ada file testnya)
+
