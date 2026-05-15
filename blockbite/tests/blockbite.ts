@@ -181,7 +181,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(tx, [recipient]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "InsufficientUnlockedTokens");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "InsufficientUnlockedTokens");
     }
   });
 
@@ -207,7 +209,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(tx, [nonRecipient]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "Unauthorized");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "Unauthorized");
     }
   });
 
@@ -338,7 +342,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(tx, [nonCreator]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "Unauthorized");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "Unauthorized");
     }
   });
 
@@ -449,7 +455,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(tx, [cancelRecipient]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "StreamCancelled");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "StreamCancelled");
     }
   });
 
@@ -513,7 +521,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(new Transaction().add(ix), [zeroCreator]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "InvalidAmount");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "InvalidAmount");
     }
   });
 
@@ -576,7 +586,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(new Transaction().add(ix), [sameCreator]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "InvalidRecipient");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "InvalidRecipient");
     }
   });
 
@@ -686,7 +698,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(new Transaction().add(cancelIx2), [cancelCreator]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "StreamAlreadyCancelled");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "StreamAlreadyCancelled");
     }
   });
 
@@ -785,7 +799,9 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(new Transaction().add(withdrawIx), [cliffRecipient]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.include(e.message, "InsufficientUnlockedTokens");
+      const err = anchor.AnchorError.parse(e.logs || []);
+      assert.ok(err !== null, "Expected AnchorError");
+      assert.strictEqual(err!.errorCode.code, "InsufficientUnlockedTokens");
     }
   });
 });
