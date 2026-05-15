@@ -5,14 +5,15 @@ anchor_version = "0.32.1"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-blockbite = "BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc"
+[programs.devnet]
+blockbite = "6SK4EGRn67JcRaaTP4VT17vShhHDyKpC2EwqhharYTJo"
+
+[registry]
+url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[hooks]
