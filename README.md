@@ -256,6 +256,3 @@ yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 | Cancel logic (0%, 25%, 50%, 100%, partial withdraw, before cliff, after cliff, sum check) | 8 | ✅ |
 | Integration (create, withdraw, double withdraw, unauthorized, cancel, cancelled stream, zero amount, same creator/recipient, double cancel, cliff) | 12 | ✅ |
 
-## License
-
-ISC
