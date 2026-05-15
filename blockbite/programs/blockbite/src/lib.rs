@@ -11,7 +11,7 @@ use anchor_lang::prelude::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("BHq8DC4EH5jzSs971YARefcAA5BF57oTQHRtqSX5pFRc");
+declare_id!("6SK4EGRn67JcRaaTP4VT17vShhHDyKpC2EwqhharYTJo");
 
 #[program]
 pub mod blockbite {
