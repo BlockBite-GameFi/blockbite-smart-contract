@@ -7,7 +7,6 @@ on:
     branches: [ master, main ]
 
 jobs:
-  # Job untuk Smart Contract Solana (Anchor)
   smart-contract:
     name: Anchor program
     runs-on: ubuntu-latest
@@ -48,10 +47,6 @@ jobs:
 
       - name: Restore program keypair
         working-directory: ./blockbite
-        # The program keypair is stored as a GitHub Secret (base58 array JSON).
-        # CI always uses the same keypair so declare_id! and PROGRAM_ID always match.
-        # To set: Settings → Secrets → ANCHOR_PROGRAM_KEYPAIR → paste contents of
-        #         target/deploy/blockbite-keypair.json
         run: |
           mkdir -p ~/.config/solana target/deploy
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
@@ -59,16 +54,13 @@ jobs:
             echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
             echo "Using program keypair from secret"
           else
-            # Fallback: generate ephemeral key — anchor keys sync will update declare_id!
             solana-keygen new --no-bip39-passphrase --silent \
               --outfile target/deploy/blockbite-keypair.json
-            echo "No ANCHOR_PROGRAM_KEYPAIR secret found — using ephemeral key"
+            echo "No ANCHOR_PROGRAM_KEYPAIR secret — using ephemeral key"
           fi
 
       - name: Sync program ID
         working-directory: ./blockbite
-        # Updates declare_id! in lib.rs to match the keypair we just wrote.
-        # This is safe because tests read PROGRAM_ID from IDL.address (not hardcoded).
         run: anchor keys sync
 
       - name: Setup Node.js
@@ -96,31 +88,79 @@ jobs:
             exit "$status"
           fi
 
-      - name: Run tests
+      - name: Run Rust unit tests
         working-directory: ./blockbite
+        run: cargo test --package blockbite 2>&1
+
+      - name: Run integration tests
+        working-directory: ./blockbite
+        env:
+          ANCHOR_WALLET: /home/runner/.config/solana/id.json
+          ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
+        shell: bash
         run: |
-          # 1. Bersihkan ledger lama
+          set -e
           rm -rf .anchor/test-ledger test-ledger
 
-          # 2. Start validator di background
-          solana-test-validator --reset --quiet &
+          # ── 1. Start local validator ──────────────────────────────────────────
+          solana-test-validator \
+            --reset \
+            --quiet \
+            --ledger .anchor/test-ledger \
+            --bind-address 0.0.0.0 \
+            --rpc-port 8899 &
+          VALIDATOR_PID=$!
 
-          # 3. Health check loop (tunggu sampai RPC respond, max 120 detik)
-          echo "⏳ Waiting for validator to start..."
-          for i in $(seq 1 24); do
-            if curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' http://localhost:8899 | grep -q "ok"; then
-              echo "✅ Validator ready!"
+          # ── 2. Health-check loop (max 3 min = 36 × 5 s) ─────────────────────
+          echo "⏳ Waiting for validator (pid=$VALIDATOR_PID)..."
+          READY=0
+          for i in $(seq 1 36); do
+            if curl -sf \
+                 -X POST \
+                 -H "Content-Type: application/json" \
+                 -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+                 http://127.0.0.1:8899 2>/dev/null \
+               | grep -q '"result":"ok"'; then
+              echo "✅ Validator ready after $((i * 5))s"
+              READY=1
               break
             fi
-            echo "   Still waiting... ($i/24)"
+            echo "   waiting... ($i/36)"
             sleep 5
           done
 
-          # 4. Deploy program ke local validator
-          anchor deploy --skip-build --provider.cluster localnet
+          if [ "$READY" -eq 0 ]; then
+            echo "❌ Validator failed to start within 180s"
+            cat .anchor/test-ledger/validator.log 2>/dev/null | tail -40 || true
+            kill "$VALIDATOR_PID" 2>/dev/null || true
+            exit 1
+          fi
 
-          # 5. Jalankan test suite
-          yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
+          # ── 3. Fund deployer wallet ───────────────────────────────────────────
+          DEPLOYER_KEY=/home/runner/.config/solana/id.json
+          DEPLOYER_PUBKEY=$(solana-keygen pubkey "$DEPLOYER_KEY")
+          echo "💰 Airdropping 100 SOL to $DEPLOYER_PUBKEY..."
+          solana airdrop 100 "$DEPLOYER_PUBKEY" \
+            --url http://127.0.0.1:8899 \
+            --keypair "$DEPLOYER_KEY" || true
+          # Retry once — localnet airdrop can occasionally stall
+          sleep 2
+          BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
+          echo "   Balance: $BALANCE"
 
+          # ── 4. Deploy program ─────────────────────────────────────────────────
+          echo "🚀 Deploying program..."
+          anchor deploy \
+            --skip-build \
+            --provider.cluster localnet \
+            --provider.wallet "$DEPLOYER_KEY"
 
+          # ── 5. Run TypeScript integration tests ───────────────────────────────
+          echo "🧪 Running integration tests..."
+          yarn run ts-mocha \
+            -p ./tsconfig.json \
+            -t 1000000 \
+            "tests/**/*.ts"
 
+          # ── 6. Cleanup ────────────────────────────────────────────────────────
+          kill "$VALIDATOR_PID" 2>/dev/null || true

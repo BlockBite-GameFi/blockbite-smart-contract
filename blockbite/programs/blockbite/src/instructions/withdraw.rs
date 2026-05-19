@@ -4,7 +4,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use crate::state::StreamAccount;
 use crate::utils::calculate_unlocked;
 use crate::errors::ErrorCode;
-use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES};
+use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES, VELOCITY_RESET_INTERVAL};
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
@@ -41,6 +41,7 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
     let clock = Clock::get()?;
     let current_time = clock.unix_timestamp;
 
+    // ── Snapshot immutable fields before taking a mutable reference ──────────
     let stream = &ctx.accounts.stream;
 
     require!(!stream.is_cancelled, ErrorCode::StreamCancelled);
@@ -53,33 +54,48 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
 
     require!(claimable > 0, ErrorCode::NothingToWithdraw);
 
-    let creator = stream.creator;
-    let recipient = stream.recipient;
-    let seed = stream.seed;
-    let bump = stream.bump;
+    // Copy values we need for seeds / CPI before mutable borrow
+    let creator      = stream.creator;
+    let recipient    = stream.recipient;
+    let seed         = stream.seed;
+    let bump         = stream.bump;
     let mint_decimals = ctx.accounts.mint.decimals;
-    let stream_ai = ctx.accounts.stream.to_account_info();
+    let stream_ai    = ctx.accounts.stream.to_account_info();
 
-    // === VGPV Anti-Bot (Week 5) ===
-    let stream_mut = &mut ctx.accounts.stream;
-    require!(
-        stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
-        ErrorCode::BotDetected
-    );
+    // ── VGPV: Velocity Guard Penalty Valve ───────────────────────────────────
+    // Protects against rapid-fire bot withdrawals while never permanently
+    // locking a legitimate user (strikes reset after VELOCITY_RESET_INTERVAL).
+    {
+        let s = &mut ctx.accounts.stream;
 
-    if stream_mut.last_action_ts > 0 {
-        let interval = current_time
-            .checked_sub(stream_mut.last_action_ts)
-            .unwrap_or(i64::MAX);
-        if interval < MIN_ACTION_INTERVAL {
-            stream_mut.velocity_strikes = stream_mut.velocity_strikes.saturating_add(1);
-            require!(
-                stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
-                ErrorCode::BotDetected
-            );
+        // Hard gate: if already at the strike limit, reject immediately.
+        require!(
+            s.velocity_strikes < MAX_VELOCITY_STRIKES,
+            ErrorCode::BotDetected
+        );
+
+        if s.last_action_ts > 0 {
+            let elapsed = current_time
+                .checked_sub(s.last_action_ts)
+                .unwrap_or(i64::MAX);
+
+            if elapsed >= VELOCITY_RESET_INTERVAL {
+                // Cooling-down period passed → forgive all prior strikes.
+                s.velocity_strikes = 0;
+            } else if elapsed < MIN_ACTION_INTERVAL {
+                // Too fast → penalise and re-check the limit.
+                s.velocity_strikes = s.velocity_strikes.saturating_add(1);
+                require!(
+                    s.velocity_strikes < MAX_VELOCITY_STRIKES,
+                    ErrorCode::BotDetected
+                );
+            }
+            // Else: normal interval → no change to strikes.
         }
+
+        s.last_action_ts = current_time;
     }
-    stream_mut.last_action_ts = current_time;
+    // ─────────────────────────────────────────────────────────────────────────
 
     let seeds = &[
         b"stream",
@@ -90,15 +106,15 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
     ];
     let signer_seeds = &[&seeds[..]];
 
-    let escrow = ctx.accounts.escrow_token_account.to_account_info();
-    let mint = ctx.accounts.mint.to_account_info();
+    let escrow      = ctx.accounts.escrow_token_account.to_account_info();
+    let mint        = ctx.accounts.mint.to_account_info();
     let recipient_ta = ctx.accounts.recipient_token_account.to_account_info();
     let token_program = ctx.accounts.token_program.to_account_info();
 
     let cpi_accounts = TransferChecked {
-        from: escrow,
+        from:      escrow,
         mint,
-        to: recipient_ta,
+        to:        recipient_ta,
         authority: stream_ai,
     };
     let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds);
@@ -113,6 +129,11 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
 
     msg!("Withdrawn: {}", claimable);
     msg!("Total withdrawn: {}", ctx.accounts.stream.amount_withdrawn);
+    msg!(
+        "VGPV: velocity_strikes={} last_action_ts={}",
+        ctx.accounts.stream.velocity_strikes,
+        ctx.accounts.stream.last_action_ts
+    );
 
     Ok(())
 }
