@@ -117,10 +117,9 @@ jobs:
           done
 
           # 4. Deploy program ke local validator
-          anchor deploy --skip-build --provider.cluster localnet
+          anchor deploy --provider.cluster localnet
 
           # 5. Jalankan test suite
           yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
-
 
 
