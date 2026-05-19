@@ -6,7 +6,7 @@ documentation = "https://docs.rs/blockbite"
 
 [lib]
 name = "blockbite"
-path = "programs/blockbite/src/lib.rs"
+path = "src/lib.rs"
 
 [dependencies]
 anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
