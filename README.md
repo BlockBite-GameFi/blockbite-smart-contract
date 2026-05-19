@@ -1,8 +1,7 @@
 # BlockBite
 
 **Automated, milestone-based token vesting on Solana.**
-
-BlockBite is a Solana program that enables trust-minimized, on-chain token distribution with cliff periods, linear vesting schedules, and milestone-based unlock conditions
+BlockBite is the treasury shield for Solana builders, replacing high-risk manual distributions with a secure, automated "Pull" ecosystem. We eliminate the "Push" vulnerability where manual transfers invite fatal exploits and irreversible human errors. By integrating rewards to transparent performance milestones, BlockBite reclaims weeks of development time while converting passive users into a loyal, high-retention community.
 
 ## Features
 
