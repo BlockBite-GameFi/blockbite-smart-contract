@@ -686,7 +686,7 @@ describe("blockbite", () => {
       await provider.sendAndConfirm(new Transaction().add(cancelIx2), [cancelCreator]);
       assert.fail("Should have failed");
     } catch (e: any) {
-      assert.ok(e.message.includes("StreamAlreadyCancelled") || e.message.includes("0x"), `Expected StreamAlreadyCancelled error, got: ${e.message}`);
+      assert.ok(e.message.includes("AlreadyCancelled") || e.message.includes("0x"), `Expected AlreadyCancelled error, got: ${e.message}`);
     }
   });
 
@@ -786,6 +786,237 @@ describe("blockbite", () => {
       assert.fail("Should have failed");
     } catch (e: any) {
       assert.ok(e.message.includes("InsufficientUnlockedTokens") || e.message.includes("0x"), `Expected InsufficientUnlockedTokens error, got: ${e.message}`);
+    }
+  });
+
+  it("Milestone unlock: set_milestone triggers linear vesting after cliff", async () => {
+    const msCreator = Keypair.generate();
+    const msRecipient = Keypair.generate();
+    const sig1 = await provider.connection.requestAirdrop(
+      msCreator.publicKey,
+      2 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    const sig2 = await provider.connection.requestAirdrop(
+      msRecipient.publicKey,
+      1 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
+
+    const msMint = await createMint(
+      provider.connection,
+      msCreator,
+      msCreator.publicKey,
+      null,
+      6
+    );
+
+    const msCreatorTA = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        msCreator,
+        msMint,
+        msCreator.publicKey
+      )
+    ).address;
+
+    const msRecipientTA = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        msRecipient,
+        msMint,
+        msRecipient.publicKey
+      )
+    ).address;
+
+    await mintTo(
+      provider.connection,
+      msCreator,
+      msMint,
+      msCreatorTA,
+      msCreator,
+      10_000_000
+    );
+
+    const msStartTime = Math.floor(Date.now() / 1000) - 2;
+    const msEndTime = msStartTime + 100;
+    const msCliffTime = msStartTime + 50;
+
+    const [msStreamPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("stream"),
+        msCreator.publicKey.toBuffer(),
+        msRecipient.publicKey.toBuffer(),
+        Buffer.from(new Uint8Array(new BigUint64Array([BigInt(8)]).buffer)),
+      ],
+      programId
+    );
+
+    const [msEscrowTA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), msStreamPda.toBuffer()],
+      programId
+    );
+
+    // Create stream with cliff
+    const msCliffTimeParam = msCliffTime;
+    const msIx = new anchor.web3.TransactionInstruction({
+      keys: [
+        { pubkey: msCreator.publicKey, isSigner: true, isWritable: true },
+        { pubkey: msRecipient.publicKey, isSigner: false, isWritable: false },
+        { pubkey: msMint, isSigner: false, isWritable: false },
+        { pubkey: msCreatorTA, isSigner: false, isWritable: true },
+        { pubkey: msEscrowTA, isSigner: false, isWritable: true },
+        { pubkey: msStreamPda, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      programId,
+      data: createStreamData(TOTAL_AMOUNT, msStartTime, msEndTime, msCliffTimeParam, 8),
+    });
+    await provider.sendAndConfirm(new Transaction().add(msIx), [msCreator]);
+
+    // Wait for cliff time
+    const waitMs = (msCliffTime - Math.floor(Date.now() / 1000) + 2) * 1000;
+    if (waitMs > 0) {
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    // Set milestone
+    const setMilestoneIx = new anchor.web3.TransactionInstruction({
+      keys: [
+        { pubkey: msCreator.publicKey, isSigner: true, isWritable: true },
+        { pubkey: msStreamPda, isSigner: false, isWritable: true },
+      ],
+      programId,
+      data: Buffer.from([128, 76, 33, 186, 93, 156, 134, 212]),
+    });
+    await provider.sendAndConfirm(new Transaction().add(setMilestoneIx), [msCreator]);
+
+    // Wait for some linear vesting after cliff
+    const vestWaitMs = 10 * 1000;
+    await new Promise((r) => setTimeout(r, vestWaitMs));
+
+    // Withdraw — should get proportional amount based on linear vesting from cliff
+    const withdrawIx = createWithdrawIx(
+      programId,
+      msRecipient.publicKey,
+      msStreamPda,
+      msMint,
+      msEscrowTA,
+      msRecipientTA
+    );
+    await provider.sendAndConfirm(new Transaction().add(withdrawIx), [msRecipient]);
+
+    const recipientBal = await getAccount(provider.connection, msRecipientTA);
+    const amount = Number(recipientBal.amount);
+    assert.ok(amount > 0, `Expected withdraw after milestone, got ${amount}`);
+    console.log(`Milestone withdraw amount: ${amount}`);
+  });
+
+  it("Cancel after full vest fails with FullyVested", async () => {
+    const fvCreator = Keypair.generate();
+    const fvRecipient = Keypair.generate();
+    const sig1 = await provider.connection.requestAirdrop(
+      fvCreator.publicKey,
+      2 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    const sig2 = await provider.connection.requestAirdrop(
+      fvRecipient.publicKey,
+      1 * anchor.web3.LAMPORTS_PER_SOL
+    );
+    await provider.connection.confirmTransaction(sig1, "confirmed");
+    await provider.connection.confirmTransaction(sig2, "confirmed");
+
+    const fvMint = await createMint(
+      provider.connection,
+      fvCreator,
+      fvCreator.publicKey,
+      null,
+      6
+    );
+
+    const fvCreatorTA = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        fvCreator,
+        fvMint,
+        fvCreator.publicKey
+      )
+    ).address;
+
+    const fvRecipientTA = (
+      await getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        fvRecipient,
+        fvMint,
+        fvRecipient.publicKey
+      )
+    ).address;
+
+    await mintTo(
+      provider.connection,
+      fvCreator,
+      fvMint,
+      fvCreatorTA,
+      fvCreator,
+      10_000_000
+    );
+
+    const fvStartTime = Math.floor(Date.now() / 1000) - 2;
+    const fvEndTime = fvStartTime + 10;
+
+    const [fvStreamPda] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("stream"),
+        fvCreator.publicKey.toBuffer(),
+        fvRecipient.publicKey.toBuffer(),
+        Buffer.from(new Uint8Array(new BigUint64Array([BigInt(9)]).buffer)),
+      ],
+      programId
+    );
+
+    const [fvEscrowTA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), fvStreamPda.toBuffer()],
+      programId
+    );
+
+    const fvIx = new anchor.web3.TransactionInstruction({
+      keys: [
+        { pubkey: fvCreator.publicKey, isSigner: true, isWritable: true },
+        { pubkey: fvRecipient.publicKey, isSigner: false, isWritable: false },
+        { pubkey: fvMint, isSigner: false, isWritable: false },
+        { pubkey: fvCreatorTA, isSigner: false, isWritable: true },
+        { pubkey: fvEscrowTA, isSigner: false, isWritable: true },
+        { pubkey: fvStreamPda, isSigner: false, isWritable: true },
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      programId,
+      data: createStreamData(TOTAL_AMOUNT, fvStartTime, fvEndTime, 0, 9),
+    });
+    await provider.sendAndConfirm(new Transaction().add(fvIx), [fvCreator]);
+
+    // Wait for stream to end
+    const waitMs = (fvEndTime - Math.floor(Date.now() / 1000) + 2) * 1000;
+    if (waitMs > 0) {
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    // Try to cancel — should fail with FullyVested
+    const cancelIx = createCancelIx(
+      programId,
+      fvCreator.publicKey,
+      fvStreamPda,
+      fvMint,
+      fvEscrowTA,
+      fvCreatorTA,
+      fvRecipientTA
+    );
+    try {
+      await provider.sendAndConfirm(new Transaction().add(cancelIx), [fvCreator]);
+      assert.fail("Should have failed");
+    } catch (e: any) {
+      assert.ok(e.message.includes("FullyVested") || e.message.includes("0x"), `Expected FullyVested error, got: ${e.message}`);
     }
   });
 });

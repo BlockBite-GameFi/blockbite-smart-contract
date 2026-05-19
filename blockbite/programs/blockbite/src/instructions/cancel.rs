@@ -44,13 +44,15 @@ pub struct Cancel<'info> {
 
 pub fn handler(ctx: Context<Cancel>) -> Result<()> {
     let stream = &ctx.accounts.stream;
+    let current_time = Clock::get()?.unix_timestamp;
 
-    require!(!stream.is_cancelled, ErrorCode::StreamAlreadyCancelled);
+    // === Guard Rails ===
+    require!(!stream.is_cancelled, ErrorCode::AlreadyCancelled);
 
-    let clock = Clock::get()?;
-    let current_time = clock.unix_timestamp;
-
+    // Fully vested = all tokens unlocked (works for both linear and milestone)
     let unlocked = calculate_unlocked(stream, current_time);
+    require!(unlocked < stream.total_amount, ErrorCode::FullyVested);
+
     let recipient_due = unlocked
         .checked_sub(stream.amount_withdrawn)
         .unwrap_or(0);
@@ -61,18 +63,23 @@ pub fn handler(ctx: Context<Cancel>) -> Result<()> {
         .checked_sub(recipient_due)
         .unwrap();
 
+    let creator = stream.creator;
+    let recipient = stream.recipient;
+    let seed = stream.seed;
+    let bump = stream.bump;
+    let stream_ai = ctx.accounts.stream.to_account_info();
+
     let seeds = &[
         b"stream",
-        stream.creator.as_ref(),
-        stream.recipient.as_ref(),
-        &stream.seed.to_le_bytes(),
-        &[stream.bump],
+        creator.as_ref(),
+        recipient.as_ref(),
+        &seed.to_le_bytes(),
+        &[bump],
     ];
     let signer_seeds = &[&seeds[..]];
 
     let escrow = ctx.accounts.escrow_token_account.to_account_info();
     let mint = ctx.accounts.mint.to_account_info();
-    let stream_ai = ctx.accounts.stream.to_account_info();
     let token_program = ctx.accounts.token_program.to_account_info();
 
     if recipient_due > 0 {

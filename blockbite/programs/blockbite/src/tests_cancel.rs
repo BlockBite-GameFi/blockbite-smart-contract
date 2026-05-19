@@ -8,6 +8,7 @@ fn make_stream(
     end_time: i64,
     cliff_time: i64,
     amount_withdrawn: u64,
+    milestone_reached: bool,
 ) -> StreamAccount {
     StreamAccount {
         creator: Pubkey::new_unique(),
@@ -22,12 +23,15 @@ fn make_stream(
         is_cancelled: false,
         bump: 0,
         seed: 0,
+        milestone_reached,
+        velocity_strikes: 0,
+        last_action_ts: 0,
     }
 }
 
 #[test]
 fn test_cancel_at_0_percent() {
-    let stream = make_stream(1_000_000, 1000, 2000, 0, 0);
+    let stream = make_stream(1_000_000, 1000, 2000, 0, 0, false);
     let unlocked = calculate_unlocked(&stream, 1000);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -37,7 +41,7 @@ fn test_cancel_at_0_percent() {
 
 #[test]
 fn test_cancel_at_25_percent() {
-    let stream = make_stream(1_000_000, 1000, 2000, 0, 0);
+    let stream = make_stream(1_000_000, 1000, 2000, 0, 0, false);
     let unlocked = calculate_unlocked(&stream, 1250);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -47,7 +51,7 @@ fn test_cancel_at_25_percent() {
 
 #[test]
 fn test_cancel_at_50_percent() {
-    let stream = make_stream(1_000_000, 1000, 2000, 0, 0);
+    let stream = make_stream(1_000_000, 1000, 2000, 0, 0, false);
     let unlocked = calculate_unlocked(&stream, 1500);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -57,7 +61,7 @@ fn test_cancel_at_50_percent() {
 
 #[test]
 fn test_cancel_at_100_percent() {
-    let stream = make_stream(1_000_000, 1000, 2000, 0, 0);
+    let stream = make_stream(1_000_000, 1000, 2000, 0, 0, false);
     let unlocked = calculate_unlocked(&stream, 2000);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -67,7 +71,7 @@ fn test_cancel_at_100_percent() {
 
 #[test]
 fn test_cancel_after_partial_withdraw() {
-    let stream = make_stream(1_000_000, 1000, 2000, 0, 250_000);
+    let stream = make_stream(1_000_000, 1000, 2000, 0, 250_000, false);
     let unlocked = calculate_unlocked(&stream, 1500);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -78,7 +82,8 @@ fn test_cancel_after_partial_withdraw() {
 
 #[test]
 fn test_cancel_before_cliff() {
-    let stream = make_stream(1_000_000, 1000, 2000, 1500, 0);
+    // Before cliff, milestone not reached → 0% unlocked
+    let stream = make_stream(1_000_000, 1000, 2000, 1500, 0, false);
     let unlocked = calculate_unlocked(&stream, 1250);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
@@ -88,21 +93,24 @@ fn test_cancel_before_cliff() {
 }
 
 #[test]
-fn test_cancel_after_cliff() {
-    let stream = make_stream(1_000_000, 1000, 2000, 1500, 0);
+fn test_cancel_after_cliff_linear() {
+    // After cliff with milestone reached → linear vesting from cliff to end
+    // cliff=1500, end=2000, duration=500
+    // at 1750: elapsed=250, 250/500 = 50%
+    let stream = make_stream(1_000_000, 1000, 2000, 1500, 0, true);
     let unlocked = calculate_unlocked(&stream, 1750);
     let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
     let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);
-    assert_eq!(unlocked, 750_000);
-    assert_eq!(recipient_due, 750_000);
-    assert_eq!(creator_due, 250_000);
+    assert_eq!(unlocked, 500_000);
+    assert_eq!(recipient_due, 500_000);
+    assert_eq!(creator_due, 500_000);
 }
 
 #[test]
 fn test_cancel_sum_equals_total() {
     for elapsed_pct in [0, 10, 25, 50, 75, 90, 100, 150] {
         let current_time = 1000 + (1000 * elapsed_pct / 100);
-        let stream = make_stream(1_000_000, 1000, 2000, 0, 0);
+        let stream = make_stream(1_000_000, 1000, 2000, 0, 0, false);
         let unlocked = calculate_unlocked(&stream, current_time);
         let recipient_due = unlocked.saturating_sub(stream.amount_withdrawn);
         let creator_due = stream.total_amount.saturating_sub(stream.amount_withdrawn).saturating_sub(recipient_due);

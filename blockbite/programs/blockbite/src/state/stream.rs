@@ -14,8 +14,11 @@ pub struct StreamAccount {
     pub is_cancelled: bool,
     pub bump: u8,
     pub seed: u64,
+    pub milestone_reached: bool,
+    pub velocity_strikes: u8,
+    pub last_action_ts: i64,
 }
 
 impl StreamAccount {
-    pub const LEN: usize = 8 + 32 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 8;
+    pub const LEN: usize = 8 + 32 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 8 + 1 + 1 + 8;
 }

@@ -4,6 +4,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use crate::state::StreamAccount;
 use crate::utils::calculate_unlocked;
 use crate::errors::ErrorCode;
+use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES};
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
@@ -48,15 +49,37 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
     let unlocked = calculate_unlocked(stream, current_time);
     let claimable = unlocked
         .checked_sub(stream.amount_withdrawn)
-        .ok_or(ErrorCode::InsufficientUnlockedTokens)?;
+        .ok_or(ErrorCode::NothingToWithdraw)?;
 
-    require!(claimable > 0, ErrorCode::InsufficientUnlockedTokens);
+    require!(claimable > 0, ErrorCode::NothingToWithdraw);
 
     let creator = stream.creator;
     let recipient = stream.recipient;
     let seed = stream.seed;
     let bump = stream.bump;
     let mint_decimals = ctx.accounts.mint.decimals;
+    let stream_ai = ctx.accounts.stream.to_account_info();
+
+    // === VGPV Anti-Bot (Week 5) ===
+    let stream_mut = &mut ctx.accounts.stream;
+    require!(
+        stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
+        ErrorCode::BotDetected
+    );
+
+    if stream_mut.last_action_ts > 0 {
+        let interval = current_time
+            .checked_sub(stream_mut.last_action_ts)
+            .unwrap_or(i64::MAX);
+        if interval < MIN_ACTION_INTERVAL {
+            stream_mut.velocity_strikes = stream_mut.velocity_strikes.saturating_add(1);
+            require!(
+                stream_mut.velocity_strikes < MAX_VELOCITY_STRIKES,
+                ErrorCode::BotDetected
+            );
+        }
+    }
+    stream_mut.last_action_ts = current_time;
 
     let seeds = &[
         b"stream",
@@ -70,7 +93,6 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
     let escrow = ctx.accounts.escrow_token_account.to_account_info();
     let mint = ctx.accounts.mint.to_account_info();
     let recipient_ta = ctx.accounts.recipient_token_account.to_account_info();
-    let stream_ai = ctx.accounts.stream.to_account_info();
     let token_program = ctx.accounts.token_program.to_account_info();
 
     let cpi_accounts = TransferChecked {

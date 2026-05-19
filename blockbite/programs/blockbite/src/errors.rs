@@ -18,4 +18,19 @@ pub enum ErrorCode {
     InvalidAmount,
     #[msg("Creator and recipient cannot be the same account")]
     InvalidRecipient,
+
+    #[msg("Stream is already cancelled")]
+    AlreadyCancelled,
+    #[msg("Stream is fully vested and cannot be cancelled")]
+    FullyVested,
+    #[msg("No tokens available to withdraw")]
+    NothingToWithdraw,
+    #[msg("Milestone has already been reached")]
+    MilestoneAlreadyReached,
+    #[msg("Cliff period has not been reached yet")]
+    CliffNotReached,
+    #[msg("Suspicious activity detected: too many rapid actions")]
+    BotDetected,
+    #[msg("Stream has expired and is no longer active")]
+    StreamExpired,
 }

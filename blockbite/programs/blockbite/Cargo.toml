@@ -1,21 +1,13 @@
 [package]
 name = "blockbite"
 version = "0.1.0"
-description = "Created with Anchor"
 edition = "2021"
+documentation = "https://docs.rs/blockbite"
 
 [lib]
-crate-type = ["cdylib", "lib"]
 name = "blockbite"
-
-[features]
-default = []
-cpi = ["no-entrypoint"]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+path = "programs/blockbite/src/lib.rs"
 
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
 anchor-spl = "0.32.1"
