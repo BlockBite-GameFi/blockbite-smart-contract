@@ -98,10 +98,29 @@ jobs:
 
       - name: Run tests
         working-directory: ./blockbite
-        # anchor test auto-deploys to local validator; tests read PROGRAM_ID from IDL.
         run: |
-          rm -rf test-ledger .anchor/test-ledger
-          anchor test --skip-build
+          # 1. Bersihkan ledger lama
+          rm -rf .anchor/test-ledger test-ledger
+
+          # 2. Start validator di background
+          solana-test-validator --reset --quiet &
+
+          # 3. Health check loop (tunggu sampai RPC respond, max 120 detik)
+          echo "⏳ Waiting for validator to start..."
+          for i in $(seq 1 24); do
+            if curl -s -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' http://localhost:8899 | grep -q "ok"; then
+              echo "✅ Validator ready!"
+              break
+            fi
+            echo "   Still waiting... ($i/24)"
+            sleep 5
+          done
+
+          # 4. Deploy program ke local validator
+          anchor deploy --skip-build --provider.cluster localnet
+
+          # 5. Jalankan test suite
+          yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 
 
 
