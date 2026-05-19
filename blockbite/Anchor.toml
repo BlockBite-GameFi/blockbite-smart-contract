@@ -6,10 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-blockbite = "6SK4EGRn67JcRaaTP4VT17vShhHDyKpC2EwqhharYTJo"
-
-[registry]
-url = "https://api.apr.dev"
+blockbite = "9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX"
 
 [provider]
 cluster = "devnet"
@@ -17,3 +14,5 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[hooks]
