@@ -99,7 +99,9 @@ jobs:
       - name: Run tests
         working-directory: ./blockbite
         # anchor test auto-deploys to local validator; tests read PROGRAM_ID from IDL.
-        run: anchor test --skip-build
+        run: |
+          rm -rf test-ledger .anchor/test-ledger
+          anchor test --skip-build
 
 
 

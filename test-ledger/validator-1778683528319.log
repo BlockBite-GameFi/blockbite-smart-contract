@@ -1,9 +1,0 @@
-[2026-05-13T14:45:28.327394190Z INFO  solana_test_validator] agave-validator 3.1.10 (src:7bc9c805; feat:1620780344, client:Agave)
-[2026-05-13T14:45:28.327505032Z INFO  solana_test_validator] Starting validator with: ArgsOs {
-        inner: [
-            "solana-test-validator",
-            "--reset",
-        ],
-    }
-[2026-05-13T14:45:28.327546653Z WARN  solana_perf] CUDA is disabled
-[2026-05-13T14:45:28.327555624Z ERROR solana_perf] Incompatible CPU detected: missing AVX support. Please build from source on the target
