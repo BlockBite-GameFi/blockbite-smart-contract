@@ -148,9 +148,11 @@ jobs:
           echo "   Balance: $BALANCE"
 
           # ── 4. Deploy program ─────────────────────────────────────────────────
+          # Note: --skip-build is not supported by anchor deploy in 0.32.1
+          # The program was already built in the "Build program" step above;
+          # cargo cache is warm so this rebuild is fast.
           echo "🚀 Deploying program..."
           anchor deploy \
-            --skip-build \
             --provider.cluster localnet \
             --provider.wallet "$DEPLOYER_KEY"
 
