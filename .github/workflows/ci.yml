@@ -143,7 +143,6 @@ jobs:
           solana airdrop 100 "$DEPLOYER_PUBKEY" \
             --url http://127.0.0.1:8899 \
             --keypair "$DEPLOYER_KEY" || true
-          # Retry once — localnet airdrop can occasionally stall
           sleep 2
           BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
           echo "   Balance: $BALANCE"
