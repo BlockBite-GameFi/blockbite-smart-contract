@@ -749,7 +749,7 @@ describe("blockbite", () => {
         { pubkey: mStream,      isSigner: false, isWritable: true  },
       ],
       programId,
-      data: Buffer.from([128, 76, 33, 186, 93, 156, 134, 212]),
+      data: Buffer.from([174, 213, 91, 82, 156, 42, 105, 3]),
     });
     await provider.sendAndConfirm(new Transaction().add(setMsIx), [mc]);
 
