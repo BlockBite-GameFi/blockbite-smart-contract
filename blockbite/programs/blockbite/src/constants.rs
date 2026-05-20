@@ -12,6 +12,10 @@ pub const MAX_VELOCITY_STRIKES: u8 = 3;
 /// legitimate user is never permanently locked out.
 pub const VELOCITY_RESET_INTERVAL: i64 = 3_600; // 1 hour
 
+/// Minimum claimable amount (in token base units) required to execute a
+/// withdrawal.  Rejects dust claims that bots use to probe stream state.
+pub const MIN_CLAIM_AMOUNT: u64 = 1_000;
+
 // ── Developer Fee ─────────────────────────────────────────────────────────────
 /// Basis points (1 bps = 0.01 %) charged by the protocol on every
 /// `create_stream` call.  100 bps = 1 % of `total_amount`.

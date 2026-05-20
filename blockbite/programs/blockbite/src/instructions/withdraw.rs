@@ -4,7 +4,7 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 use crate::state::StreamAccount;
 use crate::utils::calculate_unlocked;
 use crate::errors::ErrorCode;
-use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES, VELOCITY_RESET_INTERVAL};
+use crate::constants::{MIN_ACTION_INTERVAL, MAX_VELOCITY_STRIKES, VELOCITY_RESET_INTERVAL, MIN_CLAIM_AMOUNT};
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
@@ -53,6 +53,7 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
         .ok_or(ErrorCode::NothingToWithdraw)?;
 
     require!(claimable > 0, ErrorCode::NothingToWithdraw);
+    require!(claimable >= MIN_CLAIM_AMOUNT, ErrorCode::ClaimTooSmall);
 
     // Copy values we need for seeds / CPI before mutable borrow
     let creator      = stream.creator;

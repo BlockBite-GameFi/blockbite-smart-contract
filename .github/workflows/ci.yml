@@ -101,6 +101,7 @@ jobs:
         run: |
           set -e
           rm -rf .anchor/test-ledger test-ledger
+          mkdir -p .anchor
 
           # ── 1. Start local validator ──────────────────────────────────────────
           solana-test-validator \
