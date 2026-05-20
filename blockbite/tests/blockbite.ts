@@ -86,6 +86,27 @@ function createCancelIx(
   });
 }
 
+function createCloseStreamIx(
+  programId: PublicKey,
+  creator: PublicKey,
+  streamPda: PublicKey,
+  mint: PublicKey,
+  escrowTokenAccount: PublicKey,
+): anchor.web3.TransactionInstruction {
+  return new anchor.web3.TransactionInstruction({
+    keys: [
+      { pubkey: creator,            isSigner: true,  isWritable: true  },
+      { pubkey: streamPda,          isSigner: false, isWritable: true  },
+      { pubkey: escrowTokenAccount, isSigner: false, isWritable: true  },
+      { pubkey: mint,               isSigner: false, isWritable: false },
+      { pubkey: TOKEN_PROGRAM_ID,   isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: Buffer.from([255, 241, 196, 212, 95, 93, 160, 89]), // sha256("global:close_stream")[0..8]
+  });
+}
+
 /**
  * Reusable stream creator.  Now includes the `developerTokenAccount` account
  * required by the updated `create_stream` instruction (Week 5 dev-fee).
@@ -1409,5 +1430,171 @@ describe("blockbite", () => {
 
     // Either outcome is acceptable: the key assertion is no panic / unexpected error
     assert.ok(true, "VGPV: second rapid withdraw handled correctly");
+  });
+
+  // ── Week 9: close_stream (rent recovery) ─────────────────────────────────
+
+  it("close_stream after cancel reclaims rent (seed 20)", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
+
+    const cStart = Math.floor(Date.now() / 1000);
+    const cEnd   = cStart + 100;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(20)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, TOTAL_AMOUNT, 20, provider, devTA,
+    );
+
+    // Cancel the stream
+    const cancelIx = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
+    await provider.sendAndConfirm(new Transaction().add(cancelIx), [cc]);
+
+    const balBefore = await provider.connection.getBalance(cc.publicKey);
+
+    // Close the stream → stream + escrow rent → creator
+    const closeIx = createCloseStreamIx(programId, cc.publicKey, cStream, cMint, cEscrow);
+    await provider.sendAndConfirm(new Transaction().add(closeIx), [cc]);
+
+    const balAfter = await provider.connection.getBalance(cc.publicKey);
+    assert.ok(balAfter > balBefore - 10_000, "Creator balance should increase (rent reclaimed)");
+
+    // Stream account must no longer exist
+    const info = await provider.connection.getAccountInfo(cStream);
+    assert.ok(info === null, "Stream account must be closed");
+    console.log(`✅ close_stream after cancel: reclaimed ${balAfter - balBefore} lamports`);
+  });
+
+  it("close_stream after full withdrawal reclaims rent (seed 21)", async () => {
+    const fc = Keypair.generate();
+    const fr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(fc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(fr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    const fMint = await createMint(provider.connection, fc, fc.publicKey, null, 6);
+    const fcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fc, fMint, fc.publicKey)).address;
+    const frTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fr, fMint, fr.publicKey)).address;
+    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, fMint, developer.publicKey)).address;
+    await mintTo(provider.connection, fc, fMint, fcTA, fc, 10_000_000);
+
+    // 4-second stream so we can quickly reach 100%
+    const fStart = Math.floor(Date.now() / 1000) - 2;
+    const fEnd   = fStart + 4;
+
+    const [fStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), fc.publicKey.toBuffer(), fr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(21)]).buffer))],
+      programId,
+    );
+    const [fEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), fStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, fc, fr.publicKey, fMint, fcTA, fEscrow, fStream,
+      fStart, fEnd, TOTAL_AMOUNT, 21, provider, devTA,
+    );
+
+    // Wait for stream to fully vest
+    const waitMs = (fEnd - Math.floor(Date.now() / 1000) + 2) * 1000;
+    if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs));
+
+    // Withdraw everything
+    const wIx = createWithdrawIx(programId, fr.publicKey, fStream, fMint, fEscrow, frTA);
+    await provider.sendAndConfirm(new Transaction().add(wIx), [fr]);
+
+    const frBal = await getAccount(provider.connection, frTA);
+    assert.ok(Number(frBal.amount) >= 990_000, "All tokens withdrawn");
+
+    const balBefore = await provider.connection.getBalance(fc.publicKey);
+
+    // Creator closes the settled stream
+    const closeIx = createCloseStreamIx(programId, fc.publicKey, fStream, fMint, fEscrow);
+    await provider.sendAndConfirm(new Transaction().add(closeIx), [fc]);
+
+    const balAfter = await provider.connection.getBalance(fc.publicKey);
+    assert.ok(balAfter > balBefore - 10_000, "Rent reclaimed after full withdrawal");
+
+    const info = await provider.connection.getAccountInfo(fStream);
+    assert.ok(info === null, "Stream account must be closed");
+    console.log(`✅ close_stream after full withdrawal: reclaimed ${balAfter - balBefore} lamports`);
+  });
+
+  it("close_stream on active stream fails (StreamNotCloseable)", async () => {
+    const ac = Keypair.generate();
+    const ar = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(ac.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(ar.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    const aMint = await createMint(provider.connection, ac, ac.publicKey, null, 6);
+    const acTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ac, aMint, ac.publicKey)).address;
+    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, aMint, developer.publicKey)).address;
+    await mintTo(provider.connection, ac, aMint, acTA, ac, 10_000_000);
+
+    const now = Math.floor(Date.now() / 1000);
+    const [aStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), ac.publicKey.toBuffer(), ar.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(22)]).buffer))],
+      programId,
+    );
+    const [aEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), aStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, ac, ar.publicKey, aMint, acTA, aEscrow, aStream,
+      now - 1, now + 1000, TOTAL_AMOUNT, 22, provider, devTA,
+    );
+
+    // Stream is active — close should fail
+    const closeIx = createCloseStreamIx(programId, ac.publicKey, aStream, aMint, aEscrow);
+    try {
+      await provider.sendAndConfirm(new Transaction().add(closeIx), [ac]);
+      assert.fail("Should have failed");
+    } catch (e: any) {
+      assert.ok(
+        e.message.includes("StreamNotCloseable") || e.message.includes("0x"),
+        `Expected StreamNotCloseable, got: ${e.message}`,
+      );
+      console.log(`✅ close_stream on active stream blocked`);
+    }
   });
 });
