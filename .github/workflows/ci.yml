@@ -108,7 +108,6 @@ jobs:
             --reset \
             --quiet \
             --ledger .anchor/test-ledger \
-            --bind-address 0.0.0.0 \
             --rpc-port 8899 &
           VALIDATOR_PID=$!
 
