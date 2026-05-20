@@ -1,4 +1,4 @@
-# BlockBite Smart Contract — Security Checklist (Week 7)
+# BlockBite Smart Contract — Security Checklist (Week 9)
 
 Program: `blockbite` · Framework: Anchor 0.32.1 · Network: Solana Devnet (targeting)
 
@@ -11,9 +11,10 @@ Program: `blockbite` · Framework: Anchor 0.32.1 · Network: Solana Devnet (targ
 | Only the stream creator can call `cancel` | `cancel.rs:18` — `constraint = stream.creator == creator.key() @ Unauthorized` | ✅ |
 | Only the stream creator can call `set_milestone` | `set_milestone.rs:15` — `constraint = stream.creator == creator.key() @ Unauthorized` | ✅ |
 | Only the stream recipient can call `withdraw` | `withdraw.rs:18` — `constraint = stream.recipient == recipient.key() @ Unauthorized` | ✅ |
-| All signers use Anchor's `Signer<'info>` constraint (on-chain key check) | All three instruction files | ✅ |
+| Only the stream creator can call `close_stream` | `close_stream.rs:17` — `constraint = stream.creator == creator.key() @ Unauthorized` | ✅ |
+| All signers use Anchor's `Signer<'info>` constraint (on-chain key check) | All instruction files | ✅ |
 
-**Test coverage:** "Withdraw by non-recipient fails", "Cancel by non-creator fails", "set_milestone by non-creator fails"
+**Test coverage:** "Withdraw by non-recipient fails", "Cancel by non-creator fails", "set_milestone by non-creator fails", "close_stream by non-creator fails"
 
 ---
 
@@ -71,6 +72,7 @@ Program: `blockbite` · Framework: Anchor 0.32.1 · Network: Solana Devnet (targ
 | `cliff_time` reached before `set_milestone` | `CliffNotReached` | ✅ |
 | `!stream.milestone_reached` (set_milestone) | `MilestoneAlreadyReached` | ✅ |
 | `velocity_strikes < MAX_VELOCITY_STRIKES` (VGPV) | `BotDetected` | ✅ |
+| `stream.is_cancelled || stream.amount_withdrawn == stream.total_amount` before close | `StreamNotCloseable` | ✅ |
 
 ---
 
@@ -93,7 +95,7 @@ Solana's execution model is single-threaded per transaction. Anchor enforces **C
 
 ---
 
-## 8. Issues Found and Fixed (Week 5–7)
+## 8. Issues Found and Fixed (Weeks 5–9)
 
 | # | Issue | Severity | Fix |
 |---|---|---|---|
@@ -104,6 +106,7 @@ Solana's execution model is single-threaded per transaction. Anchor enforces **C
 | 5 | Hardcoded `set_milestone` discriminator was wrong (copied from wrong hash) | Test failure (0x65) | Recomputed via `sha256("global:set_milestone")[0..8]` → `[174,213,91,82,156,42,105,3]` |
 | 6 | Deployer had 0 SOL in ephemeral CI keypair | Deploy failure | Added `solana airdrop 100` before `anchor deploy` |
 | 7 | `ANCHOR_PROVIDER_URL` not set for `ts-mocha` outside `anchor test` | Runtime panic | Added `ANCHOR_PROVIDER_URL` + `ANCHOR_WALLET` to CI env |
+| 8 | Deploy workflow verify step used stale hardcoded program ID | Deploy CI failure | Changed verify step to read ID dynamically via `anchor keys list` |
 
 ---
 
