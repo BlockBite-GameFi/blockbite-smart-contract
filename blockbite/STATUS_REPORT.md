@@ -1,7 +1,7 @@
 # BlockBite Smart Contract — Week 8 Status Report
 
 **Date:** 2026-05-20  
-**Program ID (Devnet):** `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX`  
+**Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
 **Network:** Solana Devnet  
 **Framework:** Anchor 0.32.1  
 
@@ -12,8 +12,15 @@
 | Environment | Status | Explorer |
 |---|---|---|
 | Localnet (CI) | ✅ Live — 25/25 tests green | GitHub Actions |
-| Devnet | ✅ Deployed | [Solana Explorer](https://explorer.solana.com/address/9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX?cluster=devnet) |
+| Devnet | ✅ Deployed | [Solana Explorer](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
 | Mainnet | ⏳ Pending audit | — |
+
+### Devnet Deployment Setup (one-time)
+
+1. Add GitHub secrets (Settings → Secrets → Actions):
+   - `ANCHOR_PROGRAM_KEYPAIR` — content of `blockbite/target/deploy/blockbite-keypair.json`
+   - `DEVNET_DEPLOYER_KEYPAIR` — content of your funded devnet wallet (e.g. `darurat.json`)
+2. Go to Actions → "Deploy to Devnet" → Run workflow → type `deploy`
 
 ---
 
