@@ -100,7 +100,8 @@ jobs:
           echo "Program ID: $(anchor keys list | grep blockbite | awk '{print $2}')"
 
       - name: Verify deployment
+        working-directory: ./blockbite
         run: |
-          PROGRAM_ID="9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX"
+          PROGRAM_ID=$(anchor keys list | grep blockbite | awk '{print $2}')
           echo "Verifying program $PROGRAM_ID on devnet..."
           solana program show "$PROGRAM_ID" --url devnet
