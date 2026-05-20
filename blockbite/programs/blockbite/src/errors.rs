@@ -35,4 +35,6 @@ pub enum ErrorCode {
     StreamExpired,
     #[msg("Claim amount is below minimum threshold")]
     ClaimTooSmall,
+    #[msg("Stream must be cancelled or fully withdrawn before it can be closed")]
+    StreamNotCloseable,
 }
