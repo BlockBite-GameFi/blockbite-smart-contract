@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useCallback } from 'react';
 import { T } from '@/lib/tokens';
-import { STREAMS, MOCK_WALLET, Stream } from '@/lib/mock-data';
+import { STREAMS, MOCK_WALLET, Stream, AUDIT_LOG, AuditEvent } from '@/lib/mock-data';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
@@ -111,9 +111,12 @@ function AddrPill({ addr }: { addr:string }) {
 function Sidebar({ page, setPage }: { page:string; setPage:(p:string)=>void }) {
   const { publicKey, disconnect } = useWallet();
   const NAV = [
-    { key:'dashboard', icon:'◈', label:'Dashboard'    },
-    { key:'new',       icon:'＋', label:'New Stream'   },
-    { key:'landing',   icon:'⬡', label:'About'        },
+    { key:'landing',    icon:'⬡',  label:'About'        },
+    { key:'dashboard',  icon:'◈',  label:'Dashboard'    },
+    { key:'analytics',  icon:'📊', label:'Analytics'    },
+    { key:'milestones', icon:'✓',  label:'Milestones'   },
+    { key:'audit',      icon:'🔐', label:'Audit Trail'  },
+    { key:'new',        icon:'＋', label:'New Stream'   },
   ];
   return (
     <div style={{ width:T.sideW, height:'100%', flexShrink:0,
@@ -131,7 +134,7 @@ function Sidebar({ page, setPage }: { page:string; setPage:(p:string)=>void }) {
       {/* Nav */}
       <div style={{ flex:1, padding:'12px 10px', display:'flex', flexDirection:'column', gap:2 }}>
         {NAV.map(n=>{
-          const active = page===n.key || (page.startsWith('stream')&&n.key==='dashboard');
+          const active = page===n.key || (page.startsWith('stream:')&&n.key==='dashboard');
           return (
             <button key={n.key} onClick={()=>setPage(n.key)} style={{
               display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
@@ -732,6 +735,514 @@ function LandingPage({ setPage }: { setPage:(p:string)=>void }) {
   );
 }
 
+// ─── Analytics Page ──────────────────────────────────────────
+
+function AnalyticsPage() {
+  const [period, setPeriod] = useState('30d');
+  const [tick, setTick]   = useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const tvl        = (2_400_000 + tick * 12).toLocaleString();
+  const streamRate = (0.000463 + tick * 0.000001).toFixed(6);
+
+  const chartData = Array.from({ length: 30 }, (_, i) => ({
+    day:      i + 1,
+    unlocked: Math.round(12000 + Math.sin(i * 0.4) * 4000 + i * 800),
+    claimed:  Math.round(8000  + Math.sin(i * 0.4) * 2000 + i * 500),
+  }));
+  const maxVal = Math.max(...chartData.map(d => d.unlocked));
+  const cW = 560, cH = 120;
+
+  const mkLine = (key: 'unlocked' | 'claimed') =>
+    chartData.map((d, i) =>
+      `${i === 0 ? 'M' : 'L'}${(i / (chartData.length - 1) * cW).toFixed(1)},${(cH - (d[key] / maxVal) * cH).toFixed(1)}`
+    ).join(' ');
+  const mkArea = (key: 'unlocked' | 'claimed') =>
+    `${mkLine(key)} L${cW},${cH} L0,${cH} Z`;
+
+  const typeBreakdown = [
+    { type:'Linear',    pct:44, col:T.accent,   n:812 },
+    { type:'Milestone', pct:28, col:T.blue,     n:515 },
+    { type:'Cliff',     pct:18, col:T.gold,     n:331 },
+    { type:'Hybrid',    pct:10, col:'#c084fc',  n:182 },
+  ];
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      <TopBar title="Protocol Analytics" sub="Real-time on-chain vesting metrics · BlockBite TDP"
+        actions={
+          <div style={{ display:'flex', gap:4, background:T.bg1, border:`1px solid ${T.border}`, borderRadius:9, padding:3 }}>
+            {['7d','30d','90d','all'].map(p => (
+              <button key={p} onClick={() => setPeriod(p)} style={{
+                padding:'5px 12px', borderRadius:7, border:'none', cursor:'pointer',
+                background:period===p ? T.accent : 'transparent',
+                color:period===p ? '#fff' : T.muted, fontSize:11, fontWeight:600, transition:'all .15s',
+              }}>{p}</button>
+            ))}
+          </div>
+        }/>
+
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 28px', display:'flex', flexDirection:'column', gap:18 }}>
+
+        {/* Live KPI strip */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12 }}>
+          {[
+            { label:'Total Value Locked',  val:`$${tvl}`,    sub:'↑ $144/min live',        col:T.gold,   live:true  },
+            { label:'Active Streams',      val:'1,840',       sub:'across all projects',     col:T.accent, live:false },
+            { label:'BBT Distributed',     val:'48.2M TOKEN', sub:'all-time',                col:T.green,  live:false },
+            { label:'Stream Rate (live)',   val:streamRate,    sub:'TOKEN/sec protocol-wide', col:T.blue,   live:true  },
+            { label:'Protocol Uptime',     val:'99.98%',      sub:'since 2025-04-17',        col:T.green,  live:false },
+          ].map(s => (
+            <Card key={s.label} style={{ padding:'14px 16px', position:'relative' }}>
+              {s.live && <div style={{ position:'absolute', top:10, right:10, width:7, height:7, borderRadius:'50%',
+                background:T.green, boxShadow:`0 0 6px ${T.green}`, animation:'blink 1.4s ease-in-out infinite' }}/>}
+              <div style={{ fontSize:9.5, color:T.muted, letterSpacing:'.06em', textTransform:'uppercase', marginBottom:5 }}>{s.label}</div>
+              <div style={{ fontFamily:T.mono, fontSize:s.val.length>10?16:22, fontWeight:700, color:s.col, lineHeight:1 }}>{s.val}</div>
+              <div style={{ fontSize:10, color:T.muted, marginTop:4 }}>{s.sub}</div>
+            </Card>
+          ))}
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:18 }}>
+
+          {/* Velocity chart */}
+          <Card>
+            <div style={{ fontFamily:T.serif, fontSize:13, fontWeight:700, color:'#fff', marginBottom:14 }}>
+              Vesting Velocity — Last 30 Days
+            </div>
+            <svg width="100%" viewBox={`0 0 ${cW} ${cH + 30}`} style={{ display:'block' }}>
+              <defs>
+                <linearGradient id="gu" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor={T.accent} stopOpacity={0.4}/>
+                  <stop offset="1" stopColor={T.accent} stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="gc" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor={T.green} stopOpacity={0.3}/>
+                  <stop offset="1" stopColor={T.green} stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              {[0, 0.5, 1].map(v => (
+                <line key={v} x1="0" y1={v * cH} x2={cW} y2={v * cH}
+                  stroke="rgba(255,255,255,.05)" strokeWidth="1"/>
+              ))}
+              <path d={mkArea('unlocked')} fill="url(#gu)"/>
+              <path d={mkArea('claimed')}  fill="url(#gc)"/>
+              <path d={mkLine('unlocked')} fill="none" stroke={T.accent} strokeWidth="2"
+                strokeLinecap="round" style={{ filter:`drop-shadow(0 0 4px ${T.accent})` }}/>
+              <path d={mkLine('claimed')}  fill="none" stroke={T.green} strokeWidth="2" strokeLinecap="round"/>
+              {[0,9,19,29].map(i => (
+                <text key={i} x={i / (chartData.length-1) * cW} y={cH+18}
+                  textAnchor="middle" fontSize="9" fontFamily="JetBrains Mono,monospace"
+                  fill={T.muted}>D{chartData[i].day}</text>
+              ))}
+            </svg>
+            <div style={{ display:'flex', gap:16, marginTop:6 }}>
+              {[{c:T.accent,l:'Unlocked'},{c:T.green,l:'Claimed'}].map(x => (
+                <div key={x.l} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  <div style={{ width:12, height:3, borderRadius:99, background:x.c }}/>
+                  <span style={{ fontSize:10, color:T.muted }}>{x.l}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Stream type breakdown */}
+          <Card>
+            <div style={{ fontFamily:T.serif, fontSize:13, fontWeight:700, color:'#fff', marginBottom:14 }}>
+              Stream Types
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {typeBreakdown.map(s => (
+                <div key={s.type}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <div style={{ width:8, height:8, borderRadius:'50%', background:s.col }}/>
+                      <span style={{ fontSize:12, color:'#fff' }}>{s.type}</span>
+                    </div>
+                    <div>
+                      <span style={{ fontFamily:T.mono, fontSize:12, color:s.col, fontWeight:700 }}>{s.pct}%</span>
+                      <span style={{ fontSize:10, color:T.muted, marginLeft:5 }}>({s.n})</span>
+                    </div>
+                  </div>
+                  <div style={{ height:7, borderRadius:99, background:'rgba(255,255,255,.06)', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${s.pct}%`, borderRadius:99,
+                      background:`linear-gradient(90deg,${s.col}77,${s.col})` }}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ height:1, background:T.border, margin:'12px 0 8px' }}/>
+            <div style={{ fontSize:11, color:T.muted }}>
+              Total: <span style={{ color:'#fff', fontFamily:T.mono }}>1,840</span> active streams
+            </div>
+          </Card>
+        </div>
+
+        {/* Top streams table */}
+        <Card style={{ padding:0, overflow:'hidden' }}>
+          <div style={{ padding:'14px 20px', borderBottom:`1px solid ${T.border}`,
+            fontFamily:T.serif, fontSize:13, fontWeight:700, color:'#fff' }}>
+            Top Active Streams by TVL
+          </div>
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <thead>
+              <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                {['Stream','Type','Creator','Total','Unlocked','% Done','Status'].map(h => (
+                  <th key={h} style={{ padding:'9px 16px', textAlign:'left', fontSize:9.5,
+                    color:T.muted, letterSpacing:'.06em', fontWeight:700 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {STREAMS.map((s, i) => {
+                const pct = Math.round(s.unlocked / s.total * 100);
+                const tcMap: Record<string,string> = { linear:T.accent, milestone:T.blue, cliff:T.gold, hybrid:'#c084fc' };
+                const scMap: Record<string,string> = { active:T.green, pending:T.gold, completed:T.muted, cancelled:T.red };
+                const tc = tcMap[s.type] || T.accent;
+                const sc = scMap[s.status] || T.muted;
+                return (
+                  <tr key={s.id} style={{ borderTop:`1px solid ${T.border}`, background:i%2?'rgba(255,255,255,.01)':'transparent' }}>
+                    <td style={{ padding:'9px 16px', fontSize:12, fontWeight:600, color:'#fff' }}>{s.name}</td>
+                    <td style={{ padding:'9px 16px' }}><Badge label={s.type.toUpperCase()} color={tc}/></td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:10, color:T.muted }}>{s.creator.slice(0,12)}</td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:11, color:'#fff' }}>{s.total.toLocaleString()} BBT</td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:11, color:T.accent }}>{s.unlocked.toLocaleString()}</td>
+                    <td style={{ padding:'9px 16px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <div style={{ width:60, height:5, borderRadius:99, background:'rgba(255,255,255,.07)', overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${pct}%`, background:tc, borderRadius:99 }}/>
+                        </div>
+                        <span style={{ fontFamily:T.mono, fontSize:10, color:tc }}>{pct}%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding:'9px 16px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        <div style={{ width:6, height:6, borderRadius:'50%', background:sc, boxShadow:`0 0 5px ${sc}` }}/>
+                        <span style={{ fontSize:10.5, color:sc, fontWeight:600, textTransform:'uppercase' }}>{s.status}</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+
+        {/* Anti-dump health */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+          {[
+            { title:'Market Pressure',     val:'0.04%',   sub:'daily unlock / supply',      col:T.green,  desc:'Well below 0.1% safety threshold. No dump risk.' },
+            { title:'Cliff Compliance',     val:'100%',    sub:'of streams have cliff ≥ 7d', col:T.green,  desc:'All active streams enforce minimum cliff duration.' },
+            { title:'Avg Vesting Duration', val:'14.2 mo', sub:'across active streams',      col:T.accent, desc:'Longer average = stronger anti-dump protection.' },
+          ].map(m => (
+            <Card key={m.title} style={{ border:`1px solid ${m.col}33` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <div style={{ fontSize:11, fontWeight:600, color:m.col, fontFamily:T.serif }}>{m.title}</div>
+                <Badge label="HEALTHY" color={T.green}/>
+              </div>
+              <div style={{ fontFamily:T.mono, fontSize:28, fontWeight:800, color:m.col, lineHeight:1 }}>{m.val}</div>
+              <div style={{ fontSize:10.5, color:T.muted, marginTop:4 }}>{m.sub}</div>
+              <div style={{ height:1, background:T.border, margin:'8px 0' }}/>
+              <div style={{ fontSize:11, color:'rgba(232,225,248,.6)', marginTop:4 }}>{m.desc}</div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Milestone Verifier Page ──────────────────────────────────
+
+interface VerifyLogEntry { ts:string; ms:string; result:string; sig:string; method:string }
+
+function MilestoneVerifierPage() {
+  const [activeStream, setActiveStream] = useState('s002');
+  const [oracleType,   setOracleType]   = useState('manual');
+  const [kpiVal,       setKpiVal]       = useState('');
+  const [multisig,     setMultisig]     = useState(false);
+  const [verifying,    setVerifying]    = useState(false);
+  const [log, setLog] = useState<VerifyLogEntry[]>([
+    { ts:'2025-05-21', ms:'Token Launch', result:'VERIFIED', sig:'5xKj…', method:'manual' },
+  ]);
+
+  const s = STREAMS.find(x => x.id === activeStream) || STREAMS[1];
+
+  const verify = (label: string) => {
+    setVerifying(true);
+    setTimeout(() => {
+      setVerifying(false);
+      setLog(l => [{
+        ts:     new Date().toISOString().slice(0, 10),
+        ms:     label,
+        result: 'VERIFIED',
+        sig:    `${Math.random().toString(36).slice(2, 6)}…`,
+        method: oracleType,
+      }, ...l]);
+    }, 1800);
+  };
+
+  const methods = [
+    { v:'manual',   label:'Manual Approval', desc:'Creator signs a transaction to confirm KPI was met' },
+    { v:'oracle',   label:'Chainlink Oracle', desc:'Automated on-chain data feed triggers milestone' },
+    { v:'multisig', label:'Multi-sig (3/5)',  desc:'Requires 3 of 5 signers to approve unlock' },
+    { v:'game',     label:'Game State PDA',   desc:'Level completion on-chain automatically triggers' },
+  ];
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      <TopBar title="Milestone Verifier" sub="On-chain KPI verification · Oracle integration · Multi-sig approval"/>
+
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 28px', display:'flex', flexDirection:'column', gap:16 }}>
+
+        {/* Stream selector — only milestone streams */}
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {STREAMS.filter(s2 => s2.type === 'milestone').map(s2 => (
+            <button key={s2.id} onClick={() => setActiveStream(s2.id)} style={{
+              padding:'7px 14px', borderRadius:10,
+              border:`1.5px solid ${activeStream===s2.id ? T.blue : T.border}`,
+              background:activeStream===s2.id ? `${T.blue}18` : 'rgba(255,255,255,.04)',
+              color:activeStream===s2.id ? T.blue : T.muted,
+              fontSize:12, fontWeight:600, cursor:'pointer',
+            }}>{s2.name}</button>
+          ))}
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:16 }}>
+
+          {/* Milestone list */}
+          <Card>
+            <div style={{ fontFamily:T.serif, fontSize:13, fontWeight:700, color:'#fff', marginBottom:12 }}>
+              Milestone Conditions — {s.name}
+            </div>
+            {s.milestones.length === 0 ? (
+              <div style={{ fontSize:12, color:T.muted, textAlign:'center', padding:'20px 0' }}>
+                No milestones — stream is {s.type} type
+              </div>
+            ) : s.milestones.map((m, i) => (
+              <div key={i} style={{ marginBottom:12, padding:'14px 16px', borderRadius:12,
+                background:m.done ? `${T.green}0a` : `${T.blue}08`,
+                border:`1.5px solid ${m.done ? T.green : T.blue}33` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:m.done ? T.green : '#fff' }}>{m.label}</div>
+                    <div style={{ fontSize:10.5, color:T.muted, marginTop:2 }}>{m.date} · {m.pct}% unlock</div>
+                  </div>
+                  <Badge label={m.done ? 'VERIFIED' : 'PENDING'} color={m.done ? T.green : T.gold}/>
+                </div>
+                {m.done ? (
+                  <div style={{ fontSize:10.5, color:T.green, fontFamily:T.mono }}>
+                    ✓ Verified · {(m.pct * s.total / 100).toLocaleString()} BBT stream started
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', gap:8 }}>
+                    <Btn variant="green" size="sm" onClick={() => verify(m.label)} disabled={verifying}>
+                      {verifying ? 'Verifying…' : '▶ Verify Now'}
+                    </Btn>
+                    <Btn variant="ghost" size="sm">Link Oracle</Btn>
+                  </div>
+                )}
+              </div>
+            ))}
+          </Card>
+
+          {/* Config + log */}
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <Card>
+              <div style={{ fontFamily:T.serif, fontSize:13, fontWeight:700, color:'#fff', marginBottom:12 }}>
+                Verification Method
+              </div>
+              {methods.map(opt => (
+                <div key={opt.v} onClick={() => setOracleType(opt.v)} style={{
+                  padding:'10px 12px', borderRadius:10, cursor:'pointer', marginBottom:8,
+                  background:oracleType===opt.v ? `${T.accent}10` : 'rgba(255,255,255,.03)',
+                  border:`1px solid ${oracleType===opt.v ? T.accent : T.border}`, transition:'all .15s',
+                }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                    <span style={{ fontSize:12, fontWeight:600, color:oracleType===opt.v ? T.accent : '#fff' }}>{opt.label}</span>
+                    <div style={{ width:16, height:16, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+                      border:`2px solid ${oracleType===opt.v ? T.accent : T.border}`,
+                      background:oracleType===opt.v ? T.accent : 'transparent' }}>
+                      {oracleType===opt.v && <div style={{ width:6, height:6, borderRadius:'50%', background:'#fff' }}/>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:10.5, color:T.muted }}>{opt.desc}</div>
+                </div>
+              ))}
+              <input value={kpiVal} onChange={e => setKpiVal(e.target.value)}
+                placeholder="KPI value (e.g. 10000 users, 1.5M revenue…)"
+                style={{ width:'100%', padding:'9px 12px', background:'rgba(255,255,255,.05)',
+                  border:`1px solid ${T.border}`, borderRadius:10, color:'#fff', fontSize:12,
+                  outline:'none', fontFamily:T.mono, marginTop:4, marginBottom:8 }}/>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <input type="checkbox" id="ms2" checked={multisig}
+                  onChange={e => setMultisig(e.target.checked)} style={{ accentColor:T.accent }}/>
+                <label htmlFor="ms2" style={{ fontSize:12, color:T.muted, cursor:'pointer' }}>
+                  Require multi-sig approval
+                </label>
+              </div>
+            </Card>
+
+            <Card>
+              <div style={{ fontFamily:T.serif, fontSize:12, fontWeight:700, color:'#fff', marginBottom:10 }}>
+                Verification Log
+              </div>
+              {log.map((e, i) => (
+                <div key={i} style={{ display:'flex', gap:8, padding:'7px 0',
+                  borderBottom:i < log.length-1 ? `1px solid ${T.border}` : 'none' }}>
+                  <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0,
+                    background:e.result==='VERIFIED' ? T.green : T.red, marginTop:4 }}/>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:11.5, color:'#fff' }}>{e.ms}</div>
+                    <div style={{ fontSize:9.5, color:T.muted }}>{e.ts} · {e.method}</div>
+                  </div>
+                  <div style={{ fontFamily:T.mono, fontSize:9.5, color:T.green }}>{e.result}</div>
+                </div>
+              ))}
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Audit Trail Page ─────────────────────────────────────────
+
+function AuditTrailPage() {
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = AUDIT_LOG.filter((e: AuditEvent) => {
+    if (filter !== 'all' && !e.action.startsWith(filter)) return false;
+    if (search && !e.stream.includes(search) && !e.action.includes(search) && !e.actor.includes(search)) return false;
+    return true;
+  });
+
+  const actionCol: Record<string,string> = {
+    create_stream:       T.accent,
+    withdraw:            T.green,
+    cancel_attempt:      T.red,
+    milestone_verified:  T.blue,
+    cliff_expired:       T.gold,
+  };
+  const actionIcon: Record<string,string> = {
+    create_stream:'＋', withdraw:'↓', cancel_attempt:'✗', milestone_verified:'✓', cliff_expired:'⏱',
+  };
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      <TopBar title="Audit Trail" sub="Immutable on-chain event log · Full protocol history · Investor-grade transparency"/>
+
+      <div style={{ flex:1, overflowY:'auto', padding:'20px 28px', display:'flex', flexDirection:'column', gap:14 }}>
+
+        {/* Summary row */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+          {[
+            { l:'Total Events',    v:AUDIT_LOG.length,                                            c:T.accent },
+            { l:'Streams Created', v:AUDIT_LOG.filter((e:AuditEvent)=>e.action==='create_stream').length, c:T.green },
+            { l:'Withdrawals',     v:AUDIT_LOG.filter((e:AuditEvent)=>e.action==='withdraw').length,       c:T.gold  },
+            { l:'Failed Txns',     v:AUDIT_LOG.filter((e:AuditEvent)=>e.status==='failed').length,         c:T.red   },
+          ].map(s => (
+            <Card key={s.l} style={{ padding:'12px 16px' }}>
+              <div style={{ fontSize:9.5, color:T.muted, letterSpacing:'.06em', textTransform:'uppercase', marginBottom:4 }}>{s.l}</div>
+              <div style={{ fontFamily:T.mono, fontSize:24, fontWeight:700, color:s.c }}>{s.v}</div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Filters + search */}
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:2, background:T.bg1, border:`1px solid ${T.border}`, borderRadius:9, padding:3 }}>
+            {['all','create','withdraw','milestone','cancel'].map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                padding:'5px 12px', borderRadius:7, border:'none', cursor:'pointer',
+                background:filter===f ? T.accent : 'transparent',
+                color:filter===f ? '#fff' : T.muted,
+                fontSize:11, fontWeight:600, transition:'all .15s', textTransform:'capitalize',
+              }}>{f}</button>
+            ))}
+          </div>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search stream ID, action, actor…"
+            style={{ flex:1, maxWidth:280, padding:'7px 12px',
+              background:'rgba(255,255,255,.05)', border:`1px solid ${T.border}`,
+              borderRadius:10, color:'#fff', fontSize:12, outline:'none', fontFamily:T.mono }}/>
+          <Btn variant="ghost" size="sm">↓ Export CSV</Btn>
+          <Btn variant="ghost" size="sm">⛓ Explorer</Btn>
+        </div>
+
+        {/* Log table */}
+        <Card style={{ padding:0, overflow:'hidden' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <thead>
+              <tr style={{ background:'rgba(255,255,255,.04)' }}>
+                {['Timestamp','Action','Stream','Actor','Amount','Tx Hash','Status'].map(h => (
+                  <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontSize:9.5,
+                    color:T.muted, letterSpacing:'.06em', fontWeight:700 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e: AuditEvent, i: number) => {
+                const col = actionCol[e.action] || T.muted;
+                return (
+                  <tr key={i} style={{ borderTop:`1px solid ${T.border}`,
+                    background:e.status==='failed' ? `${T.red}06` : i%2 ? 'rgba(255,255,255,.01)' : 'transparent' }}>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:10.5, color:T.muted }}>{e.ts}</td>
+                    <td style={{ padding:'9px 16px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <div style={{ width:22, height:22, borderRadius:7, background:`${col}15`,
+                          border:`1px solid ${col}44`, display:'flex', alignItems:'center',
+                          justifyContent:'center', fontSize:10, color:col, flexShrink:0 }}>
+                          {actionIcon[e.action] || '·'}
+                        </div>
+                        <span style={{ fontFamily:T.mono, fontSize:11, color:col }}>{e.action}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:11, color:T.accent }}>{e.stream}</td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:10.5, color:T.muted }}>{e.actor}</td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:11, color:e.amount>0 ? T.gold : T.muted }}>
+                      {e.amount > 0 ? `${e.amount.toLocaleString()} BBT` : '—'}
+                    </td>
+                    <td style={{ padding:'9px 16px', fontFamily:T.mono, fontSize:10.5, color:T.accent }}>{e.tx || '—'}</td>
+                    <td style={{ padding:'9px 16px' }}>
+                      <Badge label={e.status.toUpperCase()} color={e.status==='success' ? T.green : T.red}/>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {filtered.length === 0 && (
+            <div style={{ textAlign:'center', padding:'32px 0', color:T.muted, fontSize:13 }}>
+              No events match your filter
+            </div>
+          )}
+        </Card>
+
+        {/* Integrity note */}
+        <div style={{ padding:'14px 18px', background:`${T.green}08`,
+          border:`1px solid ${T.green}22`, borderRadius:12, display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ fontSize:22 }}>🔐</div>
+          <div>
+            <div style={{ fontSize:12.5, fontWeight:600, color:T.green, marginBottom:2 }}>
+              Immutable On-Chain Audit Trail
+            </div>
+            <div style={{ fontSize:11.5, color:'rgba(232,225,248,.6)' }}>
+              Every event is permanently recorded on Solana. This log cannot be altered by anyone —
+              including the stream creator. Exportable as verifiable proof for investors, auditors, and regulators.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Root App (state-based routing) ──────────────────────────
 
 export default function TDPApp() {
@@ -744,6 +1255,12 @@ export default function TDPApp() {
     content = <CreateStreamPage setPage={setPage}/>;
   } else if (page==='dashboard') {
     content = <DashboardPage setPage={setPage}/>;
+  } else if (page==='analytics') {
+    content = <AnalyticsPage/>;
+  } else if (page==='milestones') {
+    content = <MilestoneVerifierPage/>;
+  } else if (page==='audit') {
+    content = <AuditTrailPage/>;
   } else {
     content = <LandingPage setPage={setPage}/>;
   }
