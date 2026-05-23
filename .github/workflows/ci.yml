@@ -38,9 +38,14 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Install Anchor CLI (avm 0.32.1)
+        # RUSTUP_TOOLCHAIN=stable overrides any rust-toolchain.toml inside
+        # the Anchor source tree (which pins 1.89.0).  Without this override,
+        # cpufeatures-0.3.0 (released 2025-05-22) fails to parse under 1.89.0.
+        env:
+          RUSTUP_TOOLCHAIN: stable
         run: |
           cargo install --git https://github.com/solana-foundation/anchor avm --locked --force
-          avm install 0.32.1
+          RUSTUP_TOOLCHAIN=stable avm install 0.32.1
           avm use 0.32.1
           echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
           anchor --version
@@ -129,10 +134,36 @@ jobs:
             sleep 5
           done
 
-          # 4. Deploy program ke local validator
-          anchor deploy --provider.cluster localnet
+          if [ "$READY" -eq 0 ]; then
+            echo "❌ Validator failed to start within 180s"
+            cat .anchor/test-ledger/validator.log 2>/dev/null | tail -40 || true
+            kill "$VALIDATOR_PID" 2>/dev/null || true
+            exit 1
+          fi
 
-          # 5. Jalankan test suite
-          yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
+          # ── 3. Fund deployer wallet ───────────────────────────────────────────
+          DEPLOYER_KEY=/home/runner/.config/solana/id.json
+          DEPLOYER_PUBKEY=$(solana-keygen pubkey "$DEPLOYER_KEY")
+          echo "💰 Airdropping 100 SOL to $DEPLOYER_PUBKEY..."
+          solana airdrop 100 "$DEPLOYER_PUBKEY" \
+            --url http://127.0.0.1:8899 \
+            --keypair "$DEPLOYER_KEY" || true
+          sleep 2
+          BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
+          echo "   Balance: $BALANCE"
 
+          # ── 4. Deploy program ─────────────────────────────────────────────────
+          echo "🚀 Deploying program..."
+          anchor deploy \
+            --provider.cluster localnet \
+            --provider.wallet "$DEPLOYER_KEY"
 
+          # ── 5. Run TypeScript integration tests ───────────────────────────────
+          echo "🧪 Running integration tests..."
+          yarn run ts-mocha \
+            -p ./tsconfig.json \
+            -t 1000000 \
+            "tests/**/*.ts"
+
+          # ── 6. Cleanup ────────────────────────────────────────────────────────
+          kill "$VALIDATOR_PID" 2>/dev/null || true
