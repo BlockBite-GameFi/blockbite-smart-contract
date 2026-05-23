@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+@import "tailwindcss";
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #__next { height: 100%; background: #05040d; color: #ede8ff; font-family: 'Sora', sans-serif; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(167,139,255,.22); border-radius: 99px; }
+::selection { background: rgba(167,139,255,.3); }
+input, select, textarea, button { font-family: 'Sora', sans-serif; }
+
+@keyframes shimmer   { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
+@keyframes blink     { 0%,100%{opacity:1} 50%{opacity:.3} }
+@keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes hlFade    { 0%{opacity:0} 100%{opacity:1} }
+@keyframes spin      { to { transform: rotate(360deg); } }

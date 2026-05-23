@@ -14,7 +14,7 @@ pub use errors::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX");
+declare_id!("Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq");
 
 #[program]
 pub mod blockbite {
@@ -41,5 +41,9 @@ pub mod blockbite {
 
     pub fn set_milestone(ctx: Context<SetMilestone>) -> Result<()> {
         set_milestone::handler(ctx)
+    }
+
+    pub fn close_stream(ctx: Context<CloseStream>) -> Result<()> {
+        close_stream::handler(ctx)
     }
 }
