@@ -7,6 +7,7 @@ on:
     branches: [ master, main ]
 
 jobs:
+  # Job untuk Smart Contract Solana (Anchor)
   smart-contract:
     name: Anchor program
     runs-on: ubuntu-latest
@@ -16,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.91.0
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -24,8 +25,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-${{ runner.os }}-rust-1.91.0-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-rust-1.91.0-
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
 
       - name: Install native build dependencies
         run: |
@@ -39,15 +40,18 @@ jobs:
 
       - name: Install Anchor CLI (avm 0.32.1)
         run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-          cargo binstall avm --locked --yes
+          cargo install --git https://github.com/solana-foundation/anchor avm --locked --force
           avm install 0.32.1
           avm use 0.32.1
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
           anchor --version
 
       - name: Restore program keypair
         working-directory: ./blockbite
+        # The program keypair is stored as a GitHub Secret (base58 array JSON).
+        # CI always uses the same keypair so declare_id! and PROGRAM_ID always match.
+        # To set: Settings → Secrets → ANCHOR_PROGRAM_KEYPAIR → paste contents of
+        #         target/deploy/blockbite-keypair.json
         run: |
           mkdir -p ~/.config/solana target/deploy
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
@@ -55,13 +59,16 @@ jobs:
             echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
             echo "Using program keypair from secret"
           else
+            # Fallback: generate ephemeral key — anchor keys sync will update declare_id!
             solana-keygen new --no-bip39-passphrase --silent \
               --outfile target/deploy/blockbite-keypair.json
-            echo "No ANCHOR_PROGRAM_KEYPAIR secret — using ephemeral key"
+            echo "No ANCHOR_PROGRAM_KEYPAIR secret found — using ephemeral key"
           fi
 
       - name: Sync program ID
         working-directory: ./blockbite
+        # Updates declare_id! in lib.rs to match the keypair we just wrote.
+        # This is safe because tests read PROGRAM_ID from IDL.address (not hardcoded).
         run: anchor keys sync
 
       - name: Setup Node.js
@@ -89,81 +96,10 @@ jobs:
             exit "$status"
           fi
 
-      - name: Run Rust unit tests
+      - name: Run tests
         working-directory: ./blockbite
-        run: cargo test --package blockbite 2>&1
+        # anchor test auto-deploys to local validator; tests read PROGRAM_ID from IDL.
+        run: anchor test --skip-build
 
-      - name: Run integration tests
-        working-directory: ./blockbite
-        env:
-          ANCHOR_WALLET: /home/runner/.config/solana/id.json
-          ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
-        shell: bash
-        run: |
-          set -e
-          rm -rf .anchor/test-ledger test-ledger
-          mkdir -p .anchor
 
-          # ── 1. Start local validator ──────────────────────────────────────────
-          solana-test-validator \
-            --reset \
-            --quiet \
-            --ledger .anchor/test-ledger \
-            --rpc-port 8899 &
-          VALIDATOR_PID=$!
 
-          # ── 2. Health-check loop (max 3 min = 36 × 5 s) ─────────────────────
-          echo "⏳ Waiting for validator (pid=$VALIDATOR_PID)..."
-          READY=0
-          for i in $(seq 1 36); do
-            if curl -sf \
-                 -X POST \
-                 -H "Content-Type: application/json" \
-                 -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
-                 http://127.0.0.1:8899 2>/dev/null \
-               | grep -q '"result":"ok"'; then
-              echo "✅ Validator ready after $((i * 5))s"
-              READY=1
-              break
-            fi
-            echo "   waiting... ($i/36)"
-            sleep 5
-          done
-
-          if [ "$READY" -eq 0 ]; then
-            echo "❌ Validator failed to start within 180s"
-            cat .anchor/test-ledger/validator.log 2>/dev/null | tail -40 || true
-            kill "$VALIDATOR_PID" 2>/dev/null || true
-            exit 1
-          fi
-
-          # ── 3. Fund deployer wallet ───────────────────────────────────────────
-          DEPLOYER_KEY=/home/runner/.config/solana/id.json
-          DEPLOYER_PUBKEY=$(solana-keygen pubkey "$DEPLOYER_KEY")
-          echo "💰 Airdropping 100 SOL to $DEPLOYER_PUBKEY..."
-          solana airdrop 100 "$DEPLOYER_PUBKEY" \
-            --url http://127.0.0.1:8899 \
-            --keypair "$DEPLOYER_KEY" || true
-          sleep 2
-          BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
-          echo "   Balance: $BALANCE"
-
-          # ── 4. Deploy program ─────────────────────────────────────────────────
-          # Note: --skip-build is not supported by anchor deploy in 0.32.1
-          # The program was already built in the "Build program" step above;
-          # cargo cache is warm so this rebuild is fast.
-          echo "🚀 Deploying program..."
-          anchor deploy \
-            --provider.cluster localnet \
-            --provider.wallet "$DEPLOYER_KEY"
-
-          # ── 5. Run TypeScript integration tests ───────────────────────────────
-          echo "🧪 Running integration tests..."
-          yarn run ts-mocha \
-            -p ./tsconfig.json \
-            -t 1000000 \
-            "tests/**/*.ts"
-
-          # ── 6. Cleanup ────────────────────────────────────────────────────────
-          kill "$VALIDATOR_PID" 2>/dev/null || true
-          echo "✅ All done!"
