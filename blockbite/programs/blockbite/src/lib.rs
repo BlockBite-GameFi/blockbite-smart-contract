@@ -9,7 +9,6 @@ mod tests_cancel;
 
 use anchor_lang::prelude::*;
 
-pub use constants::*;
 pub use errors::*;
 pub use instructions::*;
 pub use state::*;
@@ -41,9 +40,5 @@ pub mod blockbite {
 
     pub fn set_milestone(ctx: Context<SetMilestone>) -> Result<()> {
         set_milestone::handler(ctx)
-    }
-
-    pub fn close_stream(ctx: Context<CloseStream>) -> Result<()> {
-        close_stream::handler(ctx)
     }
 }

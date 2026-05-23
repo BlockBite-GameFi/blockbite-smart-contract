@@ -11,7 +11,7 @@
 
 ## Project Summary
 
-BlockBite is a **token vesting / game reward streaming** smart contract on Solana. It enables trustless, time-locked token distribution with milestone-based cliff unlocks — designed for GameFi reward payouts, team vesting, and DAO contributor grants.
+BlockBite is a **token distribution platform** smart contract on Solana. It enables trustless, time-locked token distribution with linear, cliff, and milestone-based vesting — designed for team vesting, investor schedules, and DAO contributor grants.
 
 ### Core Value Proposition
 

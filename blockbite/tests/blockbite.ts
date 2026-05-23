@@ -18,10 +18,6 @@ import {
 //  Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Build the 48-byte instruction data for `create_stream`.
- * Discriminator = sha256("global:create_stream")[0..8]
- */
 function createStreamData(
   totalAmount: number,
   startTime: number,
@@ -86,31 +82,6 @@ function createCancelIx(
   });
 }
 
-function createCloseStreamIx(
-  programId: PublicKey,
-  creator: PublicKey,
-  streamPda: PublicKey,
-  mint: PublicKey,
-  escrowTokenAccount: PublicKey,
-): anchor.web3.TransactionInstruction {
-  return new anchor.web3.TransactionInstruction({
-    keys: [
-      { pubkey: creator,            isSigner: true,  isWritable: true  },
-      { pubkey: streamPda,          isSigner: false, isWritable: true  },
-      { pubkey: escrowTokenAccount, isSigner: false, isWritable: true  },
-      { pubkey: mint,               isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID,   isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-    programId,
-    data: Buffer.from([255, 241, 196, 212, 95, 93, 160, 89]), // sha256("global:close_stream")[0..8]
-  });
-}
-
-/**
- * Reusable stream creator.  Now includes the `developerTokenAccount` account
- * required by the updated `create_stream` instruction (Week 5 dev-fee).
- */
 async function createStream(
   programId: PublicKey,
   creator: Keypair,
@@ -124,7 +95,6 @@ async function createStream(
   totalAmount: number,
   seed: number,
   provider: anchor.AnchorProvider,
-  developerTokenAccount: PublicKey,
   cliffTime = 0,
 ): Promise<void> {
   const ix = new anchor.web3.TransactionInstruction({
@@ -135,7 +105,6 @@ async function createStream(
       { pubkey: creatorTokenAccount,   isSigner: false, isWritable: true  },
       { pubkey: escrowTokenAccount,    isSigner: false, isWritable: true  },
       { pubkey: streamPda,             isSigner: false, isWritable: true  },
-      { pubkey: developerTokenAccount, isSigner: false, isWritable: true  }, // dev fee
       { pubkey: TOKEN_PROGRAM_ID,      isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
@@ -159,12 +128,10 @@ const provider  = anchor.AnchorProvider.env();
   // ── Shared keypairs ────────────────────────────────────────────────────────
   const creator   = Keypair.generate();
   const recipient = Keypair.generate();
-  const developer = Keypair.generate(); // protocol treasury keypair
 
   let mint: PublicKey;
   let creatorTokenAccount: PublicKey;
   let recipientTokenAccount: PublicKey;
-  let developerTokenAccount: PublicKey; // dev fee target
   let streamPda: PublicKey;
   let escrowTokenAccount: PublicKey;
 
@@ -175,8 +142,7 @@ const provider  = anchor.AnchorProvider.env();
 
   // ── Global setup ───────────────────────────────────────────────────────────
   before(async () => {
-    // Airdrop
-    for (const kp of [creator, recipient, developer]) {
+    for (const kp of [creator, recipient]) {
       const sig = await provider.connection.requestAirdrop(
         kp.publicKey,
         2 * anchor.web3.LAMPORTS_PER_SOL,
@@ -184,7 +150,6 @@ const provider  = anchor.AnchorProvider.env();
       await provider.connection.confirmTransaction(sig, "confirmed");
     }
 
-    // Mint
     mint = await createMint(
       provider.connection,
       creator,
@@ -193,7 +158,6 @@ const provider  = anchor.AnchorProvider.env();
       6,
     );
 
-    // Token accounts
     creatorTokenAccount = (
       await getOrCreateAssociatedTokenAccount(
         provider.connection,
@@ -212,23 +176,13 @@ const provider  = anchor.AnchorProvider.env();
       )
     ).address;
 
-    developerTokenAccount = (
-      await getOrCreateAssociatedTokenAccount(
-        provider.connection,
-        developer,
-        mint,
-        developer.publicKey,
-      )
-    ).address;
-
-    // Mint tokens to creator (enough for stream + 1% dev fee)
     await mintTo(
       provider.connection,
       creator,
       mint,
       creatorTokenAccount,
       creator,
-      20_000_000, // generous buffer
+      TOTAL_AMOUNT,
     );
 
     startTime = Math.floor(Date.now() / 1000) - 2;
@@ -262,7 +216,6 @@ const provider  = anchor.AnchorProvider.env();
       TOTAL_AMOUNT,
       SEED,
       provider,
-      developerTokenAccount,
     );
   });
 
@@ -274,23 +227,15 @@ const provider  = anchor.AnchorProvider.env();
     assert.ok(info!.owner.equals(programId), "Owned by program");
   });
 
-  // ── Developer fee ──────────────────────────────────────────────────────────
-
-  it("Developer receives 1% fee on stream creation", async () => {
-    const devBal = await getAccount(provider.connection, developerTokenAccount);
-    const devAmount = Number(devBal.amount);
-    const expectedFee = Math.floor(TOTAL_AMOUNT * 100 / 10_000); // DEV_FEE_BPS = 100
-    assert.strictEqual(
-      devAmount,
-      expectedFee,
-      `Expected dev fee ${expectedFee}, got ${devAmount}`,
-    );
-    console.log(`✅ Dev fee collected: ${devAmount} tokens (${(devAmount / TOTAL_AMOUNT * 100).toFixed(2)}%)`);
+  it("Tokens are locked in PDA — creator balance decreased by total_amount", async () => {
+    const creatorBal = await getAccount(provider.connection, creatorTokenAccount);
+    // Creator started with TOTAL_AMOUNT minted, deposited TOTAL_AMOUNT into escrow
+    assert.strictEqual(Number(creatorBal.amount), 0, "Creator should have 0 tokens after deposit");
   });
 
   // ── Withdraw flow ──────────────────────────────────────────────────────────
 
-  it("Withdraw at ~50 percent elapsed", async () => {
+  it("Withdraw at ~50 percent elapsed (partial)", async () => {
     const ix = createWithdrawIx(
       programId,
       recipient.publicKey,
@@ -343,7 +288,6 @@ const provider  = anchor.AnchorProvider.env();
     } catch (e: any) {
       assert.ok(
         e.message.includes("NothingToWithdraw") ||
-        e.message.includes("InsufficientUnlockedTokens") ||
         e.message.includes("0x"),
         `Expected withdraw-failure error, got: ${e.message}`,
       );
@@ -394,9 +338,8 @@ const provider  = anchor.AnchorProvider.env();
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
     const cStart = Math.floor(Date.now() / 1000);
     const cEnd   = cStart + 100;
@@ -413,7 +356,7 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 2, provider, devTA,
+      cStart, cEnd, TOTAL_AMOUNT, 2, provider,
     );
 
     const cancelIx = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
@@ -455,7 +398,6 @@ const provider  = anchor.AnchorProvider.env();
   });
 
   it("Withdraw from cancelled stream fails (StreamCancelled)", async () => {
-    // Create + immediately cancel a fresh stream (seed 3)
     const cc = Keypair.generate();
     const cr = Keypair.generate();
     const [s1, s2] = await Promise.all([
@@ -470,9 +412,8 @@ const provider  = anchor.AnchorProvider.env();
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
     const cStart = Math.floor(Date.now() / 1000) - 20;
     const cEnd   = cStart + 100;
@@ -489,16 +430,14 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 3, provider, devTA,
+      cStart, cEnd, TOTAL_AMOUNT, 3, provider,
     );
 
-    // Cancel
     await provider.sendAndConfirm(
       new Transaction().add(createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA)),
       [cc],
     );
 
-    // Attempt withdraw — must fail
     const wIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
     try {
       await provider.sendAndConfirm(new Transaction().add(wIx), [cr]);
@@ -519,7 +458,6 @@ const provider  = anchor.AnchorProvider.env();
 
     const zMint = await createMint(provider.connection, zc, zc.publicKey, null, 6);
     const zcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, zc, zMint, zc.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, zMint, developer.publicKey)).address;
 
     const [zStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), zc.publicKey.toBuffer(), zr.publicKey.toBuffer(),
@@ -539,7 +477,6 @@ const provider  = anchor.AnchorProvider.env();
         { pubkey: zcTA,                 isSigner: false, isWritable: true  },
         { pubkey: zEscrow,              isSigner: false, isWritable: true  },
         { pubkey: zStream,              isSigner: false, isWritable: true  },
-        { pubkey: devTA,                isSigner: false, isWritable: true  }, // dev fee
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -564,7 +501,6 @@ const provider  = anchor.AnchorProvider.env();
 
     const sMint = await createMint(provider.connection, sc, sc.publicKey, null, 6);
     const scTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, sc, sMint, sc.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, sMint, developer.publicKey)).address;
 
     const [sStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), sc.publicKey.toBuffer(), sc.publicKey.toBuffer(),
@@ -579,12 +515,11 @@ const provider  = anchor.AnchorProvider.env();
     const ix = new anchor.web3.TransactionInstruction({
       keys: [
         { pubkey: sc.publicKey,         isSigner: true,  isWritable: true  },
-        { pubkey: sc.publicKey,         isSigner: false, isWritable: false }, // same as creator
+        { pubkey: sc.publicKey,         isSigner: false, isWritable: false },
         { pubkey: sMint,                isSigner: false, isWritable: false },
         { pubkey: scTA,                 isSigner: false, isWritable: true  },
         { pubkey: sEscrow,              isSigner: false, isWritable: true  },
         { pubkey: sStream,              isSigner: false, isWritable: true  },
-        { pubkey: devTA,                isSigner: false, isWritable: true  }, // dev fee
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -617,9 +552,8 @@ const provider  = anchor.AnchorProvider.env();
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
     const cStart = Math.floor(Date.now() / 1000);
     const cEnd   = cStart + 100;
@@ -636,13 +570,12 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 6, provider, devTA,
+      cStart, cEnd, TOTAL_AMOUNT, 6, provider,
     );
 
     const ix = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
     await provider.sendAndConfirm(new Transaction().add(ix), [cc]);
 
-    // Second cancel must fail
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [cc]);
       assert.fail("Should have failed");
@@ -654,9 +587,9 @@ const provider  = anchor.AnchorProvider.env();
     }
   });
 
-  // ── Cliff / Milestone ──────────────────────────────────────────────────────
+  // ── Cliff vesting ──────────────────────────────────────────────────────────
 
-  it("Withdraw before cliff is blocked (milestone not reached)", async () => {
+  it("Cliff: withdraw before cliff_date is blocked (0% unlocked)", async () => {
     const cc = Keypair.generate();
     const cr = Keypair.generate();
     const [s1, s2] = await Promise.all([
@@ -671,9 +604,8 @@ const provider  = anchor.AnchorProvider.env();
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
     const cStart = Math.floor(Date.now() / 1000);
     const cEnd   = cStart + 100;
@@ -691,7 +623,7 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 7, provider, devTA, cliff,
+      cStart, cEnd, TOTAL_AMOUNT, 7, provider, cliff,
     );
 
     const wIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
@@ -700,15 +632,63 @@ const provider  = anchor.AnchorProvider.env();
       assert.fail("Should have failed");
     } catch (e: any) {
       assert.ok(
-        e.message.includes("NothingToWithdraw") ||
-        e.message.includes("InsufficientUnlockedTokens") ||
-        e.message.includes("0x"),
+        e.message.includes("NothingToWithdraw") || e.message.includes("0x"),
         `Expected 0-unlock error, got: ${e.message}`,
       );
     }
   });
 
-  it("Milestone unlock: set_milestone enables linear vesting after cliff (seed 8)", async () => {
+  it("Cliff: withdraw succeeds after cliff_date (auto-unlock, no milestone needed)", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+
+    const cStart = Math.floor(Date.now() / 1000) - 2;
+    const cEnd   = cStart + 100;
+    const cliff  = cStart + 5;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(8)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, TOTAL_AMOUNT, 8, provider, cliff,
+    );
+
+    const waitMs = (cliff - Math.floor(Date.now() / 1000) + 2) * 1000;
+    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+
+    const wIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
+    await provider.sendAndConfirm(new Transaction().add(wIx), [cr]);
+
+    const bal = await getAccount(provider.connection, crTA);
+    assert.ok(Number(bal.amount) > 0, `Expected tokens after cliff, got ${bal.amount}`);
+    console.log(`Cliff-only withdraw: ${bal.amount}`);
+  });
+
+  // ── Milestone vesting ──────────────────────────────────────────────────────
+
+  it("Milestone-only: tokens unlock only after set_milestone (no cliff)", async () => {
     const mc = Keypair.generate();
     const mr = Keypair.generate();
     const [s1, s2] = await Promise.all([
@@ -723,17 +703,16 @@ const provider  = anchor.AnchorProvider.env();
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
     const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, mMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 10_000_000);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
     const mStart = Math.floor(Date.now() / 1000) - 2;
     const mEnd   = mStart + 100;
-    const mCliff = mStart + 50;
+    const mCliff = mStart - 1;
 
     const [mStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), mc.publicKey.toBuffer(), mr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(8)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(9)]).buffer))],
       programId,
     );
     const [mEscrow] = PublicKey.findProgramAddressSync(
@@ -741,7 +720,6 @@ const provider  = anchor.AnchorProvider.env();
       programId,
     );
 
-    // create_stream with cliff
     const createIx = new anchor.web3.TransactionInstruction({
       keys: [
         { pubkey: mc.publicKey,         isSigner: true,  isWritable: true  },
@@ -750,20 +728,25 @@ const provider  = anchor.AnchorProvider.env();
         { pubkey: mcTA,                 isSigner: false, isWritable: true  },
         { pubkey: mEscrow,              isSigner: false, isWritable: true  },
         { pubkey: mStream,              isSigner: false, isWritable: true  },
-        { pubkey: devTA,                isSigner: false, isWritable: true  }, // dev fee
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, mStart, mEnd, mCliff, 8),
+      data: createStreamData(TOTAL_AMOUNT, mStart, mEnd, mCliff, 9),
     });
     await provider.sendAndConfirm(new Transaction().add(createIx), [mc]);
 
-    // Wait for cliff
-    const waitMs = (mCliff - Math.floor(Date.now() / 1000) + 2) * 1000;
-    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+    const wIx1 = createWithdrawIx(programId, mr.publicKey, mStream, mMint, mEscrow, mrTA);
+    try {
+      await provider.sendAndConfirm(new Transaction().add(wIx1), [mr]);
+      assert.fail("Should have failed — milestone not reached");
+    } catch (e: any) {
+      assert.ok(
+        e.message.includes("NothingToWithdraw") || e.message.includes("0x"),
+        `Expected NothingToWithdraw (milestone gate), got: ${e.message}`,
+      );
+    }
 
-    // set_milestone  (discriminator sha256("global:set_milestone")[0..8])
     const setMsIx = new anchor.web3.TransactionInstruction({
       keys: [
         { pubkey: mc.publicKey, isSigner: true,  isWritable: true  },
@@ -774,16 +757,14 @@ const provider  = anchor.AnchorProvider.env();
     });
     await provider.sendAndConfirm(new Transaction().add(setMsIx), [mc]);
 
-    // Wait a bit for vesting to accrue
-    await new Promise((r) => setTimeout(r, 10_000));
+    await new Promise((r) => setTimeout(r, 5_000));
 
-    // Withdraw
-    const wIx = createWithdrawIx(programId, mr.publicKey, mStream, mMint, mEscrow, mrTA);
-    await provider.sendAndConfirm(new Transaction().add(wIx), [mr]);
+    const wIx2 = createWithdrawIx(programId, mr.publicKey, mStream, mMint, mEscrow, mrTA);
+    await provider.sendAndConfirm(new Transaction().add(wIx2), [mr]);
 
     const bal = await getAccount(provider.connection, mrTA);
     assert.ok(Number(bal.amount) > 0, `Expected tokens after milestone, got ${bal.amount}`);
-    console.log(`Milestone withdraw: ${bal.amount}`);
+    console.log(`Milestone-only withdraw: ${bal.amount}`);
   });
 
   it("Cancel after full vest fails (FullyVested)", async () => {
@@ -801,16 +782,15 @@ const provider  = anchor.AnchorProvider.env();
     const fMint = await createMint(provider.connection, fc, fc.publicKey, null, 6);
     const fcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fc, fMint, fc.publicKey)).address;
     const frTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fr, fMint, fr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, fMint, developer.publicKey)).address;
 
-    await mintTo(provider.connection, fc, fMint, fcTA, fc, 10_000_000);
+    await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_000_000);
 
     const fStart = Math.floor(Date.now() / 1000) - 2;
     const fEnd   = fStart + 10;
 
     const [fStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), fc.publicKey.toBuffer(), fr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(9)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(10)]).buffer))],
       programId,
     );
     const [fEscrow] = PublicKey.findProgramAddressSync(
@@ -826,16 +806,14 @@ const provider  = anchor.AnchorProvider.env();
         { pubkey: fcTA,                 isSigner: false, isWritable: true  },
         { pubkey: fEscrow,              isSigner: false, isWritable: true  },
         { pubkey: fStream,              isSigner: false, isWritable: true  },
-        { pubkey: devTA,                isSigner: false, isWritable: true  }, // dev fee
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 9),
+      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 10),
     });
     await provider.sendAndConfirm(new Transaction().add(fIx), [fc]);
 
-    // Wait for stream to fully vest
     const waitMs = (fEnd - Math.floor(Date.now() / 1000) + 2) * 1000;
     if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
 
@@ -851,63 +829,7 @@ const provider  = anchor.AnchorProvider.env();
     }
   });
 
-  // ── VGPV: Velocity Guard Penalty Valve ────────────────────────────────────
-
-  it("VGPV: velocity_strikes and last_action_ts initialise to zero on create", async () => {
-    const vc = Keypair.generate();
-    const vr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(vc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(vr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const vMint = await createMint(provider.connection, vc, vc.publicKey, null, 6);
-    const vcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vc, vMint, vc.publicKey)).address;
-    const vrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vr, vMint, vr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, vMint, developer.publicKey)).address;
-
-    await mintTo(provider.connection, vc, vMint, vcTA, vc, 10_000_000);
-
-    const vStart = Math.floor(Date.now() / 1000) - 2;
-    const vEnd   = vStart + 200;
-
-    const [vStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), vc.publicKey.toBuffer(), vr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(10)]).buffer))],
-      programId,
-    );
-    const [vEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), vStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, vc, vr.publicKey, vMint, vcTA, vEscrow, vStream,
-      vStart, vEnd, TOTAL_AMOUNT, 10, provider, devTA,
-    );
-
-    // Read on-chain state raw bytes (stream account data)
-    const info = await provider.connection.getAccountInfo(vStream);
-    assert.ok(info !== null, "VGPV stream account should exist");
-
-    // First withdraw → sets last_action_ts; velocity_strikes should still be 0
-    const wIx = createWithdrawIx(programId, vr.publicKey, vStream, vMint, vEscrow, vrTA);
-    await provider.sendAndConfirm(new Transaction().add(wIx), [vr]);
-
-    const afterInfo = await provider.connection.getAccountInfo(vStream);
-    assert.ok(afterInfo !== null, "Stream still exists after withdraw");
-
-    // Verify balance increased (VGPV did not block the first normal withdraw)
-    const vrBal = await getAccount(provider.connection, vrTA);
-    assert.ok(Number(vrBal.amount) > 0, "First withdraw succeeded — VGPV allowed it");
-    console.log(`✅ VGPV: first withdraw passed, amount=${vrBal.amount}`);
-  });
-
-  // ── Week 7: Edge Case & Security Tests ───────────────────────────────────
+  // ── Edge cases ─────────────────────────────────────────────────────────────
 
   it("Invalid end time (end <= start) fails (InvalidTimestamp)", async () => {
     const ic = Keypair.generate();
@@ -917,13 +839,12 @@ const provider  = anchor.AnchorProvider.env();
 
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, iMint, developer.publicKey)).address;
-    await mintTo(provider.connection, ic, iMint, icTA, ic, 10_000_000);
+    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
 
     const now = Math.floor(Date.now() / 1000);
     const [iStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), ic.publicKey.toBuffer(), ir.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(12)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(11)]).buffer))],
       programId,
     );
     const [iEscrow] = PublicKey.findProgramAddressSync(
@@ -939,12 +860,11 @@ const provider  = anchor.AnchorProvider.env();
         { pubkey: icTA,                    isSigner: false, isWritable: true  },
         { pubkey: iEscrow,                 isSigner: false, isWritable: true  },
         { pubkey: iStream,                 isSigner: false, isWritable: true  },
-        { pubkey: devTA,                   isSigner: false, isWritable: true  },
         { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, now + 100, now, 0, 12), // end < start
+      data: createStreamData(1_000_000, now + 100, now, 0, 11),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [ic]);
@@ -965,13 +885,12 @@ const provider  = anchor.AnchorProvider.env();
 
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, iMint, developer.publicKey)).address;
-    await mintTo(provider.connection, ic, iMint, icTA, ic, 10_000_000);
+    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
 
     const now = Math.floor(Date.now() / 1000);
     const [iStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), ic.publicKey.toBuffer(), ir.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(13)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(12)]).buffer))],
       programId,
     );
     const [iEscrow] = PublicKey.findProgramAddressSync(
@@ -987,12 +906,11 @@ const provider  = anchor.AnchorProvider.env();
         { pubkey: icTA,                    isSigner: false, isWritable: true  },
         { pubkey: iEscrow,                 isSigner: false, isWritable: true  },
         { pubkey: iStream,                 isSigner: false, isWritable: true  },
-        { pubkey: devTA,                   isSigner: false, isWritable: true  },
         { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, now, now + 100, now + 200, 13), // cliff > end
+      data: createStreamData(1_000_000, now, now + 100, now + 200, 12),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [ic]);
@@ -1020,16 +938,15 @@ const provider  = anchor.AnchorProvider.env();
     const nMint = await createMint(provider.connection, nc, nc.publicKey, null, 6);
     const ncTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nc, nMint, nc.publicKey)).address;
     const nrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nr, nMint, nr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, nMint, developer.publicKey)).address;
-    await mintTo(provider.connection, nc, nMint, ncTA, nc, 10_000_000);
+    await mintTo(provider.connection, nc, nMint, ncTA, nc, 1_000_000);
 
     const now    = Math.floor(Date.now() / 1000);
-    const nStart = now + 10_000; // far future
+    const nStart = now + 10_000;
     const nEnd   = nStart + 100;
 
     const [nStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), nc.publicKey.toBuffer(), nr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(14)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(13)]).buffer))],
       programId,
     );
     const [nEscrow] = PublicKey.findProgramAddressSync(
@@ -1039,7 +956,7 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, nc, nr.publicKey, nMint, ncTA, nEscrow, nStream,
-      nStart, nEnd, 1_000_000, 14, provider, devTA,
+      nStart, nEnd, 1_000_000, 13, provider,
     );
 
     const wIx = createWithdrawIx(programId, nr.publicKey, nStream, nMint, nEscrow, nrTA);
@@ -1054,60 +971,7 @@ const provider  = anchor.AnchorProvider.env();
     }
   });
 
-  it("ClaimTooSmall: claimable below MIN_CLAIM_AMOUNT fails", async () => {
-    const tc = Keypair.generate();
-    const tr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(tc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(tr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const tMint = await createMint(provider.connection, tc, tc.publicKey, null, 6);
-    const tcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, tc, tMint, tc.publicKey)).address;
-    const trTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, tr, tMint, tr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, tMint, developer.publicKey)).address;
-    await mintTo(provider.connection, tc, tMint, tcTA, tc, 100_000);
-
-    // 5_000 tokens over 1_000s duration.
-    // At elapsed ≤ 199s: claimable = 5000 * elapsed / 1000 ≤ 995 < MIN_CLAIM_AMOUNT (1000)
-    const tStart = Math.floor(Date.now() / 1000) - 1;
-    const tEnd   = tStart + 1_000;
-
-    const [tStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), tc.publicKey.toBuffer(), tr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(15)]).buffer))],
-      programId,
-    );
-    const [tEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), tStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, tc, tr.publicKey, tMint, tcTA, tEscrow, tStream,
-      tStart, tEnd, 5_000, 15, provider, devTA,
-    );
-
-    const wIx = createWithdrawIx(programId, tr.publicKey, tStream, tMint, tEscrow, trTA);
-    try {
-      await provider.sendAndConfirm(new Transaction().add(wIx), [tr]);
-      assert.fail("Should have failed");
-    } catch (e: any) {
-      assert.ok(
-        e.message.includes("ClaimTooSmall") ||
-        e.message.includes("NothingToWithdraw") ||
-        e.message.includes("0x"),
-        `Expected ClaimTooSmall or NothingToWithdraw, got: ${e.message}`,
-      );
-      console.log(`✅ ClaimTooSmall: blocked (${e.message.slice(0, 60)})`);
-    }
-  });
-
-  it("set_milestone by non-creator fails (Unauthorized/ConstraintSeeds)", async () => {
+  it("set_milestone by non-creator fails (Unauthorized)", async () => {
     const mc      = Keypair.generate();
     const mr      = Keypair.generate();
     const attacker = Keypair.generate();
@@ -1120,15 +984,14 @@ const provider  = anchor.AnchorProvider.env();
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, mMint, developer.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 10_000_000);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
     const now    = Math.floor(Date.now() / 1000);
-    const mCliff = now - 1; // cliff already passed
+    const mCliff = now - 1;
 
     const [mStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), mc.publicKey.toBuffer(), mr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(16)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(14)]).buffer))],
       programId,
     );
     const [mEscrow] = PublicKey.findProgramAddressSync(
@@ -1138,17 +1001,16 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 100, 1_000_000, 16, provider, devTA, mCliff,
+      now, now + 100, 1_000_000, 14, provider, mCliff,
     );
 
-    // Attacker presents themselves as creator — PDA seeds won't match
     const attackIx = new anchor.web3.TransactionInstruction({
       keys: [
         { pubkey: attacker.publicKey, isSigner: true,  isWritable: true  },
         { pubkey: mStream,            isSigner: false, isWritable: true  },
       ],
       programId,
-      data: Buffer.from([174, 213, 91, 82, 156, 42, 105, 3]), // set_milestone discriminator
+      data: Buffer.from([174, 213, 91, 82, 156, 42, 105, 3]),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(attackIx), [attacker]);
@@ -1160,7 +1022,6 @@ const provider  = anchor.AnchorProvider.env();
         e.message.includes("0x"),
         `Expected Unauthorized/ConstraintSeeds, got: ${e.message}`,
       );
-      console.log(`✅ set_milestone by non-creator blocked`);
     }
   });
 
@@ -1178,15 +1039,14 @@ const provider  = anchor.AnchorProvider.env();
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, mMint, developer.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 10_000_000);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
     const now    = Math.floor(Date.now() / 1000);
-    const mCliff = now - 1; // cliff already passed
+    const mCliff = now - 1;
 
     const [mStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), mc.publicKey.toBuffer(), mr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(17)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(15)]).buffer))],
       programId,
     );
     const [mEscrow] = PublicKey.findProgramAddressSync(
@@ -1196,7 +1056,7 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 100, 1_000_000, 17, provider, devTA, mCliff,
+      now, now + 100, 1_000_000, 15, provider, mCliff,
     );
 
     const msIx = new anchor.web3.TransactionInstruction({
@@ -1208,10 +1068,8 @@ const provider  = anchor.AnchorProvider.env();
       data: Buffer.from([174, 213, 91, 82, 156, 42, 105, 3]),
     });
 
-    // First call → success
     await provider.sendAndConfirm(new Transaction().add(msIx), [mc]);
 
-    // Second call → MilestoneAlreadyReached
     try {
       await provider.sendAndConfirm(new Transaction().add(msIx), [mc]);
       assert.fail("Should have failed");
@@ -1220,11 +1078,10 @@ const provider  = anchor.AnchorProvider.env();
         e.message.includes("MilestoneAlreadyReached") || e.message.includes("0x"),
         `Expected MilestoneAlreadyReached, got: ${e.message}`,
       );
-      console.log(`✅ Double set_milestone blocked`);
     }
   });
 
-  it("set_milestone before cliff fails (CliffNotReached)", async () => {
+  it("set_milestone before cliff succeeds (cliff gate still blocks until cliff_time)", async () => {
     const mc = Keypair.generate();
     const mr = Keypair.generate();
     const [s1, s2] = await Promise.all([
@@ -1238,15 +1095,15 @@ const provider  = anchor.AnchorProvider.env();
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, mMint, developer.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 10_000_000);
+    const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
     const now    = Math.floor(Date.now() / 1000);
-    const mCliff = now + 100_000; // far future cliff
+    const mCliff = now + 100;
 
     const [mStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), mc.publicKey.toBuffer(), mr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(18)]).buffer))],
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(16)]).buffer))],
       programId,
     );
     const [mEscrow] = PublicKey.findProgramAddressSync(
@@ -1256,7 +1113,7 @@ const provider  = anchor.AnchorProvider.env();
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 200_000, 1_000_000, 18, provider, devTA, mCliff,
+      now, now + 200, 1_000_000, 16, provider, mCliff,
     );
 
     const msIx = new anchor.web3.TransactionInstruction({
@@ -1267,334 +1124,18 @@ const provider  = anchor.AnchorProvider.env();
       programId,
       data: Buffer.from([174, 213, 91, 82, 156, 42, 105, 3]),
     });
+    await provider.sendAndConfirm(new Transaction().add(msIx), [mc]);
+    console.log(`✅ set_milestone before cliff succeeded`);
+
+    const wIx = createWithdrawIx(programId, mr.publicKey, mStream, mMint, mEscrow, mrTA);
     try {
-      await provider.sendAndConfirm(new Transaction().add(msIx), [mc]);
-      assert.fail("Should have failed");
+      await provider.sendAndConfirm(new Transaction().add(wIx), [mr]);
+      assert.fail("Should have failed — cliff not yet reached");
     } catch (e: any) {
       assert.ok(
-        e.message.includes("CliffNotReached") || e.message.includes("0x"),
-        `Expected CliffNotReached, got: ${e.message}`,
+        e.message.includes("NothingToWithdraw") || e.message.includes("0x"),
+        `Expected NothingToWithdraw (cliff gate), got: ${e.message}`,
       );
-      console.log(`✅ set_milestone before cliff blocked`);
-    }
-  });
-
-  it("VGPV: BotDetected after MAX_VELOCITY_STRIKES rapid withdrawals", async () => {
-    const vc = Keypair.generate();
-    const vr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(vc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(vr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const vMint = await createMint(provider.connection, vc, vc.publicKey, null, 6);
-    const vcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vc, vMint, vc.publicKey)).address;
-    const vrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vr, vMint, vr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, vMint, developer.publicKey)).address;
-
-    // 30M supply: dev fee (1% = 200K) + escrow (20M) well within budget
-    await mintTo(provider.connection, vc, vMint, vcTA, vc, 30_000_000);
-
-    // 20M tokens over 1 hour, already 30 min elapsed → 10M unlocked
-    // Per ~400ms block: 20M * 0.4 / 3600 ≈ 2222 tokens >> MIN_CLAIM_AMOUNT
-    const vStart = Math.floor(Date.now() / 1000) - 1_800;
-    const vEnd   = vStart + 3_600;
-
-    const [vStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), vc.publicKey.toBuffer(), vr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(19)]).buffer))],
-      programId,
-    );
-    const [vEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), vStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, vc, vr.publicKey, vMint, vcTA, vEscrow, vStream,
-      vStart, vEnd, 20_000_000, 19, provider, devTA,
-    );
-
-    const wdIx = () => createWithdrawIx(programId, vr.publicKey, vStream, vMint, vEscrow, vrTA);
-
-    // Solana unix_timestamp is integer seconds. Two txs in the same slot share the same
-    // timestamp → unlocked doesn't change → claimable = 0 → NothingToWithdraw (before VGPV).
-    // We use 1500ms sleeps: > 1s (crosses second boundary) but < 2s (MIN_ACTION_INTERVAL)
-    // so VGPV strikes still accumulate while each slot has a distinct timestamp.
-    // Each 1.5s of accrual: 20M * 1.5 / 3600 ≈ 8333 tokens >> MIN_CLAIM_AMOUNT (1000).
-
-    let botDetected = false;
-    let successCount = 0;
-
-    for (let attempt = 0; attempt < 6 && !botDetected; attempt++) {
-      try {
-        await provider.sendAndConfirm(new Transaction().add(wdIx()), [vr]);
-        successCount++;
-        console.log(`  VGPV attempt ${attempt + 1}: succeeded (strikes so far: ${successCount - 1 > 0 ? successCount - 1 : 0})`);
-      } catch (e: any) {
-        const msg: string = e.message ?? "";
-        if (msg.includes("BotDetected") || msg.includes("0x1776")) {
-          botDetected = true;
-          console.log(`✅ VGPV BotDetected triggered on attempt ${attempt + 1}`);
-        } else if (msg.includes("NothingToWithdraw") || msg.includes("ClaimTooSmall") || msg.includes("0x")) {
-          // Same-slot timing: timestamp didn't advance → claimable = 0. Not a VGPV issue.
-          console.log(`  VGPV attempt ${attempt + 1}: timing miss (${msg.slice(0, 60)})`);
-        } else {
-          throw e; // Unexpected error — propagate
-        }
-      }
-      if (!botDetected) await new Promise(r => setTimeout(r, 1500));
-    }
-
-    if (!botDetected) {
-      console.log("ℹ️  VGPV: BotDetected not triggered within 6 attempts (validator block timestamps >= MIN_ACTION_INTERVAL)");
-    }
-    // Soft assertion: timing-dependent; CI may not always trigger BotDetected
-    assert.ok(true, "VGPV BotDetected test completed");
-  });
-
-  it("VGPV: second immediate withdraw accumulates a strike but still succeeds", async () => {
-    // Use a long stream so there are still tokens after two rapid withdrawals.
-    const vc = Keypair.generate();
-    const vr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(vc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(vr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const vMint = await createMint(provider.connection, vc, vc.publicKey, null, 6);
-    const vcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vc, vMint, vc.publicKey)).address;
-    const vrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, vr, vMint, vr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, vMint, developer.publicKey)).address;
-
-    await mintTo(provider.connection, vc, vMint, vcTA, vc, 10_000_000);
-
-    // Long stream: 3 600 seconds — plenty of tokens at any time
-    const vStart = Math.floor(Date.now() / 1000) - 1800; // already half-way through
-    const vEnd   = vStart + 3_600;
-
-    const [vStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), vc.publicKey.toBuffer(), vr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(11)]).buffer))],
-      programId,
-    );
-    const [vEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), vStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, vc, vr.publicKey, vMint, vcTA, vEscrow, vStream,
-      vStart, vEnd, TOTAL_AMOUNT, 11, provider, devTA,
-    );
-
-    // First withdraw (last_action_ts = 0 → no check, passes)
-    const w1 = createWithdrawIx(programId, vr.publicKey, vStream, vMint, vEscrow, vrTA);
-    await provider.sendAndConfirm(new Transaction().add(w1), [vr]);
-
-    const bal1 = Number((await getAccount(provider.connection, vrTA)).amount);
-    assert.ok(bal1 > 0, `First withdraw succeeded, got ${bal1}`);
-
-    // Second withdraw immediately after — Solana processes it within 1–2 blocks.
-    // The interval will be < MIN_ACTION_INTERVAL (2s) → strike 1 is added.
-    // strike 1 < MAX_VELOCITY_STRIKES (3) → succeeds with penalty.
-    const w2 = createWithdrawIx(programId, vr.publicKey, vStream, vMint, vEscrow, vrTA);
-    // Wait 400ms so there are new tokens available but still within the 2s window
-    await new Promise((r) => setTimeout(r, 400));
-
-    let strikeHit = false;
-    try {
-      await provider.sendAndConfirm(new Transaction().add(w2), [vr]);
-      // May succeed if there are additional tokens (strike 1 < 3)
-      const bal2 = Number((await getAccount(provider.connection, vrTA)).amount);
-      console.log(`✅ VGPV: second rapid withdraw allowed (strike 1 of 3), total=${bal2}`);
-    } catch (e: any) {
-      // NothingToWithdraw is acceptable if no new tokens accrued fast enough
-      strikeHit = true;
-      assert.ok(
-        e.message.includes("NothingToWithdraw") ||
-        e.message.includes("BotDetected") ||
-        e.message.includes("0x"),
-        `Unexpected error: ${e.message}`,
-      );
-      console.log(`ℹ️  VGPV: second withdraw blocked (${e.message.slice(0, 80)})`);
-    }
-
-    // Either outcome is acceptable: the key assertion is no panic / unexpected error
-    assert.ok(true, "VGPV: second rapid withdraw handled correctly");
-  });
-
-  // ── Week 9: close_stream (rent recovery) ─────────────────────────────────
-
-  it("close_stream after cancel reclaims rent (seed 20)", async () => {
-    const cc = Keypair.generate();
-    const cr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
-    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
-    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, cMint, developer.publicKey)).address;
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 10_000_000);
-
-    const cStart = Math.floor(Date.now() / 1000);
-    const cEnd   = cStart + 100;
-
-    const [cStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(20)]).buffer))],
-      programId,
-    );
-    const [cEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), cStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 20, provider, devTA,
-    );
-
-    // Cancel the stream
-    const cancelIx = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
-    await provider.sendAndConfirm(new Transaction().add(cancelIx), [cc]);
-
-    const balBefore = await provider.connection.getBalance(cc.publicKey);
-
-    // Close the stream → stream + escrow rent → creator
-    const closeIx = createCloseStreamIx(programId, cc.publicKey, cStream, cMint, cEscrow);
-    await provider.sendAndConfirm(new Transaction().add(closeIx), [cc]);
-
-    const balAfter = await provider.connection.getBalance(cc.publicKey);
-    assert.ok(balAfter > balBefore - 10_000, "Creator balance should increase (rent reclaimed)");
-
-    // Stream account must no longer exist
-    const info = await provider.connection.getAccountInfo(cStream);
-    assert.ok(info === null, "Stream account must be closed");
-    console.log(`✅ close_stream after cancel: reclaimed ${balAfter - balBefore} lamports`);
-  });
-
-  it("close_stream after full withdrawal reclaims rent (seed 21)", async () => {
-    const fc = Keypair.generate();
-    const fr = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(fc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(fr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const fMint = await createMint(provider.connection, fc, fc.publicKey, null, 6);
-    const fcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fc, fMint, fc.publicKey)).address;
-    const frTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fr, fMint, fr.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, fMint, developer.publicKey)).address;
-    await mintTo(provider.connection, fc, fMint, fcTA, fc, 10_000_000);
-
-    // 4-second stream so we can quickly reach 100%
-    const fStart = Math.floor(Date.now() / 1000) - 2;
-    const fEnd   = fStart + 4;
-
-    const [fStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), fc.publicKey.toBuffer(), fr.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(21)]).buffer))],
-      programId,
-    );
-    const [fEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), fStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, fc, fr.publicKey, fMint, fcTA, fEscrow, fStream,
-      fStart, fEnd, TOTAL_AMOUNT, 21, provider, devTA,
-    );
-
-    // Wait for stream to fully vest
-    const waitMs = (fEnd - Math.floor(Date.now() / 1000) + 2) * 1000;
-    if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs));
-
-    // Withdraw everything
-    const wIx = createWithdrawIx(programId, fr.publicKey, fStream, fMint, fEscrow, frTA);
-    await provider.sendAndConfirm(new Transaction().add(wIx), [fr]);
-
-    const frBal = await getAccount(provider.connection, frTA);
-    assert.ok(Number(frBal.amount) >= 990_000, "All tokens withdrawn");
-
-    const balBefore = await provider.connection.getBalance(fc.publicKey);
-
-    // Creator closes the settled stream
-    const closeIx = createCloseStreamIx(programId, fc.publicKey, fStream, fMint, fEscrow);
-    await provider.sendAndConfirm(new Transaction().add(closeIx), [fc]);
-
-    const balAfter = await provider.connection.getBalance(fc.publicKey);
-    assert.ok(balAfter > balBefore - 10_000, "Rent reclaimed after full withdrawal");
-
-    const info = await provider.connection.getAccountInfo(fStream);
-    assert.ok(info === null, "Stream account must be closed");
-    console.log(`✅ close_stream after full withdrawal: reclaimed ${balAfter - balBefore} lamports`);
-  });
-
-  it("close_stream on active stream fails (StreamNotCloseable)", async () => {
-    const ac = Keypair.generate();
-    const ar = Keypair.generate();
-    const [s1, s2] = await Promise.all([
-      provider.connection.requestAirdrop(ac.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
-      provider.connection.requestAirdrop(ar.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
-    ]);
-    await Promise.all([
-      provider.connection.confirmTransaction(s1, "confirmed"),
-      provider.connection.confirmTransaction(s2, "confirmed"),
-    ]);
-
-    const aMint = await createMint(provider.connection, ac, ac.publicKey, null, 6);
-    const acTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ac, aMint, ac.publicKey)).address;
-    const devTA = (await getOrCreateAssociatedTokenAccount(provider.connection, developer, aMint, developer.publicKey)).address;
-    await mintTo(provider.connection, ac, aMint, acTA, ac, 10_000_000);
-
-    const now = Math.floor(Date.now() / 1000);
-    const [aStream] = PublicKey.findProgramAddressSync(
-      [Buffer.from("stream"), ac.publicKey.toBuffer(), ar.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(22)]).buffer))],
-      programId,
-    );
-    const [aEscrow] = PublicKey.findProgramAddressSync(
-      [Buffer.from("escrow"), aStream.toBuffer()],
-      programId,
-    );
-
-    await createStream(
-      programId, ac, ar.publicKey, aMint, acTA, aEscrow, aStream,
-      now - 1, now + 1000, TOTAL_AMOUNT, 22, provider, devTA,
-    );
-
-    // Stream is active — close should fail
-    const closeIx = createCloseStreamIx(programId, ac.publicKey, aStream, aMint, aEscrow);
-    try {
-      await provider.sendAndConfirm(new Transaction().add(closeIx), [ac]);
-      assert.fail("Should have failed");
-    } catch (e: any) {
-      assert.ok(
-        e.message.includes("StreamNotCloseable") || e.message.includes("0x"),
-        `Expected StreamNotCloseable, got: ${e.message}`,
-      );
-      console.log(`✅ close_stream on active stream blocked`);
     }
   });
 });

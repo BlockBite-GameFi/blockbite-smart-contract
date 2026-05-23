@@ -1,43 +1,41 @@
 use crate::state::StreamAccount;
 
-// === Hybrid Unlock: Cliff + Milestone (Week 5) ===
-// If cliff_time > 0 AND milestone_reached: cliff then linear vesting
-// If cliff_time > 0 AND !milestone_reached: 0% unlocked
-// If cliff_time = 0: pure linear (Week 4 backward compat)
+// === Independent Vesting Gates ===
+// 1. Linear (cliff_time = 0, milestone_enabled = false): pure time-based
+// 2. Cliff (cliff_time > 0): 0% before cliff_date, then linear from cliff_date
+// 3. Milestone (milestone_enabled = true): 0% until creator calls set_milestone
+// 4. Cliff + Milestone: both gates must pass, then linear from max(cliff, milestone_ts)
 
 pub fn calculate_unlocked(stream: &StreamAccount, current_time: i64) -> u64 {
-    // Case 1: No cliff → pure linear (Week 4)
-    if stream.cliff_time == 0 {
-        if current_time < stream.start_time {
-            return 0;
-        }
-        if current_time >= stream.end_time {
-            return stream.total_amount;
-        }
-        let elapsed = (current_time - stream.start_time) as u128;
-        let duration = (stream.end_time - stream.start_time) as u128;
-        return ((stream.total_amount as u128)
-            .checked_mul(elapsed)
-            .unwrap()
-            .checked_div(duration)
-            .unwrap()) as u64;
-    }
-
-    // Case 2: Cliff set but milestone NOT reached → 0%
-    if !stream.milestone_reached {
+    // Gate 1: Cliff — zero tokens before cliff_date
+    if stream.cliff_time > 0 && current_time < stream.cliff_time {
         return 0;
     }
 
-    // Case 3: Cliff + milestone reached → linear vesting from cliff to end
-    if current_time < stream.cliff_time {
+    // Gate 2: Milestone — zero tokens until milestone is reached
+    if stream.milestone_enabled && !stream.milestone_reached {
         return 0;
     }
+
+    // Before stream start
+    if current_time < stream.start_time {
+        return 0;
+    }
+
+    // Fully vested
     if current_time >= stream.end_time {
         return stream.total_amount;
     }
 
-    let elapsed = (current_time - stream.cliff_time) as u128;
-    let duration = (stream.end_time - stream.cliff_time) as u128;
+    // Linear vesting from the effective start (cliff or start_time)
+    let effective_start = if stream.cliff_time > 0 {
+        stream.cliff_time
+    } else {
+        stream.start_time
+    };
+
+    let elapsed = (current_time - effective_start) as u128;
+    let duration = (stream.end_time - effective_start) as u128;
     ((stream.total_amount as u128)
         .checked_mul(elapsed)
         .unwrap()
@@ -57,6 +55,7 @@ mod tests {
         start_time: i64,
         end_time: i64,
         cliff_time: i64,
+        milestone_enabled: bool,
         milestone_reached: bool,
     ) -> StreamAccount {
         StreamAccount {
@@ -73,105 +72,133 @@ mod tests {
             bump: 0,
             seed: 0,
             milestone_reached,
-            velocity_strikes: 0,
-            last_action_ts: 0,
+            milestone_enabled,
         }
     }
 
-    // ── Week 4: Linear Vesting Tests (cliff_time = 0) ──
+    // ── Pure Linear Vesting (cliff_time = 0, milestone_enabled = false) ──
 
     #[test]
-    fn test_unlock_at_0_percent() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_at_0_percent() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 1000), 0);
     }
 
     #[test]
-    fn test_unlock_at_25_percent() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_at_25_percent() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 1250), 250_000);
     }
 
     #[test]
-    fn test_unlock_at_50_percent() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_at_50_percent() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 1500), 500_000);
     }
 
     #[test]
-    fn test_unlock_at_100_percent() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_at_100_percent() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 2000), 1_000_000);
     }
 
     #[test]
-    fn test_unlock_before_start() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_before_start() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 500), 0);
     }
 
     #[test]
-    fn test_unlock_past_end() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_linear_past_end() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, false, false);
         assert_eq!(calculate_unlocked(&stream, 3000), 1_000_000);
     }
 
-    // ── Week 5: Cliff + Milestone → Linear After Cliff ──
+    // ── Cliff Vesting (cliff_time > 0, milestone_enabled = false) ──
 
     #[test]
-    fn test_cliff_before_milestone_false() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, false);
+    fn test_cliff_before_cliff_date() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 1400), 0);
     }
 
     #[test]
-    fn test_cliff_at_exact_milestone_false() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, false);
+    fn test_cliff_at_exact_cliff_date() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 1500), 0);
     }
 
     #[test]
-    fn test_cliff_after_milestone_false() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, false);
-        assert_eq!(calculate_unlocked(&stream, 1800), 0);
-    }
-
-    #[test]
-    fn test_cliff_at_exact_milestone_reached() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, true);
-        assert_eq!(calculate_unlocked(&stream, 1500), 0);
-    }
-
-    #[test]
-    fn test_cliff_25_percent_after_milestone() {
+    fn test_cliff_25_percent_after_cliff() {
         // cliff=1500, end=2000, duration=500
         // at 1625: elapsed=125, 125/500 = 25%
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, true);
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 1625), 250_000);
     }
 
     #[test]
-    fn test_cliff_50_percent_after_milestone() {
+    fn test_cliff_50_percent_after_cliff() {
         // at 1750: elapsed=250, 250/500 = 50%
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, true);
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 1750), 500_000);
     }
 
     #[test]
-    fn test_cliff_100_percent_after_milestone() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, true);
+    fn test_cliff_100_percent() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 2000), 1_000_000);
     }
 
     #[test]
-    fn test_cliff_past_end_after_milestone() {
-        let stream = make_stream(1_000_000, 1000, 2000, 1500, true);
+    fn test_cliff_past_end() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, false, false);
         assert_eq!(calculate_unlocked(&stream, 3000), 1_000_000);
     }
 
+    // ── Milestone Vesting (cliff_time = 0, milestone_enabled = true) ──
+
     #[test]
-    fn test_cliff_zero_uses_linear() {
-        let stream = make_stream(1_000_000, 1000, 2000, 0, false);
+    fn test_milestone_not_reached_zero() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, true, false);
+        assert_eq!(calculate_unlocked(&stream, 1500), 0);
+    }
+
+    #[test]
+    fn test_milestone_reached_linear() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, true, true);
         assert_eq!(calculate_unlocked(&stream, 1500), 500_000);
+    }
+
+    #[test]
+    fn test_milestone_reached_past_end() {
+        let stream = make_stream(1_000_000, 1000, 2000, 0, true, true);
+        assert_eq!(calculate_unlocked(&stream, 3000), 1_000_000);
+    }
+
+    // ── Cliff + Milestone Combined ──
+
+    #[test]
+    fn test_cliff_and_milestone_both_block() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, true, false);
+        assert_eq!(calculate_unlocked(&stream, 1800), 0);
+    }
+
+    #[test]
+    fn test_cliff_passed_milestone_not_reached() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, true, false);
+        assert_eq!(calculate_unlocked(&stream, 1600), 0);
+    }
+
+    #[test]
+    fn test_cliff_passed_milestone_reached() {
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, true, true);
+        assert_eq!(calculate_unlocked(&stream, 1750), 500_000);
+    }
+
+    #[test]
+    fn test_milestone_reached_before_cliff() {
+        // Milestone reached but cliff not yet → still 0%
+        let stream = make_stream(1_000_000, 1000, 2000, 1500, true, true);
+        assert_eq!(calculate_unlocked(&stream, 1400), 0);
     }
 }

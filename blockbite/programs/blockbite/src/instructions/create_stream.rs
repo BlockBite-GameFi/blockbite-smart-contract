@@ -3,20 +3,18 @@ use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
 use crate::state::StreamAccount;
 use crate::errors::ErrorCode;
-use crate::constants::DEV_FEE_BPS;
 
 /// Creator initialises a new vesting stream.
 ///
-/// Account order (8 accounts + 2 programs = 10 total):
+/// Account order (7 accounts + 2 programs = 9 total):
 ///   0  creator                 – signer, payer
 ///   1  recipient               – unchecked (just stored)
 ///   2  mint                    – SPL mint
 ///   3  creator_token_account   – source of tokens
 ///   4  escrow_token_account    – PDA token vault (init)
 ///   5  stream                  – stream state PDA (init)
-///   6  developer_token_account – protocol fee destination (mut)
-///   7  token_program
-///   8  system_program
+///   6  token_program
+///   7  system_program
 #[derive(Accounts)]
 #[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64)]
 pub struct CreateStream<'info> {
@@ -48,19 +46,11 @@ pub struct CreateStream<'info> {
     #[account(
         init,
         payer = creator,
-        space = StreamAccount::LEN,   // LEN already includes the 8-byte discriminator
+        space = StreamAccount::LEN,
         seeds = [b"stream", creator.key().as_ref(), recipient.key().as_ref(), &seed.to_le_bytes()],
         bump,
     )]
     pub stream: Box<Account<'info, StreamAccount>>,
-
-    /// Developer / protocol treasury token account.
-    /// Receives DEV_FEE_BPS of `total_amount` from the creator.
-    #[account(
-        mut,
-        token::mint = mint,
-    )]
-    pub developer_token_account: Box<Account<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -88,33 +78,7 @@ pub fn handler(
 
     let decimals = ctx.accounts.mint.decimals;
 
-    // ── Developer fee deposit ─────────────────────────────────────────────────
-    // fee = total_amount * DEV_FEE_BPS / 10_000
-    // Transferred creator → developer_token_account BEFORE escrow deposit so
-    // the creator's balance is validated in a single flow.
-    let dev_fee = total_amount
-        .checked_mul(DEV_FEE_BPS)
-        .unwrap()
-        .checked_div(10_000)
-        .unwrap();
-
-    if dev_fee > 0 {
-        let fee_cpi = TransferChecked {
-            from:      ctx.accounts.creator_token_account.to_account_info(),
-            mint:      ctx.accounts.mint.to_account_info(),
-            to:        ctx.accounts.developer_token_account.to_account_info(),
-            authority: ctx.accounts.creator.to_account_info(),
-        };
-        token::transfer_checked(
-            CpiContext::new(ctx.accounts.token_program.to_account_info(), fee_cpi),
-            dev_fee,
-            decimals,
-        )?;
-        msg!("Dev fee transferred: {}", dev_fee);
-    }
-
     // ── Escrow deposit ────────────────────────────────────────────────────────
-    // Creator deposits exactly `total_amount` into the PDA escrow vault.
     let escrow_cpi = TransferChecked {
         from:      ctx.accounts.creator_token_account.to_account_info(),
         mint:      ctx.accounts.mint.to_account_info(),
@@ -142,12 +106,11 @@ pub fn handler(
     stream.bump                  = ctx.bumps.stream;
     stream.seed                  = seed;
     stream.milestone_reached     = false;
-    stream.velocity_strikes      = 0;
-    stream.last_action_ts        = 0;
+    stream.milestone_enabled     = cliff_time > 0;
 
     msg!(
-        "Stream created: total={} dev_fee={} start={} end={} cliff={}",
-        total_amount, dev_fee, start_time, end_time, cliff_time
+        "Stream created: total={} start={} end={} cliff={}",
+        total_amount, start_time, end_time, cliff_time
     );
 
     Ok(())

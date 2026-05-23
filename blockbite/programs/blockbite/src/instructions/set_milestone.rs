@@ -13,7 +13,6 @@ pub struct SetMilestone<'info> {
         seeds = [b"stream", stream.creator.as_ref(), stream.recipient.as_ref(), &stream.seed.to_le_bytes()],
         bump = stream.bump,
         constraint = stream.creator == creator.key() @ ErrorCode::Unauthorized,
-        constraint = Clock::get()?.unix_timestamp >= stream.cliff_time @ ErrorCode::CliffNotReached,
         constraint = !stream.milestone_reached @ ErrorCode::MilestoneAlreadyReached,
         constraint = !stream.is_cancelled @ ErrorCode::StreamCancelled,
     )]
@@ -22,5 +21,6 @@ pub struct SetMilestone<'info> {
 
 pub fn handler(ctx: Context<SetMilestone>) -> Result<()> {
     ctx.accounts.stream.milestone_reached = true;
+    ctx.accounts.stream.milestone_enabled = true;
     Ok(())
 }
