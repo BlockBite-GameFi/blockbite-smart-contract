@@ -33,4 +33,8 @@ pub enum ErrorCode {
     BotDetected,
     #[msg("Stream has expired and is no longer active")]
     StreamExpired,
+    #[msg("Claim amount is below minimum threshold")]
+    ClaimTooSmall,
+    #[msg("Stream must be cancelled or fully withdrawn before it can be closed")]
+    StreamNotCloseable,
 }

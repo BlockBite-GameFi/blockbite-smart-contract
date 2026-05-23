@@ -129,39 +129,10 @@ jobs:
             sleep 5
           done
 
-          if [ "$READY" -eq 0 ]; then
-            echo "❌ Validator failed to start within 180s"
-            cat .anchor/test-ledger/validator.log 2>/dev/null | tail -40 || true
-            kill "$VALIDATOR_PID" 2>/dev/null || true
-            exit 1
-          fi
+          # 4. Deploy program ke local validator
+          anchor deploy --provider.cluster localnet
 
-          # ── 3. Fund deployer wallet ───────────────────────────────────────────
-          DEPLOYER_KEY=/home/runner/.config/solana/id.json
-          DEPLOYER_PUBKEY=$(solana-keygen pubkey "$DEPLOYER_KEY")
-          echo "💰 Airdropping 100 SOL to $DEPLOYER_PUBKEY..."
-          solana airdrop 100 "$DEPLOYER_PUBKEY" \
-            --url http://127.0.0.1:8899 \
-            --keypair "$DEPLOYER_KEY" || true
-          sleep 2
-          BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
-          echo "   Balance: $BALANCE"
+          # 5. Jalankan test suite
+          yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 
-          # ── 4. Deploy program ─────────────────────────────────────────────────
-          # Note: --skip-build is not supported by anchor deploy in 0.32.1
-          # The program was already built in the "Build program" step above;
-          # cargo cache is warm so this rebuild is fast.
-          echo "🚀 Deploying program..."
-          anchor deploy \
-            --provider.cluster localnet \
-            --provider.wallet "$DEPLOYER_KEY"
 
-          # ── 5. Run TypeScript integration tests ───────────────────────────────
-          echo "🧪 Running integration tests..."
-          yarn run ts-mocha \
-            -p ./tsconfig.json \
-            -t 1000000 \
-            "tests/**/*.ts"
-
-          # ── 6. Cleanup ────────────────────────────────────────────────────────
-          kill "$VALIDATOR_PID" 2>/dev/null || true
