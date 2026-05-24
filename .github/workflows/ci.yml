@@ -17,8 +17,6 @@ jobs:
         uses: actions/checkout@v4
 
       # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
-      # edition2024 (block-buffer 0.12.0, cpufeatures 0.3.0, etc.) requires
-      # Cargo >= 1.85.0.
       - name: Setup Rust 1.85.0
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -60,19 +58,29 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      # ── 7. Force system Cargo 1.85.0 for all subprocesses ────────────────────
-      # cargo-build-sbf (called by anchor build) spawns child `cargo` processes
-      # to resolve/download dependency manifests. Those child processes inherit
-      # the CARGO env var, so setting it to the system cargo (1.85.0) ensures
-      # every manifest parse uses Cargo 1.85.0 — which supports edition2024.
+      # ── 7. Hard-override Solana's cargo with system cargo 1.85.0 ─────────────
+      # cargo-build-sbf is a shell script that calls `cargo run ...` directly
+      # from PATH. Solana's bin dir contains its own `cargo` (1.79.0) which
+      # is first in PATH after step 6. We physically replace that binary with
+      # a wrapper script that delegates to system cargo 1.85.0, so any `cargo`
+      # call from Solana's bin dir gets 1.85.0.
       #
-      # Solana's own rustc/linker is still used for the SBF compilation step
-      # (cargo +solana ...) because that goes through rustup, not CARGO env var.
-      - name: Set CARGO env to system Cargo 1.85.0
+      # Solana's rustc (for SBF/BPF compilation) is untouched — it is invoked
+      # via `cargo +solana` which goes through rustup, not through this cargo.
+      - name: Override Solana cargo with system cargo 1.85.0 wrapper
         run: |
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
           SYSTEM_CARGO="$(rustup which cargo)"
-          echo "CARGO=$SYSTEM_CARGO" >> "$GITHUB_ENV"
-          echo "Using cargo: $($SYSTEM_CARGO --version)"
+
+          # Write a wrapper script in place of Solana's cargo
+          cat > "$SOLANA_BIN/cargo" << EOF
+          #!/usr/bin/env bash
+          exec "$SYSTEM_CARGO" "\$@"
+          EOF
+          chmod +x "$SOLANA_BIN/cargo"
+
+          # Verify
+          echo "Solana bin cargo now delegates to: $("$SOLANA_BIN/cargo" --version)"
 
       # ── 8. Anchor CLI 0.32.1 (compiled from source, cached) ──────────────────
       - name: Install Anchor CLI 0.32.1
