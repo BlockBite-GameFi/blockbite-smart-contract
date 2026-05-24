@@ -11,21 +11,29 @@ jobs:
     name: Build & Test Anchor Program
     runs-on: ubuntu-latest
 
+    env:
+      # Force all Cargo/Rust commands to use the system toolchain (1.85.0),
+      # NOT the Rust bundled inside Solana CLI (1.79.0).
+      # Without this, `anchor build` picks up Solana's old Cargo and fails
+      # with: feature `edition2024` is required (needs Cargo >= 1.85.0).
+      CARGO_HOME: /home/runner/.cargo
+      RUSTUP_HOME: /home/runner/.rustup
+
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Rust toolchain ────────────────────────────────────────────────────
-      # Anchor 0.32.1 requires Rust >= 1.85.0
+      # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
+      # edition2024 (used by block-buffer 0.12.0 and other deps) was stabilised
+      # in Rust 1.85.0 / Cargo 1.85.0. Anything older will fail to parse those
+      # Cargo.toml files.
       - name: Setup Rust 1.85.0
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.85.0"
 
       # ── 3. Restore caches ────────────────────────────────────────────────────
-      # Cache compiled anchor binary + cargo registry + program build artifacts.
-      # Anchor binary is included so cargo install only runs on cache miss.
       - name: Cache Cargo registry + Anchor binary
         id: cache-cargo
         uses: actions/cache@v4
@@ -47,7 +55,6 @@ jobs:
           sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
 
       # ── 5. Node.js ───────────────────────────────────────────────────────────
-      # Setup Node BEFORE Solana so the yarn cache key resolves correctly.
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -55,19 +62,28 @@ jobs:
           cache: "yarn"
           cache-dependency-path: blockbite/yarn.lock
 
-      # ── 6. Solana CLI ────────────────────────────────────────────────────────
-      # Pinned to v2.1.21 (latest stable 2.x).
+      # ── 6. Solana CLI v2.1.21 ────────────────────────────────────────────────
+      # Pinned to v2.1.21 — the latest 2.x release.
       # Agave 3.x requires io_uring which is DISABLED on GitHub Actions runners.
+      # Solana CLI ships its own Rust (1.79.0); we add it AFTER $CARGO_HOME/bin
+      # in PATH so that the system rustc/cargo (1.85.0) always wins.
       - name: Install Solana CLI v2.1.21
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
+          # Append Solana bin — system Rust bin is already earlier in PATH
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      # ── 7. Anchor CLI 0.32.1 ─────────────────────────────────────────────────
-      # No pre-built binary exists for v0.32.1 and AVM binaries require
-      # GLIBC_2.38 which is absent on ubuntu-latest runners.
-      # Compiled from source and cached — only re-runs on cache miss (~8 min).
-      - name: Install Anchor CLI 0.32.1 (from source, cached)
+      # ── 7. Ensure system Rust is first in PATH ────────────────────────────────
+      # Solana's installer can prepend its own bin dir. Re-prepend the system
+      # Cargo bin so rustc/cargo 1.85.0 is always resolved first.
+      - name: Pin system Rust to front of PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      # ── 8. Anchor CLI 0.32.1 (compiled from source, cached) ──────────────────
+      # No pre-built binary for v0.32.1 exists; AVM binaries require GLIBC_2.38
+      # which is absent on ubuntu-latest. Compiled once and cached (~8 min first
+      # run, instant on cache hit).
+      - name: Install Anchor CLI 0.32.1
         if: steps.cache-cargo.outputs.cache-hit != 'true'
         env:
           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
@@ -75,16 +91,17 @@ jobs:
           cargo install --git https://github.com/coral-xyz/anchor \
             --tag v0.32.1 anchor-cli --locked --force
 
-      # ── 8. Verify tool versions ──────────────────────────────────────────────
+      # ── 9. Verify tool versions ───────────────────────────────────────────────
       - name: Verify tool versions
         run: |
-          rustc --version
+          rustc --version          # must be 1.85.0
+          cargo --version          # must be 1.85.x
           solana --version
           anchor --version
           node --version
           yarn --version
 
-      # ── 9. Solana wallet & CLI config ────────────────────────────────────────
+      # ── 10. Solana wallet & CLI config ───────────────────────────────────────
       - name: Configure Solana CLI
         run: |
           solana-keygen new --no-bip39-passphrase --silent \
@@ -93,9 +110,7 @@ jobs:
             --url http://127.0.0.1:8899 \
             --keypair ~/.config/solana/id.json
 
-      # ── 10. Program keypair ──────────────────────────────────────────────────
-      # Use the secret keypair to keep the program ID stable across runs.
-      # Falls back to an ephemeral key (with anchor keys sync) when absent.
+      # ── 11. Program keypair ───────────────────────────────────────────────────
       - name: Restore program keypair
         working-directory: blockbite
         run: |
@@ -110,35 +125,28 @@ jobs:
             echo "No ANCHOR_PROGRAM_KEYPAIR — using ephemeral key"
           fi
 
-      # ── 11. Sync program ID ──────────────────────────────────────────────────
-      # When using an ephemeral key the derived address differs from the
-      # hardcoded ID. anchor keys sync patches lib.rs + Anchor.toml so the
-      # build always succeeds regardless of which keypair is in use.
+      # ── 12. Sync program ID ───────────────────────────────────────────────────
       - name: Sync program ID
         working-directory: blockbite
         run: anchor keys sync
 
-      # ── 12. Node dependencies ────────────────────────────────────────────────
+      # ── 13. Node dependencies ─────────────────────────────────────────────────
       - name: Install Node dependencies
         working-directory: blockbite
         run: yarn install --frozen-lockfile
 
-      # ── 13. Build ────────────────────────────────────────────────────────────
+      # ── 14. Build ─────────────────────────────────────────────────────────────
       - name: Build Anchor program
         working-directory: blockbite
         run: anchor build
 
-      # ── 14. Rust unit tests ──────────────────────────────────────────────────
-      # Run unit tests defined in lib.rs (#[cfg(test)] modules).
-      # The workspace root Cargo.lock lives in blockbite/, so --manifest-path
-      # points at the program crate directly.
+      # ── 15. Rust unit tests ───────────────────────────────────────────────────
       - name: Run Rust unit tests
         working-directory: blockbite
         run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
 
-      # ── 15. Integration tests (TypeScript) ───────────────────────────────────
-      # Uses anchor test --skip-build so we don't rebuild the already-built
-      # program. Anchor will start/stop solana-test-validator automatically,
+      # ── 16. Integration tests (TypeScript) ───────────────────────────────────
+      # anchor test --skip-build handles validator lifecycle automatically,
       # honouring startup_wait = 120000 from Anchor.toml.
       - name: Run integration tests
         working-directory: blockbite
