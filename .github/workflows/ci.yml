@@ -11,23 +11,12 @@ jobs:
     name: Build & Test Anchor Program
     runs-on: ubuntu-latest
 
-    env:
-      # Force all Cargo/Rust commands to use the system toolchain (1.85.0),
-      # NOT the Rust bundled inside Solana CLI (1.79.0).
-      # Without this, `anchor build` picks up Solana's old Cargo and fails
-      # with: feature `edition2024` is required (needs Cargo >= 1.85.0).
-      CARGO_HOME: /home/runner/.cargo
-      RUSTUP_HOME: /home/runner/.rustup
-
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
       # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
-      # edition2024 (used by block-buffer 0.12.0 and other deps) was stabilised
-      # in Rust 1.85.0 / Cargo 1.85.0. Anything older will fail to parse those
-      # Cargo.toml files.
       - name: Setup Rust 1.85.0
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -63,26 +52,30 @@ jobs:
           cache-dependency-path: blockbite/yarn.lock
 
       # ── 6. Solana CLI v2.1.21 ────────────────────────────────────────────────
-      # Pinned to v2.1.21 — the latest 2.x release.
       # Agave 3.x requires io_uring which is DISABLED on GitHub Actions runners.
-      # Solana CLI ships its own Rust (1.79.0); we add it AFTER $CARGO_HOME/bin
-      # in PATH so that the system rustc/cargo (1.85.0) always wins.
       - name: Install Solana CLI v2.1.21
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
-          # Append Solana bin — system Rust bin is already earlier in PATH
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      # ── 7. Ensure system Rust is first in PATH ────────────────────────────────
-      # Solana's installer can prepend its own bin dir. Re-prepend the system
-      # Cargo bin so rustc/cargo 1.85.0 is always resolved first.
-      - name: Pin system Rust to front of PATH
-        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      # ── 7. Override Solana's bundled Rust with system Rust 1.85.0 ────────────
+      # Solana CLI ships its own rustc/cargo (1.79.0) inside its bin directory.
+      # We overwrite those symlinks to point at the system 1.85.0 binaries so
+      # that any tool (including anchor) that resolves cargo from Solana's bin
+      # always gets Cargo 1.85.0 — which is required for `edition2024` crates.
+      - name: Override Solana's bundled rustc/cargo with system 1.85.0
+        run: |
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          SYSTEM_CARGO="$(rustup which cargo)"
+          SYSTEM_RUSTC="$(rustup which rustc)"
+
+          ln -sf "$SYSTEM_CARGO" "$SOLANA_BIN/cargo"
+          ln -sf "$SYSTEM_RUSTC" "$SOLANA_BIN/rustc"
+
+          echo "cargo  -> $(cargo --version)"
+          echo "rustc  -> $(rustc --version)"
 
       # ── 8. Anchor CLI 0.32.1 (compiled from source, cached) ──────────────────
-      # No pre-built binary for v0.32.1 exists; AVM binaries require GLIBC_2.38
-      # which is absent on ubuntu-latest. Compiled once and cached (~8 min first
-      # run, instant on cache hit).
       - name: Install Anchor CLI 0.32.1
         if: steps.cache-cargo.outputs.cache-hit != 'true'
         env:
@@ -94,8 +87,8 @@ jobs:
       # ── 9. Verify tool versions ───────────────────────────────────────────────
       - name: Verify tool versions
         run: |
-          rustc --version          # must be 1.85.0
-          cargo --version          # must be 1.85.x
+          rustc --version    # must be 1.85.0
+          cargo --version    # must be 1.85.x
           solana --version
           anchor --version
           node --version
@@ -145,9 +138,7 @@ jobs:
         working-directory: blockbite
         run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
 
-      # ── 16. Integration tests (TypeScript) ───────────────────────────────────
-      # anchor test --skip-build handles validator lifecycle automatically,
-      # honouring startup_wait = 120000 from Anchor.toml.
+      # ── 16. Integration tests ─────────────────────────────────────────────────
       - name: Run integration tests
         working-directory: blockbite
         env:
