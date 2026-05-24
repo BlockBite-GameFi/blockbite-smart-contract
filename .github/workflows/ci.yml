@@ -24,14 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
-      # edition2024 was stabilised in Rust/Cargo 1.85.0.
-      # `@stable` resolves to whatever stable is at run time (was 1.84.0 on
-      # this runner), so we pin explicitly to guarantee >= 1.85.0.
-      - name: Install Rust 1.85.0
+      # ── 2. Rust 1.91.0 ───────────────────────────────────────────────────────
+      # Minimum version matrix:
+      #   edition2024 support       → Cargo >= 1.85.0
+      #   avm v1.0.2 dependencies   → rustc >= 1.91.0 (cargo-platform, icu_*, etc)
+      # 1.91.0 satisfies both constraints.
+      - name: Install Rust 1.91.0
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.85.0"
+          toolchain: "1.91.0"
 
       # ── 3. Cargo cache ───────────────────────────────────────────────────────
       - name: Cache Cargo
