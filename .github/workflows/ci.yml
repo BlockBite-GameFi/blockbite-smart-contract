@@ -1,4 +1,4 @@
-name: Blockbite CI
+name: Blockbite Anchor CI
 
 on:
   push:
@@ -80,7 +80,7 @@ jobs:
       # AVM (Anchor Version Manager) is the officially supported way to install
       # Anchor. Compiling anchor-cli directly from source also works but takes
       # ~8 minutes; AVM caches the binary and is faster on cache hit.
-      - name: Cache Anchor CLI 0.32.1
+      - name: Cache Anchor CLI 1.0.0
         uses: actions/cache@v4
         id: anchor-cache
         with:
@@ -88,20 +88,20 @@ jobs:
             ~/.avm
             ~/.cargo/bin/avm
             ~/.cargo/bin/anchor
-          key: anchor-avm-${{ runner.os }}-0.32.1
+          key: anchor-avm-${{ runner.os }}-1.0.0
 
-      - name: Install Anchor CLI 0.32.1 via AVM
+      - name: Install Anchor CLI 1.0.0 via AVM
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         run: |
           cargo install --git https://github.com/coral-xyz/anchor \
             avm --locked --force
-          avm install 0.32.1
-          avm use 0.32.1
+          avm install 1.0.0
+          avm use 1.0.0
 
       - name: Ensure Anchor CLI is active
         run: |
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          avm use 0.32.1
+          avm use 1.0.0
           anchor --version
 
       # ── 6. Node.js ───────────────────────────────────────────────────────────
