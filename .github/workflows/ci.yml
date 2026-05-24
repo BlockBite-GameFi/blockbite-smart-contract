@@ -18,7 +18,7 @@ jobs:
 
       # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
       # edition2024 (block-buffer 0.12.0, cpufeatures 0.3.0, etc.) requires
-      # Cargo >= 1.85.0. This toolchain is also used for `cargo test`.
+      # Cargo >= 1.85.0.
       - name: Setup Rust 1.85.0
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -60,28 +60,21 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      # ── 7. Register Solana platform-tools as a rustup toolchain ──────────────
-      # `anchor build` calls `cargo-build-sbf` which internally runs
-      # `cargo +solana <args>`. The `+solana` is a rustup toolchain override —
-      # it requires a toolchain named "solana" to be registered in rustup.
+      # ── 7. Force system Cargo 1.85.0 for all subprocesses ────────────────────
+      # cargo-build-sbf (called by anchor build) spawns child `cargo` processes
+      # to resolve/download dependency manifests. Those child processes inherit
+      # the CARGO env var, so setting it to the system cargo (1.85.0) ensures
+      # every manifest parse uses Cargo 1.85.0 — which supports edition2024.
       #
-      # cargo-build-sbf downloads platform-tools on first run and then links
-      # them via `rustup toolchain link solana <path>`. We trigger that download
-      # explicitly here (before the build) so rustup already knows about the
-      # "solana" toolchain when anchor build runs.
-      #
-      # We do NOT replace Solana's cargo/rustc — cargo-build-sbf needs its own
-      # rustc (targeting sbfv2) for the on-chain compilation step. The system
-      # Rust 1.85.0 is used only for resolving/downloading dependency manifests.
-      - name: Pre-install Solana platform-tools (registers +solana toolchain)
+      # Solana's own rustc/linker is still used for the SBF compilation step
+      # (cargo +solana ...) because that goes through rustup, not CARGO env var.
+      - name: Set CARGO env to system Cargo 1.85.0
         run: |
-          # Run a no-op build-sbf to trigger platform-tools download + rustup link
-          cargo-build-sbf --version || true
-          # Confirm the toolchain is now registered
-          rustup toolchain list | grep solana || echo "toolchain link pending (will happen at build time)"
+          SYSTEM_CARGO="$(rustup which cargo)"
+          echo "CARGO=$SYSTEM_CARGO" >> "$GITHUB_ENV"
+          echo "Using cargo: $($SYSTEM_CARGO --version)"
 
       # ── 8. Anchor CLI 0.32.1 (compiled from source, cached) ──────────────────
-      # No pre-built binary for v0.32.1; AVM requires GLIBC_2.38 (absent here).
       - name: Install Anchor CLI 0.32.1
         if: steps.cache-cargo.outputs.cache-hit != 'true'
         env:
@@ -94,7 +87,7 @@ jobs:
       - name: Verify tool versions
         run: |
           rustc --version
-          cargo --version
+          cargo --version    # must be 1.85.x
           solana --version
           anchor --version
           node --version
