@@ -1,157 +1,68 @@
-name: Blockbite CI
-
+name: BlockBite CI
 on:
   push:
-    branches: [master, main]
+    branches: [main]
+    paths:
+      - 'blockbite/**'
   pull_request:
-    branches: [master, main]
-
+    branches: [main]
+    paths:
+      - 'blockbite/**'
 jobs:
-  smart-contract:
-    name: Build & Test Anchor Program
+  build-and-test:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: blockbite
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
-
-      # ── 2. Rust 1.85.0 ───────────────────────────────────────────────────────
-      - name: Setup Rust 1.85.0
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.85.0"
-
-      # ── 3. Restore caches ────────────────────────────────────────────────────
-      - name: Cache Cargo registry + Anchor binary
-        id: cache-cargo
+          toolchain: stable
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cache Solana Toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-${{ runner.os }}-stable
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+      - name: Cache Cargo Registry & Build Artifacts
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin/anchor
-            blockbite/target
-          key: ${{ runner.os }}-rust1.85-anchor0.32.1-${{ hashFiles('blockbite/Cargo.lock') }}
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-rust1.85-anchor0.32.1-
-            ${{ runner.os }}-rust1.85-
-
-      # ── 4. System dependencies ───────────────────────────────────────────────
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
-
-      # ── 5. Node.js ───────────────────────────────────────────────────────────
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+            cargo-${{ runner.os }}-
+      - name: Install Anchor CLI
+        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --locked
+      - name: Cache Node Modules
+        uses: actions/cache@v4
         with:
-          node-version: "20"
-          cache: "yarn"
-          cache-dependency-path: blockbite/yarn.lock
-
-      # ── 6. Solana CLI v2.1.21 ────────────────────────────────────────────────
-      # Agave 3.x requires io_uring which is DISABLED on GitHub Actions runners.
-      - name: Install Solana CLI v2.1.21
+          path: blockbite/node_modules
+          key: node-${{ runner.os }}-${{ hashFiles('blockbite/yarn.lock') }}
+          restore-keys: |
+            node-${{ runner.os }}-
+      - name: Install Node Dependencies
+        run: yarn install
+      - name: Verify Toolchain
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.21/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-
-      # ── 7. Hard-override Solana's cargo with system cargo 1.85.0 ─────────────
-      # cargo-build-sbf is a shell script that calls `cargo run ...` directly
-      # from PATH. Solana's bin dir contains its own `cargo` (1.79.0) which
-      # is first in PATH after step 6. We physically replace that binary with
-      # a wrapper script that delegates to system cargo 1.85.0, so any `cargo`
-      # call from Solana's bin dir gets 1.85.0.
-      #
-      # Solana's rustc (for SBF/BPF compilation) is untouched — it is invoked
-      # via `cargo +solana` which goes through rustup, not through this cargo.
-      - name: Override Solana cargo with system cargo 1.85.0 wrapper
-        run: |
-          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
-          SYSTEM_CARGO="$(rustup which cargo)"
-
-          # Write a wrapper script in place of Solana's cargo
-          cat > "$SOLANA_BIN/cargo" << EOF
-          #!/usr/bin/env bash
-          exec "$SYSTEM_CARGO" "\$@"
-          EOF
-          chmod +x "$SOLANA_BIN/cargo"
-
-          # Verify
-          echo "Solana bin cargo now delegates to: $("$SOLANA_BIN/cargo" --version)"
-
-      # ── 8. Anchor CLI 0.32.1 (compiled from source, cached) ──────────────────
-      - name: Install Anchor CLI 0.32.1
-        if: steps.cache-cargo.outputs.cache-hit != 'true'
-        env:
-          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-        run: |
-          cargo install --git https://github.com/coral-xyz/anchor \
-            --tag v0.32.1 anchor-cli --locked --force
-
-      # ── 9. Verify tool versions ───────────────────────────────────────────────
-      - name: Verify tool versions
-        run: |
-          rustc --version
-          cargo --version    # must be 1.85.x
           solana --version
           anchor --version
           node --version
-          yarn --version
-
-      # ── 10. Solana wallet & CLI config ───────────────────────────────────────
-      - name: Configure Solana CLI
-        run: |
-          solana-keygen new --no-bip39-passphrase --silent \
-            --outfile ~/.config/solana/id.json
-          solana config set \
-            --url http://127.0.0.1:8899 \
-            --keypair ~/.config/solana/id.json
-
-      # ── 11. Program keypair ───────────────────────────────────────────────────
-      - name: Restore program keypair
-        working-directory: blockbite
-        run: |
-          mkdir -p target/deploy
-          if [ -n "${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}" ]; then
-            echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' \
-              > target/deploy/blockbite-keypair.json
-            echo "Using program keypair from secret"
-          else
-            solana-keygen new --no-bip39-passphrase --silent \
-              --outfile target/deploy/blockbite-keypair.json
-            echo "No ANCHOR_PROGRAM_KEYPAIR — using ephemeral key"
-          fi
-
-      # ── 12. Sync program ID ───────────────────────────────────────────────────
-      - name: Sync program ID
-        working-directory: blockbite
-        run: anchor keys sync
-
-      # ── 13. Node dependencies ─────────────────────────────────────────────────
-      - name: Install Node dependencies
-        working-directory: blockbite
-        run: yarn install --frozen-lockfile
-
-      # ── 14. Build ─────────────────────────────────────────────────────────────
-      - name: Build Anchor program
-        working-directory: blockbite
+      - name: Run Rust Unit Tests
+        run: cargo test --package blockbite
+      - name: Build Anchor Program
         run: anchor build
-
-      # ── 15. Rust unit tests ───────────────────────────────────────────────────
-      - name: Run Rust unit tests
-        working-directory: blockbite
-        run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
-
-      # ── 16. Integration tests ─────────────────────────────────────────────────
-      - name: Run integration tests
-        working-directory: blockbite
-        env:
-          ANCHOR_WALLET: /home/runner/.config/solana/id.json
-          ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
-        run: |
-          anchor test --skip-build \
-            --provider.cluster localnet \
-            --provider.wallet /home/runner/.config/solana/id.json
+      - name: Run Anchor Integration Tests
+        run: anchor test
