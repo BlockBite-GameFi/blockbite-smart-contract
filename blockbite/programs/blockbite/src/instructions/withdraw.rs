@@ -80,7 +80,7 @@ pub fn handler(ctx: Context<Withdraw>) -> Result<()> {
         to:        recipient_ta,
         authority: stream_ai,
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds);
+    let cpi_ctx = CpiContext::new_with_signer(token_program.key(), cpi_accounts, signer_seeds);
     token::transfer_checked(cpi_ctx, claimable, mint_decimals)?;
 
     ctx.accounts.stream.amount_withdrawn = ctx

@@ -60,7 +60,7 @@ pub fn handler(
         authority: ctx.accounts.founder.to_account_info(),
     };
     token::transfer_checked(
-        CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts),
+        CpiContext::new(ctx.accounts.token_program.key(), cpi_accounts),
         total_budget,
         decimals,
     )?;

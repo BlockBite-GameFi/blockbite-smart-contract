@@ -90,7 +90,7 @@ pub fn handler(ctx: Context<Cancel>) -> Result<()> {
             authority: stream_ai.clone(),
         };
         let cpi_ctx = CpiContext::new_with_signer(
-            token_program.clone(),
+            token_program.key(),
             cpi_accounts,
             signer_seeds,
         );
@@ -105,7 +105,7 @@ pub fn handler(ctx: Context<Cancel>) -> Result<()> {
             authority: stream_ai,
         };
         let cpi_ctx = CpiContext::new_with_signer(
-            token_program,
+            token_program.key(),
             cpi_accounts,
             signer_seeds,
         );

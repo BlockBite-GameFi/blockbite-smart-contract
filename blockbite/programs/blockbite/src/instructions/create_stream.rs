@@ -86,7 +86,7 @@ pub fn handler(
         authority: ctx.accounts.creator.to_account_info(),
     };
     token::transfer_checked(
-        CpiContext::new(ctx.accounts.token_program.to_account_info(), escrow_cpi),
+        CpiContext::new(ctx.accounts.token_program.key(), escrow_cpi),
         total_amount,
         decimals,
     )?;

@@ -17,10 +17,10 @@ pub struct VerifyOracle<'info> {
     pub milestone: Box<Account<'info, MilestoneAccount>>,
 }
 
-pub fn handler(ctx: Context<VerifyOracle>, signature: [u8; 64]) -> Result<()> {
+pub fn handler(ctx: Context<VerifyOracle>, _signature: [u8; 64]) -> Result<()> {
     let milestone = &mut ctx.accounts.milestone;
-    let message = milestone.proof_hash;
-    let pubkey_bytes = milestone.oracle_pubkey.to_bytes();
+    let _message = milestone.proof_hash;
+    let _pubkey_bytes = milestone.oracle_pubkey.to_bytes();
 
     // Use Solana's built-in ed25519 signature verification.
     // In Anchor 0.32, we use the low-level sysvar approach:
