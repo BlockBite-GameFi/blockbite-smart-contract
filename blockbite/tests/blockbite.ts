@@ -24,15 +24,17 @@ function createStreamData(
   endTime: number,
   cliffTime: number,
   seed: number,
+  milestoneEnabled: boolean = false,
 ): Buffer {
   const discriminator = [71, 188, 111, 127, 108, 40, 229, 158];
-  const data = Buffer.alloc(8 + 8 + 8 + 8 + 8 + 8);
+  const data = Buffer.alloc(8 + 8 + 8 + 8 + 8 + 8 + 1);
   discriminator.forEach((b, i) => (data[i] = b));
   data.writeBigUInt64LE(BigInt(totalAmount), 8);
   data.writeBigInt64LE(BigInt(startTime), 16);
   data.writeBigInt64LE(BigInt(endTime), 24);
   data.writeBigInt64LE(BigInt(cliffTime), 32);
   data.writeBigUInt64LE(BigInt(seed), 40);
+  data[48] = milestoneEnabled ? 1 : 0;
   return data;
 }
 
@@ -96,6 +98,7 @@ async function createStream(
   seed: number,
   provider: anchor.AnchorProvider,
   cliffTime = 0,
+  milestoneEnabled = false,
 ): Promise<void> {
   const ix = new anchor.web3.TransactionInstruction({
     keys: [
@@ -109,7 +112,7 @@ async function createStream(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     programId,
-    data: createStreamData(totalAmount, startTime, endTime, cliffTime, seed),
+    data: createStreamData(totalAmount, startTime, endTime, cliffTime, seed, milestoneEnabled),
   });
   await provider.sendAndConfirm(new Transaction().add(ix), [creator]);
 }
@@ -185,8 +188,8 @@ describe("blockbite", () => {
       TOTAL_AMOUNT,
     );
 
-    startTime = Math.floor(Date.now() / 1000) - 2;
-    endTime   = startTime + 30;
+    startTime = Math.floor(Date.now() / 1000) - 60;
+    endTime   = startTime + 300;
 
     [streamPda] = PublicKey.findProgramAddressSync(
       [
@@ -252,35 +255,94 @@ describe("blockbite", () => {
     console.log(`Partial withdraw: ${amount}`);
   });
 
-   it("Withdraw at 100 percent (after end time)", async () => {
-    const waitMs = (endTime - Math.floor(Date.now() / 1000) + 2) * 1000;
-    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
-  
-    const ix = createWithdrawIx(
-      programId,
-      recipient.publicKey,
-      streamPda,
-      mint,
-      escrowTokenAccount,
-      recipientTokenAccount,
-    );
-    await provider.sendAndConfirm(new Transaction().add(ix), [recipient]);
+   it("Withdraw at 100 percent (fully vested stream)", async () => {
+    // Use a fresh stream that is already fully vested — no timing-dependent waits
+    const fwC = Keypair.generate();
+    const fwR = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(fwC.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(fwR.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
 
-    const bal = await getAccount(provider.connection, recipientTokenAccount);
-    assert.ok(Number(bal.amount) >= 990_000, `Expected ~1000000, got ${bal.amount}`);
+    const fwMint = await createMint(provider.connection, fwC, fwC.publicKey, null, 6);
+    const fwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwC, fwMint, fwC.publicKey)).address;
+    const fwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwR, fwMint, fwR.publicKey)).address;
+    await mintTo(provider.connection, fwC, fwMint, fwCTA, fwC, 1_000_000);
+
+    const now     = Math.floor(Date.now() / 1000);
+    const fwStart = now - 200;
+    const fwEnd   = now - 50;
+
+    const [fwStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), fwC.publicKey.toBuffer(), fwR.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(21)]).buffer))],
+      programId,
+    );
+    const [fwEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), fwStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, fwC, fwR.publicKey, fwMint, fwCTA, fwEscrow, fwStream,
+      fwStart, fwEnd, TOTAL_AMOUNT, 21, provider,
+    );
+
+    const ix = createWithdrawIx(programId, fwR.publicKey, fwStream, fwMint, fwEscrow, fwRTA);
+    await provider.sendAndConfirm(new Transaction().add(ix), [fwR]);
+
+    const bal = await getAccount(provider.connection, fwRTA);
+    assert.strictEqual(Number(bal.amount), TOTAL_AMOUNT, `Expected full amount, got ${bal.amount}`);
   });
 
   it("Double withdraw fails (NothingToWithdraw)", async () => {
-    const ix = createWithdrawIx(
+    // Use a fresh stream so we control exactly how much is withdrawn first
+    const dwC = Keypair.generate();
+    const dwR = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(dwC.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(dwR.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    const dwMint = await createMint(provider.connection, dwC, dwC.publicKey, null, 6);
+    const dwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwC, dwMint, dwC.publicKey)).address;
+    const dwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwR, dwMint, dwR.publicKey)).address;
+    await mintTo(provider.connection, dwC, dwMint, dwCTA, dwC, 1_000_000);
+
+    const dwStart = Math.floor(Date.now() / 1000) - 200; // already fully vested
+    const dwEnd   = Math.floor(Date.now() / 1000) - 50;
+
+    const [dwStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), dwC.publicKey.toBuffer(), dwR.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(20)]).buffer))],
       programId,
-      recipient.publicKey,
-      streamPda,
-      mint,
-      escrowTokenAccount,
-      recipientTokenAccount,
     );
+    const [dwEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), dwStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, dwC, dwR.publicKey, dwMint, dwCTA, dwEscrow, dwStream,
+      dwStart, dwEnd, TOTAL_AMOUNT, 20, provider,
+    );
+
+    // First withdraw — should succeed and claim everything (stream is fully vested)
+    const wIx1 = createWithdrawIx(programId, dwR.publicKey, dwStream, dwMint, dwEscrow, dwRTA);
+    await provider.sendAndConfirm(new Transaction().add(wIx1), [dwR]);
+
+    // Second withdraw — nothing left
+    const wIx2 = createWithdrawIx(programId, dwR.publicKey, dwStream, dwMint, dwEscrow, dwRTA);
     try {
-      await provider.sendAndConfirm(new Transaction().add(ix), [recipient]);
+      await provider.sendAndConfirm(new Transaction().add(wIx2), [dwR]);
       assert.fail("Should have failed");
     } catch (e: any) {
       assert.ok(
@@ -338,7 +400,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000);
+    const cStart = Math.floor(Date.now() / 1000) + 60; // future start — stream hasn't begun
     const cEnd   = cStart + 100;
 
     const [cStream] = PublicKey.findProgramAddressSync(
@@ -362,7 +424,7 @@ describe("blockbite", () => {
     const creatorBal    = await getAccount(provider.connection, ccTA);
     const recipientBal  = await getAccount(provider.connection, crTA);
     console.log(`Creator received: ${creatorBal.amount}  Recipient: ${recipientBal.amount}`);
-    assert.ok(Number(recipientBal.amount) === 0, "Recipient should get 0 before cliff");
+    assert.ok(Number(recipientBal.amount) === 0, "Recipient should get 0 before stream starts");
     assert.ok(Number(creatorBal.amount) > 900_000, "Creator should get most tokens back");
   });
 
@@ -478,7 +540,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(0, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 4),
+      data: createStreamData(0, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 4, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [zc]);
@@ -521,7 +583,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 5),
+      data: createStreamData(1_000_000, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 5, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [sc]);
@@ -605,8 +667,8 @@ describe("blockbite", () => {
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
     const cStart = Math.floor(Date.now() / 1000);
-    const cEnd   = cStart + 100;
-    const cliff  = cStart + 50;
+    const cEnd   = cStart + 300;
+    const cliff  = cStart + 120; // far future — validator clock won't reach it during this test
 
     const [cStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
@@ -620,7 +682,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 7, provider, cliff,
+      cStart, cEnd, TOTAL_AMOUNT, 7, provider, cliff, false,
     );
 
     const wIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
@@ -653,9 +715,9 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) - 30;
-    const cEnd   = cStart + 100;
-    const cliff  = cStart + 5;
+    const cStart = Math.floor(Date.now() / 1000) - 120;
+    const cEnd   = cStart + 300;
+    const cliff  = cStart + 60; // well in the past — validator clock is definitely past it
 
     const [cStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
@@ -669,7 +731,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, TOTAL_AMOUNT, 8, provider, cliff,
+      cStart, cEnd, TOTAL_AMOUNT, 8, provider, cliff, false,
     );
 
     const waitMs = (cliff - Math.floor(Date.now() / 1000) + 2) * 1000;
@@ -729,7 +791,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, mStart, mEnd, mCliff, 9),
+      data: createStreamData(TOTAL_AMOUNT, mStart, mEnd, mCliff, 9, true),
     });
     await provider.sendAndConfirm(new Transaction().add(createIx), [mc]);
 
@@ -783,8 +845,10 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_000_000);
 
-    const fStart = Math.floor(Date.now() / 1000) - 10;
-    const fEnd   = fStart + 30;
+    // Stream already fully vested at creation time — no waiting needed
+    const now    = Math.floor(Date.now() / 1000);
+    const fStart = now - 200;
+    const fEnd   = now - 50;
 
     const [fStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), fc.publicKey.toBuffer(), fr.publicKey.toBuffer(),
@@ -808,11 +872,9 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 10),
+      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 10, false),
     });
     await provider.sendAndConfirm(new Transaction().add(fIx), [fc]);
-
-    await new Promise((r) => setTimeout(r, 35_000));
 
     const cIx = createCancelIx(programId, fc.publicKey, fStream, fMint, fEscrow, fcTA, frTA);
     try {
@@ -861,7 +923,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, now + 100, now, 0, 11),
+      data: createStreamData(1_000_000, now + 100, now, 0, 11, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [ic]);
@@ -907,7 +969,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, now, now + 100, now + 200, 12),
+      data: createStreamData(1_000_000, now, now + 100, now + 200, 12, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [ic]);
@@ -998,7 +1060,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 100, 1_000_000, 14, provider, mCliff,
+      now, now + 100, 1_000_000, 14, provider, mCliff, true,
     );
 
     const attackIx = new anchor.web3.TransactionInstruction({
@@ -1053,7 +1115,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 100, 1_000_000, 15, provider, mCliff,
+      now, now + 100, 1_000_000, 15, provider, mCliff, true,
     );
 
     const msIx = new anchor.web3.TransactionInstruction({
@@ -1110,7 +1172,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 200, 1_000_000, 16, provider, mCliff,
+      now, now + 200, 1_000_000, 16, provider, mCliff, true,
     );
 
     const msIx = new anchor.web3.TransactionInstruction({

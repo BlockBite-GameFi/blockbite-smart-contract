@@ -15,7 +15,7 @@ pub use errors::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq");
+declare_id!("9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX");
 
 #[program]
 pub mod blockbite {
@@ -30,8 +30,9 @@ pub mod blockbite {
         end_time: i64,
         cliff_time: i64,
         seed: u64,
+        milestone_enabled: bool,
     ) -> Result<()> {
-        create_stream::handler(ctx, total_amount, start_time, end_time, cliff_time, seed)
+        create_stream::handler(ctx, total_amount, start_time, end_time, cliff_time, seed, milestone_enabled)
     }
 
     pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {

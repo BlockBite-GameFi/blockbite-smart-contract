@@ -16,7 +16,7 @@ use crate::errors::ErrorCode;
 ///   6  token_program
 ///   7  system_program
 #[derive(Accounts)]
-#[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64)]
+#[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64, milestone_enabled: bool)]
 pub struct CreateStream<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -63,6 +63,7 @@ pub fn handler(
     end_time: i64,
     cliff_time: i64,
     seed: u64,
+    milestone_enabled: bool,
 ) -> Result<()> {
     // ── Parameter validation ──────────────────────────────────────────────────
     require!(total_amount > 0, ErrorCode::InvalidAmount);
@@ -106,11 +107,11 @@ pub fn handler(
     stream.bump                  = ctx.bumps.stream;
     stream.seed                  = seed;
     stream.milestone_reached     = false;
-    stream.milestone_enabled     = cliff_time > 0;
+    stream.milestone_enabled     = milestone_enabled;
 
     msg!(
-        "Stream created: total={} start={} end={} cliff={}",
-        total_amount, start_time, end_time, cliff_time
+        "Stream created: total={} start={} end={} cliff={} milestone={}",
+        total_amount, start_time, end_time, cliff_time, milestone_enabled
     );
 
     Ok(())
