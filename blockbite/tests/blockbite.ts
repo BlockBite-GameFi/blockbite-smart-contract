@@ -252,12 +252,8 @@ describe("blockbite", () => {
     console.log(`Partial withdraw: ${amount}`);
   });
 
-  it("Withdraw at 100 percent (after end time)", async () => {
-    const waitMs = (endTime - Math.floor(Date.now() / 1000) + 2) * 1000;
-    if (waitMs > 0) {
-      console.log(`Waiting ${waitMs}ms for stream to finish...`);
-      await new Promise((r) => setTimeout(r, waitMs));
-    }
+   it("Withdraw at 100 percent (after end time)", async () => {
+    await new Promise((r) => setTimeout(r, 35_000));
 
     const ix = createWithdrawIx(
       programId,
@@ -656,7 +652,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) - 2;
+    const cStart = Math.floor(Date.now() / 1000) - 10;
     const cEnd   = cStart + 100;
     const cliff  = cStart + 5;
 
@@ -706,7 +702,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
-    const mStart = Math.floor(Date.now() / 1000) - 2;
+    const mStart = Math.floor(Date.now() / 1000) - 10;
     const mEnd   = mStart + 100;
     const mCliff = mStart - 1;
 
@@ -739,6 +735,7 @@ describe("blockbite", () => {
     const wIx1 = createWithdrawIx(programId, mr.publicKey, mStream, mMint, mEscrow, mrTA);
     try {
       await provider.sendAndConfirm(new Transaction().add(wIx1), [mr]);
+      await new Promise((r) => setTimeout(r, 3_000));
       assert.fail("Should have failed — milestone not reached");
     } catch (e: any) {
       assert.ok(
@@ -785,8 +782,8 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_000_000);
 
-    const fStart = Math.floor(Date.now() / 1000) - 2;
-    const fEnd   = fStart + 10;
+    const fStart = Math.floor(Date.now() / 1000) - 10;
+    const fEnd   = fStart + 30;
 
     const [fStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), fc.publicKey.toBuffer(), fr.publicKey.toBuffer(),
@@ -810,12 +807,11 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 10),
+      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 11),
     });
     await provider.sendAndConfirm(new Transaction().add(fIx), [fc]);
 
-    const waitMs = (fEnd - Math.floor(Date.now() / 1000) + 2) * 1000;
-    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+    await new Promise((r) => setTimeout(r, 35_000));
 
     const cIx = createCancelIx(programId, fc.publicKey, fStream, fMint, fEscrow, fcTA, frTA);
     try {
