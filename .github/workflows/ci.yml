@@ -1,4 +1,4 @@
-name: Blockbite Anchor CI
+name: Blockbite CI
 
 on:
   push:
@@ -147,7 +147,28 @@ jobs:
         working-directory: blockbite
         run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
 
-      # ── 12. Integration tests ─────────────────────────────────────────────────
+      # ── 12. Surfpool (local validator for Anchor 1.0.0) ───────────────────────
+      # Anchor 1.0.0 replaced solana-test-validator with surfpool.
+      # Without it anchor test fails with:
+      # "Failed to spawn `surfpool`: No such file or directory"
+      - name: Cache Surfpool
+        uses: actions/cache@v4
+        id: surfpool-cache
+        with:
+          path: ~/.local/bin/surfpool
+          key: surfpool-${{ runner.os }}-latest
+
+      - name: Install Surfpool
+        if: steps.surfpool-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sL https://run.surfpool.run/ | bash
+
+      - name: Ensure Surfpool in PATH
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/surfpool" --version
+
+      # ── 13. Integration tests ─────────────────────────────────────────────────
       - name: Run integration tests
         working-directory: blockbite
         env:
