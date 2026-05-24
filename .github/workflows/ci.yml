@@ -2,166 +2,152 @@ name: Blockbite CI
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   smart-contract:
-    name: Anchor program
+    name: Build & Test Anchor Program
     runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
+      CARGO_TARGET_DIR: ${{ github.workspace }}/blockbite/target
 
     steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
+      # ── 2. Rust stable ───────────────────────────────────────────────────────
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo registry
+      # ── 3. Cargo cache ───────────────────────────────────────────────────────
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: blockbite
+
+      # ── 4. Solana CLI v2.1.6 ─────────────────────────────────────────────────
+      # Pinned to v2.1.6 — same version used by working CI reference.
+      # v2.1.6 bundles Rust/Cargo that is compatible with our dependency tree.
+      # Later versions (v2.1.21+) bundle Cargo 1.79.0 which cannot parse
+      # edition2024 manifests (block-buffer 0.12.0, cpufeatures 0.3.0, etc).
+      - name: Cache Solana CLI v2.1.6
         uses: actions/cache@v4
+        id: solana-cache
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
+            ~/.cache/solana
+            ~/.local/share/solana/install
+          key: solana-${{ runner.os }}-2.1.6
+          restore-keys: |
+            solana-${{ runner.os }}-
 
-      - name: Install native build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
+      - name: Install Solana CLI v2.1.6
+        if: steps.solana-cache.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.6/install)"
 
-      - name: Install Solana CLI
+      - name: Ensure Solana dirs and wallet
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          # cargo-build-sbf panics at startup if ~/.cache/solana does not exist
+          # (it calls fs::read_dir(~/.cache/solana).unwrap() unconditionally)
+          mkdir -p "$HOME/.cache/solana"
+          mkdir -p "$HOME/.config/solana"
+          SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
+          if [ ! -f "$HOME/.config/solana/id.json" ]; then
+            "$SOLANA_BIN/solana-keygen" new \
+              --no-bip39-passphrase --silent -o "$HOME/.config/solana/id.json"
+          fi
+          solana config set \
+            --url http://127.0.0.1:8899 \
+            --keypair "$HOME/.config/solana/id.json"
 
-      - name: Install Anchor CLI (avm 0.32.1)
+      # ── 5. Anchor CLI 0.32.1 via AVM ─────────────────────────────────────────
+      # AVM (Anchor Version Manager) is the officially supported way to install
+      # Anchor. Compiling anchor-cli directly from source also works but takes
+      # ~8 minutes; AVM caches the binary and is faster on cache hit.
+      - name: Cache Anchor CLI 0.32.1
+        uses: actions/cache@v4
+        id: anchor-cache
+        with:
+          path: |
+            ~/.avm
+            ~/.cargo/bin/avm
+            ~/.cargo/bin/anchor
+          key: anchor-avm-${{ runner.os }}-0.32.1
+
+      - name: Install Anchor CLI 0.32.1 via AVM
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
         run: |
-          cargo install --git https://github.com/solana-foundation/anchor avm --locked --force
+          cargo install --git https://github.com/coral-xyz/anchor \
+            avm --locked --force
           avm install 0.32.1
           avm use 0.32.1
-          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+
+      - name: Ensure Anchor CLI is active
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          avm use 0.32.1
           anchor --version
 
+      # ── 6. Node.js ───────────────────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: blockbite/yarn.lock
+
+      # ── 7. Node dependencies ─────────────────────────────────────────────────
+      - name: Install Node dependencies
+        working-directory: blockbite
+        run: yarn install --frozen-lockfile
+
+      # ── 8. Program keypair ───────────────────────────────────────────────────
       - name: Restore program keypair
-        working-directory: ./blockbite
+        working-directory: blockbite
         run: |
-          mkdir -p ~/.config/solana target/deploy
-          solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+          mkdir -p target/deploy
           if [ -n "${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}" ]; then
-            echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
+            echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' \
+              > target/deploy/blockbite-keypair.json
             echo "Using program keypair from secret"
           else
             solana-keygen new --no-bip39-passphrase --silent \
               --outfile target/deploy/blockbite-keypair.json
-            echo "No ANCHOR_PROGRAM_KEYPAIR secret — using ephemeral key"
+            echo "No ANCHOR_PROGRAM_KEYPAIR — using ephemeral key"
           fi
 
+      # ── 9. Sync program ID ────────────────────────────────────────────────────
       - name: Sync program ID
-        working-directory: ./blockbite
+        working-directory: blockbite
         run: anchor keys sync
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: ./blockbite/yarn.lock
+      # ── 10. Build ─────────────────────────────────────────────────────────────
+      - name: Build Anchor program
+        working-directory: blockbite
+        run: anchor build
 
-      - name: Install Node dependencies
-        working-directory: ./blockbite
-        run: yarn install --frozen-lockfile
-
-      - name: Build program
-        working-directory: ./blockbite
-        shell: bash
-        run: |
-          set +e
-          anchor build 2>&1 | tee anchor-build.log
-          status=${PIPESTATUS[0]}
-          if [ "$status" -ne 0 ]; then
-            message="$(tail -n 80 anchor-build.log | \
-              sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
-            echo "::error title=Anchor build failed::$message"
-            exit "$status"
-          fi
-
+      # ── 11. Rust unit tests ───────────────────────────────────────────────────
       - name: Run Rust unit tests
-        working-directory: ./blockbite
-        run: cargo test --package blockbite 2>&1
+        working-directory: blockbite
+        run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
 
+      # ── 12. Integration tests ─────────────────────────────────────────────────
       - name: Run integration tests
-        working-directory: ./blockbite
+        working-directory: blockbite
         env:
           ANCHOR_WALLET: /home/runner/.config/solana/id.json
           ANCHOR_PROVIDER_URL: http://127.0.0.1:8899
-        shell: bash
         run: |
-          set -e
-          rm -rf .anchor/test-ledger test-ledger
-          mkdir -p .anchor
-
-          # ── 1. Start local validator ──────────────────────────────────────────
-          solana-test-validator \
-            --reset \
-            --quiet \
-            --ledger .anchor/test-ledger \
-            --rpc-port 8899 &
-          VALIDATOR_PID=$!
-
-          # ── 2. Health-check loop (max 3 min = 36 × 5 s) ─────────────────────
-          echo "⏳ Waiting for validator (pid=$VALIDATOR_PID)..."
-          READY=0
-          for i in $(seq 1 36); do
-            if curl -sf \
-                 -X POST \
-                 -H "Content-Type: application/json" \
-                 -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
-                 http://127.0.0.1:8899 2>/dev/null \
-               | grep -q '"result":"ok"'; then
-              echo "✅ Validator ready after $((i * 5))s"
-              READY=1
-              break
-            fi
-            echo "   waiting... ($i/36)"
-            sleep 5
-          done
-
-          if [ "$READY" -eq 0 ]; then
-            echo "❌ Validator failed to start within 180s"
-            cat .anchor/test-ledger/validator.log 2>/dev/null | tail -40 || true
-            kill "$VALIDATOR_PID" 2>/dev/null || true
-            exit 1
-          fi
-
-          # ── 3. Fund deployer wallet ───────────────────────────────────────────
-          DEPLOYER_KEY=/home/runner/.config/solana/id.json
-          DEPLOYER_PUBKEY=$(solana-keygen pubkey "$DEPLOYER_KEY")
-          echo "💰 Airdropping 100 SOL to $DEPLOYER_PUBKEY..."
-          solana airdrop 100 "$DEPLOYER_PUBKEY" \
-            --url http://127.0.0.1:8899 \
-            --keypair "$DEPLOYER_KEY" || true
-          sleep 2
-          BALANCE=$(solana balance "$DEPLOYER_PUBKEY" --url http://127.0.0.1:8899 2>/dev/null || echo "0")
-          echo "   Balance: $BALANCE"
-
-          # ── 4. Deploy program ─────────────────────────────────────────────────
-          # Note: --skip-build is not supported by anchor deploy in 0.32.1
-          # The program was already built in the "Build program" step above;
-          # cargo cache is warm so this rebuild is fast.
-          echo "🚀 Deploying program..."
-          anchor deploy \
+          anchor test --skip-build \
             --provider.cluster localnet \
-            --provider.wallet "$DEPLOYER_KEY"
-
-          # ── 5. Run TypeScript integration tests ───────────────────────────────
-          echo "🧪 Running integration tests..."
-          yarn run ts-mocha \
-            -p ./tsconfig.json \
-            -t 1000000 \
-            "tests/**/*.ts"
-
-          # ── 6. Cleanup ────────────────────────────────────────────────────────
-          kill "$VALIDATOR_PID" 2>/dev/null || true
+            --provider.wallet /home/runner/.config/solana/id.json
