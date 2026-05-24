@@ -253,8 +253,9 @@ describe("blockbite", () => {
   });
 
    it("Withdraw at 100 percent (after end time)", async () => {
-    await new Promise((r) => setTimeout(r, 35_000));
-
+    const waitMs = (endTime - Math.floor(Date.now() / 1000) + 2) * 1000;
+    if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
+  
     const ix = createWithdrawIx(
       programId,
       recipient.publicKey,
@@ -652,7 +653,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) - 10;
+    const cStart = Math.floor(Date.now() / 1000) - 30;
     const cEnd   = cStart + 100;
     const cliff  = cStart + 5;
 
@@ -807,7 +808,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 11),
+      data: createStreamData(TOTAL_AMOUNT, fStart, fEnd, 0, 10),
     });
     await provider.sendAndConfirm(new Transaction().add(fIx), [fc]);
 
