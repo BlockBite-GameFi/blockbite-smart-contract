@@ -317,7 +317,7 @@ export default function Home() {
         {/* Stats */}
         <div style={{
           position: 'relative', zIndex: 1,
-          display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '24px 40px',
           marginTop: 48, paddingTop: 44,
           borderTop: '1px solid rgba(153,69,255,.22)',
@@ -359,35 +359,44 @@ export default function Home() {
               }}>Nothing it doesn&apos;t.</span>
             </h2>
             <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
-              Merkle compression, vesting schedules, and per-recipient clawback — all composed into a single on-chain program.
+              From modular verification to automated clawbacks — all the tools a token distribution needs, built into one trustless protocol.
             </p>
           </div>
 
-          {/* ── 3 core protocol differentiators ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 24 }}>
+          {/* ── 5 core features ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 24 }}>
             {([
               {
-                icon: '✕',
-                color: DS.accent,
-                title: 'Merkle Compression',
-                desc: 'Distribute to 10,000 wallets with one 32-byte root. Recipients submit proofs, the program verifies on-chain. State stays small and distribution cost stays dramatically lower.',
-                tags: ['32-byte root', '~4,700× cost reduction', 'No per-recipient account'],
+                icon: '◈', color: DS.accent,
+                title: 'Modular Verification Layers',
+                desc: 'Take control over how users access their tokens. Choose from simple direct claims, multisig approvals, oracle, or gamified verification to act as an anti-bots filter.',
+                tags: ['Direct Claim', 'Multisig', 'Oracle', 'Gamified'],
               },
               {
-                icon: '∿',
-                color: DS.blue,
-                title: 'Vesting Schedules',
-                desc: 'Cliff, linear, and milestone schedules — per recipient, per campaign. The program enforces the curve on-chain, so nobody can claim past the line.',
-                tags: ['Cliff', 'Linear', 'Milestone'],
+                icon: '∿', color: DS.blue,
+                title: 'Adaptive Tokenomics Logic',
+                desc: "Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project's unique roadmap and specific distribution needs.",
+                tags: ['Linear', 'Cliff vesting', 'Milestone'],
               },
               {
-                icon: '◎',
-                color: DS.green,
-                title: 'Per-Recipient Clawback',
-                desc: 'Rotate the Merkle root to remove or replace any allocation. If a campaign is cancelled, recipients keep what was already vested and get a 7-day grace window to claim before unvested funds are swept.',
-                tags: ['Root rotation', '7-day grace', 'Audit trail'],
+                icon: '◎', color: DS.green,
+                title: 'Eliminate Manual Overhead',
+                desc: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.',
+                tags: ['Fully automated', 'Zero manual steps'],
               },
-            ] as const).map((f, i) => (
+              {
+                icon: '✦', color: DS.gold,
+                title: 'Active Clawback Control',
+                desc: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.',
+                tags: ['Treasury protection', 'Instant clawback'],
+              },
+              {
+                icon: '⬡', color: DS.ember,
+                title: 'Professional Standard Security',
+                desc: 'BlockBite ensures that project assets are locked securely while providing transparent, on chain proof for every single distribution.',
+                tags: ['On-chain proof', 'Transparent'],
+              },
+            ] as { icon: string; color: string; title: string; desc: string; tags: string[] }[]).map((f, i) => (
               <div key={i} style={{
                 borderRadius: 18, padding: 1,
                 background: 'linear-gradient(135deg, rgba(153,69,255,0.30), rgba(20,241,149,0.20))',
@@ -426,60 +435,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-
-          {/* ── Secondary features row ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            {([
-              {
-                icon: '◈', color: '#c084fc',
-                title: 'Game-Powered Proof',
-                desc: 'Recipients earn milestone unlocks by playing BlockBite. Gamified, sybil-resistant, and fully verifiable on-chain.',
-                tags: ['Sybil-resistant', 'On-chain proof'],
-              },
-              {
-                icon: '✦', color: DS.gold,
-                title: 'Anti-Dump by Default',
-                desc: 'Hard time locks and milestone gates prevent immediate sell pressure. Align your community around long-term growth.',
-                tags: ['Creator-controlled', 'Fair to recipients'],
-              },
-              {
-                icon: '⬡', color: DS.ember,
-                title: 'Composable by Design',
-                desc: 'Every instruction is a CPI target. Plug milestones into your existing program, oracle, or governance system without forking.',
-                tags: ['CPI-ready', 'Oracle-compatible'],
-              },
-            ] as const).map((f, i) => (
-              <div key={i} style={{
-                borderRadius: 14,
-                background: DS.bg1,
-                border: `1px solid ${DS.border}`,
-                padding: '22px 22px 18px',
-                display: 'flex', flexDirection: 'column', gap: 12,
-                transition: 'border-color .2s, transform .2s',
-              }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `${f.color}40`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = DS.border; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
-              >
-                <div style={{
-                  width: 40, height: 40, borderRadius: 11,
-                  background: `${f.color}12`, border: `1px solid ${f.color}33`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 19, color: f.color,
-                }}>{f.icon}</div>
-                <h3 style={{ fontFamily: DS.cinzel, fontSize: 16, fontWeight: 700, color: '#F8F6FF', margin: 0 }}>{f.title}</h3>
-                <p style={{ fontFamily: DS.sora, fontSize: 13, color: DS.muted, lineHeight: 1.7, margin: 0, flex: 1 }}>{f.desc}</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {f.tags.map(tag => (
-                    <span key={tag} style={{
-                      fontSize: 10.5, padding: '3px 10px', borderRadius: 999,
-                      background: DS.bg2, border: `1px solid ${DS.border}`,
-                      color: DS.muted, fontFamily: DS.sora, fontWeight: 500,
-                    }}>{tag}</span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -509,9 +464,9 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 4-column symmetric grid — Vestra standard */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 24, position: 'relative', marginBottom: 72 }}>
-            {/* Connector line — runs between badge centers */}
+          {/* 4-column symmetric grid — Vestra standard, auto-fit on mobile */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 24, position: 'relative', marginBottom: 72 }}>
+            {/* Connector line — desktop only decoration */}
             <div style={{
               position: 'absolute', top: 20, left: '14%', right: '14%', height: 1,
               background: 'linear-gradient(90deg, rgba(153,69,255,0.35), rgba(20,241,149,0.35))',
