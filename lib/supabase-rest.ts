@@ -266,7 +266,8 @@ async function sbListAllPvObjects(): Promise<string[] | null> {
         const items: { name: string }[] = await res.json();
         if (!Array.isArray(items) || items.length === 0) break;
         // items[n].name is relative to the prefix, so full path = datePrefix + name
-        all.push(...items.map(i => `${datePrefix}${i.name}`));
+        // Filter to .json only — Supabase Storage can create .emptyFolderPlaceholder files
+        all.push(...items.filter(i => i.name.endsWith('.json')).map(i => `${datePrefix}${i.name}`));
         if (items.length < 1000 || all.length >= 5000) break;
         offset += 1000;
       } catch { break; }
@@ -345,7 +346,8 @@ export async function sbGetWalletStats(): Promise<WalletStat> {
       });
       if (!res2.ok) continue;
       const items: { name: string }[] = await res2.json();
-      if (Array.isArray(items)) all.push(...items.map(i => `${prefix}${i.name}`));
+      // Filter to .json only — Supabase Storage can create .emptyFolderPlaceholder files
+      if (Array.isArray(items)) all.push(...items.filter(i => i.name.endsWith('.json')).map(i => `${prefix}${i.name}`));
       if (all.length >= 2000) break;
     }
 

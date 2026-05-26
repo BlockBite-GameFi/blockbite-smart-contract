@@ -11,7 +11,10 @@ export async function POST(req: NextRequest) {
     const path       = typeof body?.path       === 'string' ? body.path.slice(0, 200)      : '/';
 
     // Fire-and-forget — don't block response
-    sbTrackWalletConnect(anon, walletName, path).catch(() => {});
+    // Log failures so silent Supabase write errors can be audited in Vercel logs
+    sbTrackWalletConnect(anon, walletName, path).catch((err) => {
+      console.error('[wallet-connect] Supabase write failed:', err);
+    });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });
