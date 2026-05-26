@@ -280,11 +280,17 @@ export function StreamSidebar({
   totalDeposit, token, recipientCount,
   gameGate, gameLevel,
   onSubmit,
+  txStatus = 'idle',
+  txErr = null,
+  isSubmitting = false,
 }: {
   typeLabel: string; typeColor: string; typeIcon: string;
   totalDeposit: number; token: string; recipientCount: number;
   gameGate: boolean; gameLevel: number;
   onSubmit: () => void;
+  txStatus?: 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+  txErr?: string | null;
+  isSubmitting?: boolean;
 }) {
   return (
     <div style={{ position: 'sticky', top: 88, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -338,16 +344,29 @@ export function StreamSidebar({
         )}
 
         {/* Create button */}
-        <button onClick={onSubmit} style={{
+        <button onClick={onSubmit} disabled={isSubmitting} style={{
           marginTop: 16, width: '100%', padding: '13px 0', borderRadius: 11, border: 'none',
-          background: `linear-gradient(135deg,${typeColor},${C.accentDk})`,
-          color: '#fff', fontWeight: 800, fontSize: 14, cursor: 'pointer',
+          background: isSubmitting
+            ? 'rgba(167,139,250,.35)'
+            : `linear-gradient(135deg,${typeColor},${C.accentDk})`,
+          color: '#fff', fontWeight: 800, fontSize: 14,
+          cursor: isSubmitting ? 'default' : 'pointer',
           fontFamily: C.serif, letterSpacing: '.02em',
-          boxShadow: `0 0 20px ${typeColor}44`,
-          transition: 'opacity .15s',
+          boxShadow: isSubmitting ? 'none' : `0 0 20px ${typeColor}44`,
+          transition: 'all .15s',
         }}>
-          Create {recipientCount > 1 ? `${recipientCount} ` : ''}{typeLabel} Stream{recipientCount > 1 ? 's' : ''}
+          {txStatus === 'approving'  ? '⏳ Approve in wallet…'
+           : txStatus === 'confirming' ? '🔄 Confirming…'
+           : `Create ${recipientCount > 1 ? `${recipientCount} ` : ''}${typeLabel} Stream${recipientCount > 1 ? 's' : ''}`}
         </button>
+        {txErr && (
+          <div style={{
+            marginTop: 8, padding: '9px 12px', borderRadius: 9, fontSize: 11.5,
+            background: `${C.red}0f`, border: `1px solid ${C.red}44`, color: C.red,
+          }}>
+            ✗ {txErr}
+          </div>
+        )}
       </div>
 
       {/* Protocol checklist */}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
   C, Label, SInput, SSelect, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -13,6 +14,8 @@ export default function CliffPage() {
   const { connected }  = useWallet();
   const { setVisible } = useWalletModal();
   const [done, setDone] = useState(false);
+
+  const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]      = useState<'manual' | 'csv'>('manual');
   const [token,      setToken]     = useState('');
@@ -27,27 +30,44 @@ export default function CliffPage() {
   const COLOR   = C.gold;
   const deposit = Number(amount) || 0;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!connected) { setVisible(true); return; }
-    setDone(true);
+    const now     = Math.floor(Date.now() / 1000);
+    // For pure cliff: startTs = now, cliffTs = cliff date, endTs = cliffTs (instant full release at cliff)
+    const cliffTs = cliffDate ? Math.floor(new Date(cliffDate).getTime() / 1000) : now + 30 * 86400;
+    const startTs = Math.min(now, cliffTs - 1);
+    const endTs   = cliffTs; // same as cliff = pure cliff (instant full release)
+    const reqTier = (gameGate ? (gameLevel <= 10 ? 1 : 2) : 0) as 0 | 1 | 2;
+    const ok = await submit({ beneficiary: recipient, token, amount, startTs, cliffTs, endTs, requiredTier: reqTier });
+    if (ok) setDone(true);
   };
 
   if (done) return (
     <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8',
       display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: C.serif }}>
-      <div style={{ textAlign: 'center', maxWidth: 420 }}>
+      <div style={{ textAlign: 'center', maxWidth: 440 }}>
         <div style={{ fontSize: 52, marginBottom: 20 }}>🪨</div>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: C.gold, marginBottom: 8 }}>Stream Created!</h2>
-        <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.7, marginBottom: 24 }}>
+        <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
           Cliff vesting locked until <strong style={{ color: C.gold }}>{cliffDate || 'cliff date'}</strong>.
           {gameGate && ` BlockBite Game Gate active at Level ${gameLevel}.`}
         </p>
+        {txSig && (
+          <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
+            background: `${C.green}0a`, border: `1px solid ${C.green}44`, fontSize: 12, color: C.green }}>
+            ✓ Tx:{' '}
+            <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
+              target="_blank" rel="noreferrer" style={{ color: C.green }}>
+              {txSig.slice(0, 8)}…{txSig.slice(-6)} ↗
+            </a>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <Link href="/streams" style={{
             padding: '11px 24px', borderRadius: 11, textDecoration: 'none', fontWeight: 700, fontSize: 13,
             background: `linear-gradient(135deg,${COLOR},${C.accentDk})`, color: '#fff',
           }}>View Streams →</Link>
-          <button onClick={() => setDone(false)} style={{
+          <button onClick={() => { setDone(false); reset(); }} style={{
             padding: '11px 24px', borderRadius: 11, border: `1px solid ${C.border}`,
             background: 'rgba(255,255,255,.03)', color: C.muted, fontSize: 13,
             cursor: 'pointer', fontFamily: C.serif,
@@ -68,6 +88,7 @@ export default function CliffPage() {
           recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel}
           onSubmit={handleCreate}
+          txStatus={txStatus} txErr={txErr} isSubmitting={isSubmitting}
         />
       }
     >
