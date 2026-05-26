@@ -21,6 +21,16 @@ type TotalStats = {
   tableReady: boolean; byDay?: DayStat[];
 };
 
+// Vercel official analytics
+type VercelStats = {
+  available: boolean;
+  reason?: string;
+  stats?: { pageViews: number | null; visitors: number | null; bounceRate: number | null };
+  pages?: { path: string; visitors: number; pageViews: number }[];
+  byDay?: { date: string; visitors: number; pageViews: number }[];
+  fetchedAt?: string;
+};
+
 function downloadCSV(entries: Entry[]) {
   const rows = entries.map(e => {
     const d = new Date(e.ts);
@@ -138,10 +148,14 @@ export default function DashboardPage() {
   const [wlError, setWlError]       = useState('');
   const [deleting, setDeleting]     = useState<string | null>(null);
 
-  // Analytics state
+  // Analytics state (internal — Supabase Storage)
   const [pageStats, setPageStats]   = useState<PageStat[] | null>(null);
   const [totalStats, setTotalStats] = useState<TotalStats | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Analytics state (official — Vercel)
+  const [vercelStats, setVercelStats]   = useState<VercelStats | null>(null);
+  const [vercelLoading, setVercelLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -186,21 +200,33 @@ export default function DashboardPage() {
     } catch { /* silent */ } finally { setAnalyticsLoading(false); }
   }, [token]);
 
+  const fetchVercelAnalytics = useCallback(async () => {
+    setVercelLoading(true);
+    try {
+      const res = await fetch('/api/admin/vercel-analytics', { headers: { 'x-admin-token': token.trim() }, cache: 'no-store' });
+      if (!res.ok) return;
+      const data: VercelStats = await res.json();
+      setVercelStats(data);
+    } catch { /* silent */ } finally { setVercelLoading(false); }
+  }, [token]);
+
   const refreshAll = useCallback(() => {
     fetchWaitlist();
     fetchAnalytics();
-  }, [fetchWaitlist, fetchAnalytics]);
+    fetchVercelAnalytics();
+  }, [fetchWaitlist, fetchAnalytics, fetchVercelAnalytics]);
 
   // Auto-poll every 30 s + re-fetch on tab focus
   useEffect(() => {
     if (!loggedIn) return;
     fetchAnalytics();
+    fetchVercelAnalytics();
     const tick = () => { fetchWaitlist(true); };
     const id = setInterval(tick, 30_000);
-    const onVis = () => { if (document.visibilityState === 'visible') { tick(); fetchAnalytics(); } };
+    const onVis = () => { if (document.visibilityState === 'visible') { tick(); fetchAnalytics(); fetchVercelAnalytics(); } };
     document.addEventListener('visibilitychange', onVis);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
-  }, [loggedIn, fetchWaitlist, fetchAnalytics]);
+  }, [loggedIn, fetchWaitlist, fetchAnalytics, fetchVercelAnalytics]);
 
   async function deleteEntry(email: string) {
     if (!confirm(`Delete ${email} from waitlist?`)) return;
@@ -268,7 +294,96 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── ANALYTICS SECTION ── */}
+        {/* ── VERCEL OFFICIAL ANALYTICS ── */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
+            ▲ Vercel Official Analytics (Last 30 Days)
+            {vercelLoading && <span style={{ color: TEAL, marginLeft: 8 }}>syncing…</span>}
+          </div>
+        </div>
+
+        {vercelStats?.available === false ? (
+          <div style={{ background: '#0f1629', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ color: GOLD, fontSize: 14, flexShrink: 0 }}>⚠</span>
+            <div>
+              <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>Vercel API not configured: </span>
+              <span style={{ color: MUTED, fontSize: 12 }}>{vercelStats.reason ?? 'Set VERCEL_API_TOKEN and VERCEL_PROJECT_ID in Vercel → Settings → Environment Variables'}</span>
+            </div>
+          </div>
+        ) : vercelStats?.available ? (
+          <>
+            {/* Vercel stat cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 12 }}>
+              <StatCard
+                label="Visitors (Vercel)"
+                value={vercelStats.stats?.visitors != null ? vercelStats.stats.visitors.toLocaleString() : '—'}
+                color={TEAL}
+                sub="▲ Official"
+              />
+              <StatCard
+                label="Page Views (Vercel)"
+                value={vercelStats.stats?.pageViews != null ? vercelStats.stats.pageViews.toLocaleString() : '—'}
+                color={BLUE}
+                sub="▲ Official"
+              />
+              <StatCard
+                label="Bounce Rate"
+                value={vercelStats.stats?.bounceRate != null ? `${vercelStats.stats.bounceRate}%` : '—'}
+                color={MUTED}
+                sub="▲ Official"
+              />
+              <StatCard label="Waitlist Signups" value={wlCount.toLocaleString()} color={GOLD} />
+            </div>
+
+            {/* Vercel per-page breakdown */}
+            {(vercelStats.pages?.length ?? 0) > 0 && (
+              <Section title="Page Views — Vercel Official" badge={`${vercelStats.pages!.length} pages · last 30d`}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                        {['Page', 'Page Views', 'Unique Visitors', '% of Total'].map(hd => (
+                          <th key={hd} style={{ padding: '10px 16px', textAlign: hd === 'Page' ? 'left' : 'right', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{hd}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vercelStats.pages!.map((p, i) => {
+                        const totalPV = vercelStats.pages!.reduce((s, r) => s + r.pageViews, 0);
+                        const pct = totalPV > 0 ? ((p.pageViews / totalPV) * 100).toFixed(1) : '0.0';
+                        return (
+                          <tr key={p.path} style={{ borderBottom: i < vercelStats.pages!.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                            <td style={{ padding: '10px 16px', fontSize: 13, color: TEXT, fontFamily: 'monospace' }}>{p.path}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 13, color: BLUE,   textAlign: 'right', fontWeight: 700 }}>{p.pageViews.toLocaleString()}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 13, color: TEAL,   textAlign: 'right', fontWeight: 700 }}>{p.visitors.toLocaleString()}</td>
+                            <td style={{ padding: '10px 16px', fontSize: 12, color: MUTED,  textAlign: 'right' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                                <div style={{ width: 60, height: 4, borderRadius: 2, background: BORDER, overflow: 'hidden' }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: TEAL, borderRadius: 2 }} />
+                                </div>
+                                {pct}%
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Section>
+            )}
+
+            <p style={{ color: MUTED, fontSize: 10, marginBottom: 16, textAlign: 'right' }}>
+              ▲ Vercel data fetched at {vercelStats.fetchedAt ? new Date(vercelStats.fetchedAt).toLocaleTimeString() : '—'}
+            </p>
+          </>
+        ) : (
+          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
+            <span style={{ color: MUTED, fontSize: 12 }}>Loading Vercel analytics…</span>
+          </div>
+        )}
+
+        {/* ── INTERNAL ANALYTICS SECTION ── */}
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
             ◈ Website Analytics {analyticsLoading && <span style={{ color: PURPLE, marginLeft: 8 }}>syncing…</span>}
@@ -351,11 +466,13 @@ export default function DashboardPage() {
         <div style={{ background: '#0f1629', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <span style={{ color: BLUE, fontSize: 14, flexShrink: 0 }}>ⓘ</span>
           <div>
-            <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>Vercel Analytics vs Internal tracker: </span>
+            <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>▲ Vercel Official vs ◈ Internal tracker: </span>
             <span style={{ color: MUTED, fontSize: 12 }}>
-              These are two independent systems. Vercel counts server-rendered events + bots using Edge telemetry.
-              Internal tracker records client-side page loads via <code style={{ color: BLUE, fontFamily: 'monospace' }}>/api/track</code> after hydration.
-              Discrepancy is normal — both numbers are valid facts from different measurement points.
+              Two independent systems — numbers differ by design.{' '}
+              <strong style={{ color: TEAL }}>Vercel Official</strong> uses Edge telemetry and counts all requests including bots, SSR, and prefetches.{' '}
+              <strong style={{ color: PURPLE }}>Internal tracker</strong> records client-side loads via{' '}
+              <code style={{ color: BLUE, fontFamily: 'monospace' }}>/api/track</code> after JS hydration — real human visits only.
+              Use Vercel Official as the canonical source; Internal gives per-session granularity.
             </span>
           </div>
         </div>
@@ -425,7 +542,7 @@ export default function DashboardPage() {
         </Section>
 
         <p style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 8 }}>
-          BlockBite Admin · Waitlist from Supabase · Internal views via /api/track · Auto-refreshes every 30s
+          BlockBite Admin · ▲ Vercel Official Analytics · ◈ Internal views via /api/track · Waitlist from Supabase · Auto-refreshes every 30s
         </p>
       </div>
     </div>
