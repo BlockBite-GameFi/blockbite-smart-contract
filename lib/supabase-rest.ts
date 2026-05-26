@@ -220,74 +220,140 @@ export async function sbGetViewStats(): Promise<PageViewStat[] | null> {
   } catch { return null; }
 }
 
-/** List all pv/ objects in the bucket — returns array of full paths. */
+/**
+ * List all pv/ event files in the bucket — returns array of full storage paths.
+ *
+ * Supabase Storage lists only ONE level at a time (virtual directories).
+ * Our objects live at  pv/{YYYY-MM-DD}/{ts}-{rand}.json  (two levels below root).
+ * Listing with prefix="pv/" returns the date-folder entries, NOT the files.
+ * We must:
+ *   Step 1 — list pv/ → get date folders  e.g. { name: '2025-05-25' }
+ *   Step 2 — for each folder, list pv/{date}/ → get actual files  e.g. { name: '1748888000-abc.json' }
+ */
 async function sbListAllPvObjects(): Promise<string[] | null> {
   if (!supabaseReady()) return null;
   const all: string[] = [];
-  let offset = 0;
-  const limit = 1000;
-  for (;;) {
-    try {
-      const res = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
-        method: 'POST',
-        headers: h(),
-        body: JSON.stringify({ prefix: 'pv/', limit, offset, sortBy: { column: 'created_at', order: 'desc' } }),
-        cache: 'no-store',
-      });
-      if (!res.ok) return all.length ? all : null;
-      const items: { name: string }[] = await res.json();
-      if (!Array.isArray(items) || items.length === 0) break;
-      all.push(...items.map(i => `pv/${i.name}`));
-      if (items.length < limit) break;
-      offset += limit;
-      if (all.length >= 5000) break; // cap for perf
-    } catch { break; }
+
+  // ── Step 1: enumerate date folders ─────────────────────────────────────
+  let dateFolders: { name: string }[];
+  try {
+    const res = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
+      method: 'POST',
+      headers: h(),
+      body: JSON.stringify({ prefix: 'pv/', limit: 365, offset: 0,
+        sortBy: { column: 'name', order: 'desc' } }),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    dateFolders = await res.json();
+    if (!Array.isArray(dateFolders)) return null;
+  } catch { return null; }
+
+  // ── Step 2: for each date folder, enumerate the event files ────────────
+  for (const folder of dateFolders.slice(0, 60)) { // at most 60 days
+    const datePrefix = `pv/${folder.name}/`;
+    let offset = 0;
+    for (;;) {
+      try {
+        const res = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
+          method: 'POST',
+          headers: h(),
+          body: JSON.stringify({ prefix: datePrefix, limit: 1000, offset,
+            sortBy: { column: 'created_at', order: 'desc' } }),
+          cache: 'no-store',
+        });
+        if (!res.ok) break;
+        const items: { name: string }[] = await res.json();
+        if (!Array.isArray(items) || items.length === 0) break;
+        // items[n].name is relative to the prefix, so full path = datePrefix + name
+        all.push(...items.map(i => `${datePrefix}${i.name}`));
+        if (items.length < 1000 || all.length >= 5000) break;
+        offset += 1000;
+      } catch { break; }
+    }
+    if (all.length >= 5000) break;
   }
+
   return all;
 }
 
+export type DayStat = { date: string; views: number; visitors: number };
+
 export type TotalViewStats = {
-  totalViews: number;
+  totalViews:     number;
   uniqueVisitors: number;
-  today: number;
-  tableReady: boolean;
+  today:          number;
+  tableReady:     boolean;
+  byDay:          DayStat[];  // last 7 calendar days, oldest → newest
 };
 
+function emptyTotalStats(): TotalViewStats {
+  const byDay = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return { date: d.toISOString().slice(0, 10), views: 0, visitors: 0 };
+  });
+  return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true, byDay };
+}
+
 export async function sbGetTotalViewStats(): Promise<TotalViewStats> {
-  if (!supabaseReady()) return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true };
+  if (!supabaseReady()) return emptyTotalStats();
   try {
     const items = await sbListAllPvObjects();
-    // Storage bucket not ready yet — auto-create and return zeros (will work on next visit)
+    // Bucket not accessible — try to create it; return zeros (next call will succeed)
     if (!items) {
       sbEnsureBucket().catch(() => {});
-      return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true };
+      return emptyTotalStats();
     }
-    if (items.length === 0) return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true };
+    if (items.length === 0) return emptyTotalStats();
 
-    // Read up to 500 most recent for totals (fast path)
+    // Read up to 500 most recent events (fast; accurate for low-traffic devnet)
     const sample = items.slice(0, 500);
     const reads = await Promise.all(
       sample.map(name =>
         fetch(`${SB_URL}/storage/v1/object/${ANA_BUCKET}/${name}`, { headers: h(), cache: 'no-store' })
           .then(r => r.ok ? r.json() : null)
-          .catch(() => null)
-      )
+          .catch(() => null),
+      ),
     );
-    const today    = new Date().toISOString().slice(0, 10);
-    const sessions = new Set<string>();
-    let todayViews = 0;
-    for (const ev of reads) {
-      if (!ev) continue;
-      if (ev.sid) sessions.add(ev.sid);
-      if (ev.ts && new Date(ev.ts).toISOString().startsWith(today)) todayViews++;
+
+    const todayStr  = new Date().toISOString().slice(0, 10);
+    const sessions  = new Set<string>();
+    let todayViews  = 0;
+
+    // Per-day aggregation for the 7-day chart
+    const dayMap = new Map<string, { views: number; sids: Set<string> }>();
+    // Pre-seed last 7 days so we always return a full 7-entry array
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      dayMap.set(d.toISOString().slice(0, 10), { views: 0, sids: new Set() });
     }
+
+    for (const ev of reads) {
+      if (!ev?.path) continue;  // skip non-event objects (folders etc.)
+      const evDate = ev.ts ? new Date(ev.ts).toISOString().slice(0, 10) : todayStr;
+      if (ev.sid) sessions.add(ev.sid);
+      if (evDate === todayStr) todayViews++;
+      if (dayMap.has(evDate)) {
+        const ds = dayMap.get(evDate)!;
+        ds.views++;
+        if (ev.sid) ds.sids.add(ev.sid);
+      }
+    }
+
+    const byDay: DayStat[] = Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, ds]) => ({ date, views: ds.views, visitors: ds.sids.size }));
+
     return {
-      totalViews:    items.length,   // exact count from listing
-      uniqueVisitors: sessions.size, // from sample (accurate for low traffic)
-      today:         todayViews,
-      tableReady:    true,
+      totalViews:     items.length,     // exact count from storage listing
+      uniqueVisitors: sessions.size,    // from sample (accurate for devnet traffic)
+      today:          todayViews,
+      tableReady:     true,
+      byDay,
     };
   } catch {
-    return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true };
+    return emptyTotalStats();
   }
 }

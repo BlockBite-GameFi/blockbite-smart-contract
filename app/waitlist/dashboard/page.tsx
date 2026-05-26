@@ -13,9 +13,13 @@ const TEXT   = '#f1f5f9';
 const MUTED  = '#64748b';
 const BORDER = '#1e293b';
 
-type Entry      = { email: string; ts: number };
-type PageStat   = { path: string; views: number; sessions: number };
-type TotalStats = { totalViews: number; uniqueVisitors: number; today: number; tableReady: boolean };
+type Entry    = { email: string; ts: number };
+type PageStat = { path: string; views: number; sessions: number };
+type DayStat  = { date: string; views: number; visitors: number };
+type TotalStats = {
+  totalViews: number; uniqueVisitors: number; today: number;
+  tableReady: boolean; byDay?: DayStat[];
+};
 
 function downloadCSV(entries: Entry[]) {
   const rows = entries.map(e => {
@@ -30,6 +34,7 @@ function downloadCSV(entries: Entry[]) {
   a.click(); URL.revokeObjectURL(url);
 }
 
+// ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ label, value, color, sub }: { label: string; value: string | number; color: string; sub?: string }) {
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '20px 24px' }}>
@@ -40,6 +45,7 @@ function StatCard({ label, value, color, sub }: { label: string; value: string |
   );
 }
 
+// ── Section wrapper ────────────────────────────────────────────────────────────
 function Section({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
@@ -54,6 +60,69 @@ function Section({ title, badge, children }: { title: string; badge?: string; ch
   );
 }
 
+// ── 7-day visitor chart ────────────────────────────────────────────────────────
+function VisitorChart({ data }: { data: DayStat[] }) {
+  if (!data?.length) return null;
+  const maxViews = Math.max(...data.map(d => d.views), 1);
+  const W = 100, H = 60; // viewBox units per bar
+
+  return (
+    <div style={{ padding: '20px 20px 16px' }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
+        {data.map((d, i) => {
+          const barH = Math.max(Math.round((d.views / maxViews) * H), d.views > 0 ? 4 : 2);
+          const label = d.date.slice(5).replace('-', '/'); // MM/DD
+          const isToday = i === data.length - 1;
+          return (
+            <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+              {/* value label */}
+              <div style={{
+                fontSize: 9, fontWeight: 700, color: isToday ? BLUE : MUTED,
+                marginBottom: 3, height: 12, lineHeight: '12px',
+              }}>
+                {d.views > 0 ? d.views : ''}
+              </div>
+              {/* bar */}
+              <div style={{
+                width: '100%',
+                height: barH,
+                borderRadius: '3px 3px 0 0',
+                background: d.views > 0
+                  ? (isToday
+                    ? `linear-gradient(to top, ${BLUE}, ${PURPLE})`
+                    : `linear-gradient(to top, ${BLUE}55, ${PURPLE}55)`)
+                  : BORDER,
+                transition: 'height .3s ease',
+              }} />
+              {/* axis line */}
+              <div style={{ width: '100%', height: 1, background: BORDER }} />
+              {/* date label */}
+              <div style={{
+                fontSize: 9, color: isToday ? TEXT : MUTED,
+                marginTop: 4, fontWeight: isToday ? 700 : 400,
+                whiteSpace: 'nowrap',
+              }}>
+                {label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* legend */}
+      <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 10, color: MUTED }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: `linear-gradient(to top, ${BLUE}, ${PURPLE})` }} />
+          Page Views (internal tracker)
+        </div>
+        <div style={{ marginLeft: 'auto', color: MUTED, fontSize: 9 }}>
+          ⓘ Vercel Analytics counts separately — numbers may differ
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const [username, setUsername]     = useState('');
   const [password, setPassword]     = useState('');
@@ -122,7 +191,7 @@ export default function DashboardPage() {
     fetchAnalytics();
   }, [fetchWaitlist, fetchAnalytics]);
 
-  // Poll every 30s + on tab focus
+  // Auto-poll every 30 s + re-fetch on tab focus
   useEffect(() => {
     if (!loggedIn) return;
     fetchAnalytics();
@@ -144,7 +213,7 @@ export default function DashboardPage() {
     } catch { alert('Delete failed. Try again.'); } finally { setDeleting(null); }
   }
 
-  // ── Login screen ──
+  // ── Login screen ──────────────────────────────────────────────────────────
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -170,15 +239,16 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Main dashboard ──
+  // ── Main dashboard ────────────────────────────────────────────────────────
   const tableReady = totalStats?.tableReady ?? false;
   const topPages   = pageStats?.slice(0, 15) ?? [];
+  const byDay      = totalStats?.byDay ?? [];
 
   return (
     <div style={{ minHeight: '100vh', background: BG, padding: '24px 16px', fontFamily: 'system-ui, sans-serif', color: TEXT }}>
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 style={{ color: TEXT, fontSize: 24, fontWeight: 800, margin: 0 }}>BlockBite Admin</h1>
@@ -198,44 +268,57 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ─── ANALYTICS SECTION ─── */}
+        {/* ── ANALYTICS SECTION ── */}
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
-            ◈ Website Analytics {analyticsLoading && <span style={{ color: PURPLE, marginLeft: 8 }}>loading…</span>}
+            ◈ Website Analytics {analyticsLoading && <span style={{ color: PURPLE, marginLeft: 8 }}>syncing…</span>}
           </div>
         </div>
 
         {/* Analytics stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 20 }}>
-          <StatCard label="Total Page Views"    value={tableReady ? (totalStats?.totalViews ?? 0).toLocaleString() : '—'} color={BLUE}   />
+          <StatCard label="Total Page Views"    value={tableReady ? (totalStats?.totalViews ?? 0).toLocaleString() : '—'}    color={BLUE}   />
           <StatCard label="Unique Visitors"     value={tableReady ? (totalStats?.uniqueVisitors ?? 0).toLocaleString() : '—'} color={PURPLE} />
-          <StatCard label="Views Today"         value={tableReady ? (totalStats?.today ?? 0).toLocaleString() : '—'} color={GREEN}  />
-          <StatCard label="Waitlist Signups"    value={wlCount.toLocaleString()}  color={GOLD}   />
+          <StatCard label="Views Today"         value={tableReady ? (totalStats?.today ?? 0).toLocaleString() : '—'}          color={GREEN}  />
+          <StatCard label="Waitlist Signups"    value={wlCount.toLocaleString()}                                               color={GOLD}   />
         </div>
 
-        {/* Per-page breakdown */}
-        <Section title="Page Views Breakdown" badge={tableReady ? `${topPages.length} pages` : 'initializing'}>
-          {!tableReady ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>◌</div>
-              <p style={{ color: MUTED, fontSize: 13, margin: '0 0 6px', fontWeight: 600 }}>
-                Analytics initializing automatically…
-              </p>
-              <p style={{ color: MUTED, fontSize: 11, margin: 0 }}>
-                Page view tracking will activate on the next site visit. No manual steps required.
-              </p>
+        {/* ── 7-day visitor chart ── */}
+        <Section
+          title="Visitor Trend — Last 7 Days"
+          badge={tableReady && totalStats ? `${totalStats.totalViews} total views` : 'loading'}
+        >
+          {byDay.length > 0 ? (
+            <VisitorChart data={byDay} />
+          ) : (
+            <div style={{ padding: '28px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
+              {analyticsLoading ? 'Loading chart data…' : 'No view data yet — chart will populate automatically as pages are visited.'}
+            </div>
+          )}
+        </Section>
+
+        {/* ── Per-page breakdown ── */}
+        <Section title="Page Views Breakdown" badge={tableReady ? `${topPages.length} pages` : 'loading'}>
+          {analyticsLoading && !pageStats ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
+              Loading analytics…
             </div>
           ) : topPages.length === 0 ? (
-            <div style={{ color: MUTED, padding: '40px', textAlign: 'center', fontSize: 14 }}>
-              No page views recorded yet. Visit the site to start tracking.
+            <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+              <p style={{ color: MUTED, fontSize: 13, margin: '0 0 6px' }}>
+                No page view events recorded yet in internal storage.
+              </p>
+              <p style={{ color: MUTED, fontSize: 11, margin: 0 }}>
+                Tracking fires automatically on every page load via PageTracker. Data will appear here after the next visit.
+              </p>
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    {['Page', 'Page Views', 'Unique Visitors', '% of Total'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: h === 'Page' ? 'left' : 'right', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{h}</th>
+                    {['Page', 'Page Views', 'Unique Visitors', '% of Total'].map(hd => (
+                      <th key={hd} style={{ padding: '10px 16px', textAlign: hd === 'Page' ? 'left' : 'right', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{hd}</th>
                     ))}
                   </tr>
                 </thead>
@@ -264,7 +347,20 @@ export default function DashboardPage() {
           )}
         </Section>
 
-        {/* ─── WAITLIST SECTION ─── */}
+        {/* ── Analytics vs Vercel note ── */}
+        <div style={{ background: '#0f1629', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ color: BLUE, fontSize: 14, flexShrink: 0 }}>ⓘ</span>
+          <div>
+            <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>Vercel Analytics vs Internal tracker: </span>
+            <span style={{ color: MUTED, fontSize: 12 }}>
+              These are two independent systems. Vercel counts server-rendered events + bots using Edge telemetry.
+              Internal tracker records client-side page loads via <code style={{ color: BLUE, fontFamily: 'monospace' }}>/api/track</code> after hydration.
+              Discrepancy is normal — both numbers are valid facts from different measurement points.
+            </span>
+          </div>
+        </div>
+
+        {/* ── WAITLIST SECTION ── */}
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
             ◎ Waitlist Signups
@@ -298,8 +394,8 @@ export default function DashboardPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    {['#', 'Email', 'Date', 'Time', 'Actions'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: h === 'Actions' ? 'center' : 'left', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                    {['#', 'Email', 'Date', 'Time', 'Actions'].map(hd => (
+                      <th key={hd} style={{ padding: '12px 16px', textAlign: hd === 'Actions' ? 'center' : 'left', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{hd}</th>
                     ))}
                   </tr>
                 </thead>
@@ -329,7 +425,7 @@ export default function DashboardPage() {
         </Section>
 
         <p style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 8 }}>
-          BlockBite Admin · Waitlist from Supabase · Page views via /api/track · Auto-refreshes every 30s
+          BlockBite Admin · Waitlist from Supabase · Internal views via /api/track · Auto-refreshes every 30s
         </p>
       </div>
     </div>
