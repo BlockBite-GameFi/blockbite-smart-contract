@@ -13,6 +13,7 @@ const TEXT   = '#f1f5f9';
 const MUTED  = '#64748b';
 const BORDER = '#1e293b';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 type Entry    = { email: string; ts: number };
 type PageStat = { path: string; views: number; sessions: number };
 type DayStat  = { date: string; views: number; visitors: number };
@@ -20,100 +21,61 @@ type TotalStats = {
   totalViews: number; uniqueVisitors: number; today: number;
   tableReady: boolean; byDay?: DayStat[];
 };
-
-// Wallet connection stats
 type WalletStat = {
-  total: number;
-  unique: number;
-  today: number;
+  total: number; unique: number; today: number;
   byWallet: { name: string; count: number }[];
 };
 
-// Vercel official analytics
-type VercelStats = {
-  available: boolean;
-  reason?: string;
-  stats?: { pageViews: number | null; visitors: number | null; bounceRate: number | null };
-  pages?: { path: string; visitors: number; pageViews: number }[];
-  byDay?: { date: string; visitors: number; pageViews: number }[];
-  fetchedAt?: string;
-};
-
+// ── CSV Export ────────────────────────────────────────────────────────────────
+// Single-source export: internal tracker + wallet connects + waitlist.
+// BOM + sep= hint ensures Excel opens with proper columns on any locale (ID/EN).
 function downloadCSV(
   entries:     Entry[],
-  totalStats:  TotalStats   | null,
-  walletStats: WalletStat   | null,
-  vercelStats: VercelStats  | null,
+  totalStats:  TotalStats | null,
+  walletStats: WalletStat | null,
 ) {
-  const now = new Date();
+  const now  = new Date();
   const fmt  = (d: Date) => d.toLocaleDateString('en-GB');
   const fmtT = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const q    = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;   // safe-quote
-  const row  = (...cols: (string | number)[]) => cols.map(c => q(c)).join(',');
-  const sep  = ',';                                                              // explicit separator hint (read below)
+  const q    = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const row  = (...cols: (string | number)[]) => cols.map(q).join(',');
 
   const lines: string[] = [
-    // ── Excel hint — tells Excel which delimiter to use regardless of locale ──
-    `sep=${sep}`,
+    'sep=,',
     '',
-
-    // ── Report header ────────────────────────────────────────────────────────
     row('BLOCKBITE ADMIN REPORT', ''),
-    row('Generated', `${fmt(now)} ${fmtT(now)}`),
-    row('Export source', 'blockbite.vercel.app/waitlist/dashboard'),
+    row('Generated',    `${fmt(now)} ${fmtT(now)}`),
+    row('Source',       'blockbite.vercel.app — Internal Tracker (real human visits only)'),
+    row('Methodology',  'Client-side tracking fires after JS hydration. Bots & crawlers excluded.'),
     '',
 
-    // ── ANALYTICS SUMMARY ────────────────────────────────────────────────────
-    row('=== WEBSITE ANALYTICS (Internal Tracker) ===', ''),
+    row('=== WEBSITE ANALYTICS ===', ''),
     row('Metric', 'Value'),
-    row('Total Page Views',       totalStats?.totalViews    ?? 0),
-    row('Unique Visitors',        totalStats?.uniqueVisitors ?? 0),
-    row('Views Today',            totalStats?.today          ?? 0),
+    row('Total Page Views',  totalStats?.totalViews     ?? 0),
+    row('Unique Visitors',   totalStats?.uniqueVisitors ?? 0),
+    row('Views Today',       totalStats?.today          ?? 0),
     '',
-  ];
 
-  // Vercel official — only if available
-  if (vercelStats?.available && vercelStats.stats) {
-    lines.push(
-      row('=== WEBSITE ANALYTICS (Vercel Official — Last 30 Days) ===', ''),
-      row('Metric', 'Value'),
-      row('Visitors (Vercel)',   vercelStats.stats.visitors   ?? 'N/A'),
-      row('Page Views (Vercel)', vercelStats.stats.pageViews  ?? 'N/A'),
-      row('Bounce Rate',         vercelStats.stats.bounceRate != null ? `${vercelStats.stats.bounceRate}%` : 'N/A'),
-      '',
-    );
-    if ((vercelStats.pages?.length ?? 0) > 0) {
-      lines.push(
-        row('Page', 'Page Views', 'Unique Visitors'),
-        ...vercelStats.pages!.map(p => row(p.path, p.pageViews, p.visitors)),
-        '',
-      );
-    }
-  }
-
-  // ── WALLET CONNECTIONS ──────────────────────────────────────────────────
-  lines.push(
     row('=== WALLET CONNECTIONS ===', ''),
     row('Metric', 'Value'),
     row('Total Connects',  walletStats?.total  ?? 0),
     row('Unique Wallets',  walletStats?.unique ?? 0),
     row('Connects Today',  walletStats?.today  ?? 0),
     '',
-  );
+  ];
+
   if ((walletStats?.byWallet.length ?? 0) > 0) {
     lines.push(
       row('Wallet App', 'Connects', '% Share'),
       ...walletStats!.byWallet.map(w => {
         const pct = walletStats!.total > 0
-          ? `${((w.count / walletStats!.total) * 100).toFixed(1)}%`
-          : '0%';
+          ? `${((w.count / walletStats!.total) * 100).toFixed(1)}%` : '0%';
         return row(w.name, w.count, pct);
       }),
       '',
     );
   }
 
-  // ── WAITLIST SIGNUPS ────────────────────────────────────────────────────
   lines.push(
     row('=== WAITLIST SIGNUPS ===', ''),
     row('#', 'Email', 'Date', 'Time (WIB)'),
@@ -123,7 +85,6 @@ function downloadCSV(
     }),
   );
 
-  // BOM (﻿) = Excel recognises UTF-8 immediately — no garbled characters
   const csv  = '﻿' + lines.join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
@@ -135,7 +96,9 @@ function downloadCSV(
 }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, color, sub }: { label: string; value: string | number; color: string; sub?: string }) {
+function StatCard({ label, value, color, sub }: {
+  label: string; value: string | number; color: string; sub?: string;
+}) {
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: '20px 24px' }}>
       <div style={{ color, fontSize: 30, fontWeight: 800, lineHeight: 1 }}>{value}</div>
@@ -146,7 +109,9 @@ function StatCard({ label, value, color, sub }: { label: string; value: string |
 }
 
 // ── Section wrapper ────────────────────────────────────────────────────────────
-function Section({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
+function Section({ title, badge, children }: {
+  title: string; badge?: string; children: React.ReactNode;
+}) {
   return (
     <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
       <div style={{ padding: '14px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -160,62 +125,44 @@ function Section({ title, badge, children }: { title: string; badge?: string; ch
   );
 }
 
-// ── 7-day visitor chart ────────────────────────────────────────────────────────
+// ── 7-day bar chart ────────────────────────────────────────────────────────────
 function VisitorChart({ data }: { data: DayStat[] }) {
   if (!data?.length) return null;
   const maxViews = Math.max(...data.map(d => d.views), 1);
-  const W = 100, H = 60; // viewBox units per bar
-
+  const H = 60;
   return (
     <div style={{ padding: '20px 20px 16px' }}>
       <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
         {data.map((d, i) => {
-          const barH = Math.max(Math.round((d.views / maxViews) * H), d.views > 0 ? 4 : 2);
-          const label = d.date.slice(5).replace('-', '/'); // MM/DD
+          const barH   = Math.max(Math.round((d.views / maxViews) * H), d.views > 0 ? 4 : 2);
+          const label  = d.date.slice(5).replace('-', '/');
           const isToday = i === data.length - 1;
           return (
-            <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-              {/* value label */}
-              <div style={{
-                fontSize: 9, fontWeight: 700, color: isToday ? BLUE : MUTED,
-                marginBottom: 3, height: 12, lineHeight: '12px',
-              }}>
+            <div key={d.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: isToday ? BLUE : MUTED, marginBottom: 3, height: 12, lineHeight: '12px' }}>
                 {d.views > 0 ? d.views : ''}
               </div>
-              {/* bar */}
               <div style={{
-                width: '100%',
-                height: barH,
-                borderRadius: '3px 3px 0 0',
+                width: '100%', height: barH, borderRadius: '3px 3px 0 0', transition: 'height .3s ease',
                 background: d.views > 0
-                  ? (isToday
-                    ? `linear-gradient(to top, ${BLUE}, ${PURPLE})`
-                    : `linear-gradient(to top, ${BLUE}55, ${PURPLE}55)`)
+                  ? (isToday ? `linear-gradient(to top,${BLUE},${PURPLE})` : `linear-gradient(to top,${BLUE}55,${PURPLE}55)`)
                   : BORDER,
-                transition: 'height .3s ease',
               }} />
-              {/* axis line */}
               <div style={{ width: '100%', height: 1, background: BORDER }} />
-              {/* date label */}
-              <div style={{
-                fontSize: 9, color: isToday ? TEXT : MUTED,
-                marginTop: 4, fontWeight: isToday ? 700 : 400,
-                whiteSpace: 'nowrap',
-              }}>
+              <div style={{ fontSize: 9, color: isToday ? TEXT : MUTED, marginTop: 4, fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap' }}>
                 {label}
               </div>
             </div>
           );
         })}
       </div>
-      {/* legend */}
       <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 10, color: MUTED }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: 8, height: 8, borderRadius: 2, background: `linear-gradient(to top, ${BLUE}, ${PURPLE})` }} />
-          Page Views (internal tracker)
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: `linear-gradient(to top,${BLUE},${PURPLE})` }} />
+          Real human page views
         </div>
-        <div style={{ marginLeft: 'auto', color: MUTED, fontSize: 9 }}>
-          ⓘ Vercel Analytics counts separately — numbers may differ
+        <div style={{ marginLeft: 'auto', fontSize: 9, color: MUTED }}>
+          Bots &amp; crawlers excluded · Client-side only
         </div>
       </div>
     </div>
@@ -224,34 +171,31 @@ function VisitorChart({ data }: { data: DayStat[] }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const [username, setUsername]     = useState('');
-  const [password, setPassword]     = useState('');
-  const [loggedIn, setLoggedIn]     = useState(false);
-  const [authError, setAuthError]   = useState('');
-  const [loading, setLoading]       = useState(false);
+  const [username, setUsername]   = useState('');
+  const [password, setPassword]   = useState('');
+  const [loggedIn, setLoggedIn]   = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [loading, setLoading]     = useState(false);
   const token = password;
 
-  // Waitlist state
-  const [entries, setEntries]       = useState<Entry[]>([]);
-  const [wlCount, setWlCount]       = useState(0);
-  const [wlFetched, setWlFetched]   = useState(false);
-  const [wlError, setWlError]       = useState('');
-  const [deleting, setDeleting]     = useState<string | null>(null);
+  // Waitlist
+  const [entries, setEntries]   = useState<Entry[]>([]);
+  const [wlCount, setWlCount]   = useState(0);
+  const [wlFetched, setWlFetched] = useState(false);
+  const [wlError, setWlError]   = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Analytics state (internal — Supabase Storage)
+  // Analytics — single source of truth: internal tracker via Supabase Storage
   const [pageStats, setPageStats]     = useState<PageStat[] | null>(null);
   const [totalStats, setTotalStats]   = useState<TotalStats | null>(null);
   const [walletStats, setWalletStats] = useState<WalletStat | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
-  // Analytics state (official — Vercel)
-  const [vercelStats, setVercelStats]   = useState<VercelStats | null>(null);
-  const [vercelLoading, setVercelLoading] = useState(false);
-
+  // ── Login ──────────────────────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !password.trim()) { setAuthError('Enter username and password'); return; }
-    if (username.trim() !== 'nayrbryanGaming') { setAuthError('Invalid username'); return; }
+    if (username.trim() !== 'nayrbryanGaming')  { setAuthError('Invalid username'); return; }
     setLoading(true); setAuthError('');
     try {
       const res = await fetch('/api/waitlist/list', { headers: { 'x-admin-token': token.trim() } });
@@ -267,6 +211,7 @@ export default function DashboardPage() {
     } finally { setLoading(false); }
   }
 
+  // ── Data fetchers ──────────────────────────────────────────────────────────
   const fetchWaitlist = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setWlError('');
@@ -286,39 +231,27 @@ export default function DashboardPage() {
       const res = await fetch('/api/admin/analytics', { headers: { 'x-admin-token': token.trim() }, cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
-      setPageStats(data.pageStats ?? null);
+      setPageStats(data.pageStats   ?? null);
       setTotalStats(data.totalStats ?? null);
       setWalletStats(data.walletStats ?? null);
     } catch { /* silent */ } finally { setAnalyticsLoading(false); }
   }, [token]);
 
-  const fetchVercelAnalytics = useCallback(async () => {
-    setVercelLoading(true);
-    try {
-      const res = await fetch('/api/admin/vercel-analytics', { headers: { 'x-admin-token': token.trim() }, cache: 'no-store' });
-      if (!res.ok) return;
-      const data: VercelStats = await res.json();
-      setVercelStats(data);
-    } catch { /* silent */ } finally { setVercelLoading(false); }
-  }, [token]);
-
   const refreshAll = useCallback(() => {
     fetchWaitlist();
     fetchAnalytics();
-    fetchVercelAnalytics();
-  }, [fetchWaitlist, fetchAnalytics, fetchVercelAnalytics]);
+  }, [fetchWaitlist, fetchAnalytics]);
 
   // Auto-poll every 30 s + re-fetch on tab focus
   useEffect(() => {
     if (!loggedIn) return;
     fetchAnalytics();
-    fetchVercelAnalytics();
     const tick = () => { fetchWaitlist(true); };
-    const id = setInterval(tick, 30_000);
-    const onVis = () => { if (document.visibilityState === 'visible') { tick(); fetchAnalytics(); fetchVercelAnalytics(); } };
+    const id   = setInterval(tick, 30_000);
+    const onVis = () => { if (document.visibilityState === 'visible') { tick(); fetchAnalytics(); } };
     document.addEventListener('visibilitychange', onVis);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
-  }, [loggedIn, fetchWaitlist, fetchAnalytics, fetchVercelAnalytics]);
+  }, [loggedIn, fetchWaitlist, fetchAnalytics]);
 
   async function deleteEntry(email: string) {
     if (!confirm(`Delete ${email} from waitlist?`)) return;
@@ -331,7 +264,7 @@ export default function DashboardPage() {
     } catch { alert('Delete failed. Try again.'); } finally { setDeleting(null); }
   }
 
-  // ── Login screen ──────────────────────────────────────────────────────────
+  // ── Login screen ───────────────────────────────────────────────────────────
   if (!loggedIn) {
     return (
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -339,7 +272,7 @@ export default function DashboardPage() {
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>◆</div>
             <h1 style={{ color: TEXT, fontSize: 22, fontWeight: 700, margin: 0 }}>BlockBite Admin</h1>
-            <p style={{ color: MUTED, fontSize: 13, marginTop: 6 }}>Analytics & Waitlist Dashboard</p>
+            <p style={{ color: MUTED, fontSize: 13, marginTop: 6 }}>Analytics &amp; Waitlist Dashboard</p>
           </div>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username"
@@ -348,7 +281,7 @@ export default function DashboardPage() {
               style={{ background: '#0f172a', border: `1px solid ${BORDER}`, borderRadius: 10, color: TEXT, padding: '12px 16px', fontSize: 15, outline: 'none' }} />
             {authError && <p style={{ color: '#f87171', fontSize: 13, margin: 0 }}>{authError}</p>}
             <button type="submit" disabled={loading}
-              style={{ background: `linear-gradient(135deg, ${PURPLE}, ${TEAL})`, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+              style={{ background: `linear-gradient(135deg,${PURPLE},${TEAL})`, color: '#fff', border: 'none', borderRadius: 10, padding: 13, fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Verifying...' : 'Sign In'}
             </button>
           </form>
@@ -357,7 +290,7 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Main dashboard ────────────────────────────────────────────────────────
+  // ── Main dashboard ─────────────────────────────────────────────────────────
   const tableReady = totalStats?.tableReady ?? false;
   const topPages   = pageStats?.slice(0, 15) ?? [];
   const byDay      = totalStats?.byDay ?? [];
@@ -374,7 +307,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {entries.length > 0 && (
-              <button type="button" onClick={() => downloadCSV(entries, totalStats, walletStats, vercelStats)}
+              <button type="button" onClick={() => downloadCSV(entries, totalStats, walletStats)}
                 style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Download CSV
               </button>
@@ -386,111 +319,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── VERCEL OFFICIAL ANALYTICS ── */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
-            ▲ Vercel Official Analytics (Last 30 Days)
-            {vercelLoading && <span style={{ color: TEAL, marginLeft: 8 }}>syncing…</span>}
-          </div>
+        {/* ── Methodology badge ── */}
+        <div style={{ background: '#0a1628', border: `1px solid ${BLUE}33`, borderRadius: 10, padding: '10px 16px', marginBottom: 24, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ color: BLUE, fontSize: 13, flexShrink: 0 }}>●</span>
+          <span style={{ color: BLUE, fontSize: 12, fontWeight: 700 }}>Single Source of Truth — Internal Tracker</span>
+          <span style={{ color: MUTED, fontSize: 12 }}>
+            · Counts real human page loads after JavaScript runs · Bots, crawlers &amp; prefetches automatically excluded · Zero manual configuration · Data stored in Supabase Storage
+          </span>
         </div>
 
-        {vercelStats?.available === false ? (
-          <div style={{ background: '#0f1629', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-            <span style={{ color: GOLD, fontSize: 14, flexShrink: 0 }}>⚠</span>
-            <div>
-              <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>Vercel API not configured: </span>
-              <span style={{ color: MUTED, fontSize: 12 }}>{vercelStats.reason ?? 'Set VERCEL_API_TOKEN and VERCEL_PROJECT_ID in Vercel → Settings → Environment Variables'}</span>
-            </div>
-          </div>
-        ) : vercelStats?.available ? (
-          <>
-            {/* Vercel stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 12 }}>
-              <StatCard
-                label="Visitors (Vercel)"
-                value={vercelStats.stats?.visitors != null ? vercelStats.stats.visitors.toLocaleString() : '—'}
-                color={TEAL}
-                sub="▲ Official"
-              />
-              <StatCard
-                label="Page Views (Vercel)"
-                value={vercelStats.stats?.pageViews != null ? vercelStats.stats.pageViews.toLocaleString() : '—'}
-                color={BLUE}
-                sub="▲ Official"
-              />
-              <StatCard
-                label="Bounce Rate"
-                value={vercelStats.stats?.bounceRate != null ? `${vercelStats.stats.bounceRate}%` : '—'}
-                color={MUTED}
-                sub="▲ Official"
-              />
-              <StatCard label="Waitlist Signups" value={wlCount.toLocaleString()} color={GOLD} />
-            </div>
-
-            {/* Vercel per-page breakdown */}
-            {(vercelStats.pages?.length ?? 0) > 0 && (
-              <Section title="Page Views — Vercel Official" badge={`${vercelStats.pages!.length} pages · last 30d`}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                        {['Page', 'Page Views', 'Unique Visitors', '% of Total'].map(hd => (
-                          <th key={hd} style={{ padding: '10px 16px', textAlign: hd === 'Page' ? 'left' : 'right', color: MUTED, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>{hd}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vercelStats.pages!.map((p, i) => {
-                        const totalPV = vercelStats.pages!.reduce((s, r) => s + r.pageViews, 0);
-                        const pct = totalPV > 0 ? ((p.pageViews / totalPV) * 100).toFixed(1) : '0.0';
-                        return (
-                          <tr key={p.path} style={{ borderBottom: i < vercelStats.pages!.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-                            <td style={{ padding: '10px 16px', fontSize: 13, color: TEXT, fontFamily: 'monospace' }}>{p.path}</td>
-                            <td style={{ padding: '10px 16px', fontSize: 13, color: BLUE,   textAlign: 'right', fontWeight: 700 }}>{p.pageViews.toLocaleString()}</td>
-                            <td style={{ padding: '10px 16px', fontSize: 13, color: TEAL,   textAlign: 'right', fontWeight: 700 }}>{p.visitors.toLocaleString()}</td>
-                            <td style={{ padding: '10px 16px', fontSize: 12, color: MUTED,  textAlign: 'right' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                                <div style={{ width: 60, height: 4, borderRadius: 2, background: BORDER, overflow: 'hidden' }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', background: TEAL, borderRadius: 2 }} />
-                                </div>
-                                {pct}%
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Section>
-            )}
-
-            <p style={{ color: MUTED, fontSize: 10, marginBottom: 16, textAlign: 'right' }}>
-              ▲ Vercel data fetched at {vercelStats.fetchedAt ? new Date(vercelStats.fetchedAt).toLocaleTimeString() : '—'}
-            </p>
-          </>
-        ) : (
-          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20 }}>
-            <span style={{ color: MUTED, fontSize: 12 }}>Loading Vercel analytics…</span>
-          </div>
-        )}
-
-        {/* ── INTERNAL ANALYTICS SECTION ── */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
+        {/* ── WEBSITE ANALYTICS ── */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700 }}>
             ◈ Website Analytics {analyticsLoading && <span style={{ color: PURPLE, marginLeft: 8 }}>syncing…</span>}
           </div>
         </div>
 
-        {/* Analytics stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 20 }}>
-          <StatCard label="Total Page Views"    value={tableReady ? (totalStats?.totalViews ?? 0).toLocaleString() : '—'}    color={BLUE}   />
-          <StatCard label="Unique Visitors"     value={tableReady ? (totalStats?.uniqueVisitors ?? 0).toLocaleString() : '—'} color={PURPLE} />
-          <StatCard label="Views Today"         value={tableReady ? (totalStats?.today ?? 0).toLocaleString() : '—'}          color={GREEN}  />
-          <StatCard label="Waitlist Signups"    value={wlCount.toLocaleString()}                                               color={GOLD}   />
+          <StatCard label="Total Page Views"  value={tableReady ? (totalStats?.totalViews    ?? 0).toLocaleString() : '—'} color={BLUE}   />
+          <StatCard label="Unique Visitors"   value={tableReady ? (totalStats?.uniqueVisitors ?? 0).toLocaleString() : '—'} color={PURPLE} />
+          <StatCard label="Views Today"       value={tableReady ? (totalStats?.today          ?? 0).toLocaleString() : '—'} color={GREEN}  />
+          <StatCard label="Waitlist Signups"  value={wlCount.toLocaleString()}                                              color={GOLD}   />
         </div>
 
-        {/* ── 7-day visitor chart ── */}
+        {/* 7-day chart */}
         <Section
           title="Visitor Trend — Last 7 Days"
           badge={tableReady && totalStats ? `${totalStats.totalViews} total views` : 'loading'}
@@ -499,25 +351,18 @@ export default function DashboardPage() {
             <VisitorChart data={byDay} />
           ) : (
             <div style={{ padding: '28px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
-              {analyticsLoading ? 'Loading chart data…' : 'No view data yet — chart will populate automatically as pages are visited.'}
+              {analyticsLoading ? 'Loading…' : 'No views yet — data populates automatically on every visit.'}
             </div>
           )}
         </Section>
 
-        {/* ── Per-page breakdown ── */}
+        {/* Per-page breakdown */}
         <Section title="Page Views Breakdown" badge={tableReady ? `${topPages.length} pages` : 'loading'}>
           {analyticsLoading && !pageStats ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
-              Loading analytics…
-            </div>
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>Loading analytics…</div>
           ) : topPages.length === 0 ? (
-            <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-              <p style={{ color: MUTED, fontSize: 13, margin: '0 0 6px' }}>
-                No page view events recorded yet in internal storage.
-              </p>
-              <p style={{ color: MUTED, fontSize: 11, margin: 0 }}>
-                Tracking fires automatically on every page load via PageTracker. Data will appear here after the next visit.
-              </p>
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
+              No page views yet. Data will appear automatically after the next visit.
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
@@ -554,47 +399,27 @@ export default function DashboardPage() {
           )}
         </Section>
 
-        {/* ── Analytics vs Vercel note ── */}
-        <div style={{ background: '#0f1629', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <span style={{ color: BLUE, fontSize: 14, flexShrink: 0 }}>ⓘ</span>
-          <div>
-            <span style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>▲ Vercel Official vs ◈ Internal tracker: </span>
-            <span style={{ color: MUTED, fontSize: 12 }}>
-              Two independent systems — numbers differ by design.{' '}
-              <strong style={{ color: TEAL }}>Vercel Official</strong> uses Edge telemetry and counts all requests including bots, SSR, and prefetches.{' '}
-              <strong style={{ color: PURPLE }}>Internal tracker</strong> records client-side loads via{' '}
-              <code style={{ color: BLUE, fontFamily: 'monospace' }}>/api/track</code> after JS hydration — real human visits only.
-              Use Vercel Official as the canonical source; Internal gives per-session granularity.
-            </span>
-          </div>
-        </div>
-
-        {/* ── WALLET CONNECTIONS SECTION ── */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
+        {/* ── WALLET CONNECTIONS ── */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700 }}>
             ◈ Wallet Connections
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 20 }}>
-          <StatCard label="Total Connects"    value={walletStats?.total  ?? '—'} color={TEAL}   />
-          <StatCard label="Unique Wallets"    value={walletStats?.unique ?? '—'} color={PURPLE} />
-          <StatCard label="Connects Today"    value={walletStats?.today  ?? '—'} color={GREEN}  />
-          <StatCard label="Waitlist Signups"  value={wlCount}                    color={GOLD}   />
+          <StatCard label="Total Connects"   value={walletStats != null ? walletStats.total  : '—'} color={TEAL}   />
+          <StatCard label="Unique Wallets"   value={walletStats != null ? walletStats.unique : '—'} color={PURPLE} />
+          <StatCard label="Connects Today"   value={walletStats != null ? walletStats.today  : '—'} color={GREEN}  />
+          <StatCard label="Waitlist Signups" value={wlCount}                                        color={GOLD}   />
         </div>
 
-        {/* Wallet app breakdown */}
         {walletStats && walletStats.byWallet.length > 0 && (
           <Section title="Wallet App Breakdown" badge={`${walletStats.total} connects`}>
             <div style={{ padding: '8px 0' }}>
               {walletStats.byWallet.map((w, i) => {
                 const pct = walletStats.total > 0 ? ((w.count / walletStats.total) * 100).toFixed(0) : '0';
                 return (
-                  <div key={w.name} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 20px',
-                    borderBottom: i < walletStats.byWallet.length - 1 ? `1px solid ${BORDER}` : 'none',
-                  }}>
+                  <div key={w.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: i < walletStats.byWallet.length - 1 ? `1px solid ${BORDER}` : 'none' }}>
                     <div style={{ width: 28, height: 28, borderRadius: 8, background: `${TEAL}22`, border: `1px solid ${TEAL}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: TEAL, flexShrink: 0 }}>◈</div>
                     <div style={{ flex: 1, fontSize: 13, color: TEXT, fontWeight: 600 }}>{w.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -611,27 +436,24 @@ export default function DashboardPage() {
           </Section>
         )}
 
-        {walletStats && walletStats.total === 0 && (
+        {walletStats != null && walletStats.total === 0 && (
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '16px 20px', marginBottom: 20, color: MUTED, fontSize: 13 }}>
-            No wallet connections recorded yet. Data will appear when a user connects their wallet on the site.
+            No wallet connections yet. Data appears automatically when a user connects their Solana wallet.
           </div>
         )}
 
         {/* ── WAITLIST SECTION ── */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700 }}>
             ◎ Waitlist Signups
           </div>
         </div>
 
-        {/* Waitlist meta cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 20 }}>
-          <StatCard label="Total Signups" value={wlCount} color={PURPLE} />
-          <StatCard label="DB Status"     value={wlFetched ? 'Live' : 'Ready'} color={TEAL} />
-          <StatCard label="Latest Signup" value={entries[0] ? new Date(entries[0].ts).toLocaleDateString('en-GB') : 'None'} color={GOLD} />
-          <StatCard label="This Week"
-            value={entries.filter(e => e.ts > Date.now() - 7 * 86400_000).length}
-            color={GREEN} />
+          <StatCard label="Total Signups"  value={wlCount}                                                                        color={PURPLE} />
+          <StatCard label="DB Status"      value={wlFetched ? 'Live' : 'Ready'}                                                   color={TEAL}   />
+          <StatCard label="Latest Signup"  value={entries[0] ? new Date(entries[0].ts).toLocaleDateString('en-GB') : 'None'}      color={GOLD}   />
+          <StatCard label="This Week"      value={entries.filter(e => e.ts > Date.now() - 7 * 86400_000).length}                  color={GREEN}  />
         </div>
 
         {wlError && (
@@ -640,7 +462,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Signups table */}
         <Section title="Signups" badge={`${wlCount} total`}>
           {!wlFetched ? (
             <div style={{ color: MUTED, padding: 40, textAlign: 'center', fontSize: 14 }}>Loading…</div>
@@ -658,7 +479,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {entries.map((entry, i) => {
-                    const d = new Date(entry.ts);
+                    const d    = new Date(entry.ts);
                     const isDel = deleting === entry.email;
                     return (
                       <tr key={entry.email} style={{ borderBottom: i < entries.length - 1 ? `1px solid ${BORDER}` : 'none', opacity: isDel ? 0.4 : 1, transition: 'opacity .2s' }}>
@@ -682,8 +503,9 @@ export default function DashboardPage() {
         </Section>
 
         <p style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 8 }}>
-          BlockBite Admin · ▲ Vercel Official Analytics · ◈ Internal views via /api/track · Waitlist from Supabase · Auto-refreshes every 30s
+          BlockBite Admin · Internal Tracker — real human visits via /api/track · Wallet connects · Waitlist from Supabase · Auto-refreshes every 30s
         </p>
+
       </div>
     </div>
   );
