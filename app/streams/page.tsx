@@ -12,6 +12,32 @@ import {
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
+import { Connection, PublicKey } from '@solana/web3.js';
+
+// ─── RPC fallback (Pasal 27 — zero human touch) ─────────────────────────────
+// If the primary RPC (from AppWalletProvider / NEXT_PUBLIC_RPC_URL) returns
+// HTTP 403 (getProgramAccounts blocked on Solana shared public endpoints),
+// the app automatically retries with the Ankr free public devnet endpoint.
+// No user interaction required — the recovery is fully transparent.
+const FALLBACK_RPC = 'https://rpc.ankr.com/solana_devnet';
+
+async function fetchAndDedup(
+  conn: Connection,
+  walletKey: PublicKey,
+): Promise<StreamInfo[]> {
+  const [asCreator, asRecipient] = await Promise.all([
+    getStreamsByAuthority(conn, walletKey),
+    getStreamsByBeneficiary(conn, walletKey),
+  ]);
+  const seen = new Set<string>();
+  const all: StreamInfo[] = [];
+  for (const s of [...asCreator, ...asRecipient]) {
+    const key = s.pubkey.toBase58();
+    if (!seen.has(key)) { seen.add(key); all.push(s); }
+  }
+  all.sort((a, b) => Number(b.endTs.toString()) - Number(a.endTs.toString()));
+  return all;
+}
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -104,29 +130,29 @@ export default function StreamsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [asCreator, asRecipient] = await Promise.all([
-        getStreamsByAuthority(connection, publicKey),
-        getStreamsByBeneficiary(connection, publicKey),
-      ]);
-      // Deduplicate (could appear in both if creator = beneficiary)
-      const seen = new Set<string>();
-      const all: StreamInfo[] = [];
-      for (const s of [...asCreator, ...asRecipient]) {
-        const key = s.pubkey.toBase58();
-        if (!seen.has(key)) { seen.add(key); all.push(s); }
-      }
-      // Sort by endTs descending (newest end date first)
-      all.sort((a, b) => Number(b.endTs.toString()) - Number(a.endTs.toString()));
+      // Primary attempt — uses RPC from AppWalletProvider (NEXT_PUBLIC_RPC_URL or Ankr default)
+      const all = await fetchAndDedup(connection, publicKey);
       setStreams(all);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // 403 from Solana public RPC = getProgramAccounts blocked on shared endpoint.
-      // The app now defaults to Ankr (supports getProgramAccounts). If this still
-      // appears, set NEXT_PUBLIC_RPC_URL in Vercel to a dedicated RPC node.
       const is403 = msg.includes('403') || msg.toLowerCase().includes('forbidden');
-      setError(is403
-        ? 'RPC 403 — Solana public endpoint blocked getProgramAccounts. Switching to Ankr RPC on next load. Click Retry.'
-        : msg);
+
+      if (is403) {
+        // Auto-fallback — Pasal 27 compliance: zero human touch required.
+        // Primary RPC blocked getProgramAccounts (HTTP 403 on shared Solana endpoint).
+        // Silently retry with Ankr free public endpoint — user sees nothing.
+        try {
+          const fallbackConn = new Connection(FALLBACK_RPC, { commitment: 'confirmed' });
+          const all = await fetchAndDedup(fallbackConn, publicKey);
+          setStreams(all);
+          // Silent recovery — no error shown to user
+        } catch (e2) {
+          const msg2 = e2 instanceof Error ? e2.message : String(e2);
+          setError(`RPC error (primary + Ankr fallback failed): ${msg2}`);
+        }
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
