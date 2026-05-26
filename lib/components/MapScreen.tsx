@@ -39,6 +39,7 @@ interface Props {
   layout: Layout;
   onEnterLevel: (lvl: number) => void;
   walletAddress?: string;
+  topOffset?: number;
 }
 
 // One SVG node per level. 5000 levels per act → 5000 nodes.
@@ -508,7 +509,7 @@ function BottomCard({
   );
 }
 
-export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress }: Props) {
+export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress, topOffset = 0 }: Props) {
   const player    = usePlayerData(currentLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const Art       = ART[biome.id];
@@ -623,7 +624,8 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
 
   return (
     <div style={{
-      width: '100%', height: '100vh',
+      width: '100%', height: `calc(100vh - ${topOffset}px)`,
+      marginTop: topOffset,
       background: biome.sky, color: '#fff',
       fontFamily: '"Space Grotesk", system-ui, sans-serif',
       display: 'flex',

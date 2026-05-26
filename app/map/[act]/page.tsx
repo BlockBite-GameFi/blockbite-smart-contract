@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
+import Navbar from '@/components/Navbar';
 import { MapScreen, type Layout } from '@/lib/components/MapScreen';
 import { BIOMES } from '@/lib/game/biomes';
 import { getPlayerProgress } from '@/lib/api/progress';
@@ -55,12 +56,16 @@ export default function MapActPage() {
   }, [biome, publicKey]);
 
   return (
-    <MapScreen
-      biome={biome}
-      currentLevel={currentLevel}
-      layout={layout}
-      onEnterLevel={(lvl) => router.push(`/play/${lvl}`)}
-      walletAddress={publicKey?.toBase58()}
-    />
+    <>
+      <Navbar />
+      <MapScreen
+        biome={biome}
+        currentLevel={currentLevel}
+        layout={layout}
+        onEnterLevel={(lvl) => router.push(`/play/${lvl}`)}
+        walletAddress={publicKey?.toBase58()}
+        topOffset={64}
+      />
+    </>
   );
 }
