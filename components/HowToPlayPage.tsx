@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import PrizePoolCounter from '@/components/PrizePoolCounter';
-import Countdown from '@/components/Countdown';
 
 /* ── Constants ──────────────────────────────────────────────── */
 const NAV_SECTIONS = [
@@ -165,8 +163,29 @@ export default function HowToPlayPage() {
       <main style={{ paddingTop: 72, minHeight: '100vh', paddingBottom: 100 }}>
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '0 24px' }}>
 
+          {/* Back button */}
+          <div style={{ paddingTop: 32, paddingBottom: 8 }}>
+            <Link href="/" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: 13, fontWeight: 600,
+              color: '#55557A',
+              textDecoration: 'none',
+              padding: '6px 12px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.03)',
+              transition: 'color 0.15s',
+            }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00F5FF'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#55557A'; }}
+            >
+              ← Back to Home
+            </Link>
+          </div>
+
           {/* Page title */}
-          <div style={{ textAlign: 'center', padding: '48px 0 48px' }}>
+          <div style={{ textAlign: 'center', padding: '24px 0 48px' }}>
             <div style={{
               display: 'inline-block',
               background: 'rgba(0,245,255,0.08)',
@@ -480,44 +499,7 @@ export default function HowToPlayPage() {
                 </div>
               </section>
 
-              {/* ── 5. Prize Pool ── */}
-              <section id="prize-pool" style={{ scrollMarginTop: 88 }}>
-                {sectionHead('#FFD700', 'Prize Pool')}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 16,
-                  marginBottom: 16,
-                }}>
-                  <div style={panel({
-                    padding: '24px',
-                    textAlign: 'center',
-                    border: '1px solid rgba(255,215,0,0.12)',
-                  })}>
-                    <PrizePoolCounter size="sm" />
-                  </div>
-                  <div style={panel({ padding: '24px', textAlign: 'center' })}>
-                    <Countdown size="sm" showLabel />
-                  </div>
-                </div>
-                <div style={panel({
-                  padding: '20px 24px',
-                  background: 'rgba(255,215,0,0.03)',
-                  border: '1px solid rgba(255,215,0,0.08)',
-                })}>
-                  <p style={{
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    fontSize: 14,
-                    color: '#8888BB',
-                    margin: 0,
-                    lineHeight: 1.7,
-                  }}>
-                    The prize pool grows <strong style={{ color: '#FFD700' }}>automatically</strong> with every ticket sold — 70% of every USDC ticket goes directly into the pool. At the end of each period, the smart contract distributes funds instantly. No human can interfere with the distribution.
-                  </p>
-                </div>
-              </section>
-
-              {/* ── 6. Prize Distribution (TRANSPARENCY) ── */}
+              {/* ── 5. Prize Distribution (TRANSPARENCY) ── */}
               <section id="prize-distribution" style={{ scrollMarginTop: 88 }}>
                 {sectionHead('#00FF88', 'Prize Distribution')}
 

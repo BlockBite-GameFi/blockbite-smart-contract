@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
-import PrizePoolCounter from '@/components/PrizePoolCounter';
-import Countdown from '@/components/Countdown';
 import { TICKET_PACKAGES } from '@/lib/game/constants';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { purchaseTickets, getUsdcBalance, InsufficientFundsError, NoTokenAccountError } from '@/lib/solana/usdc';
@@ -145,18 +143,7 @@ export default function ShopPage() {
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <p style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif", fontSize: 15, color: 'var(--ds-text-dim)', maxWidth: 500, margin: '0 auto 24px', lineHeight: 1.6 }}>
               Buy tickets to compete on the leaderboard. More tickets = more chances to top the board.
-              70% of every purchase goes directly to the prize pool.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
-              <PrizePoolCounter size="sm" />
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                background: 'rgba(18,18,42,0.8)', border: '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 16, padding: '12px 24px',
-              }}>
-                <Countdown size="sm" showLabel />
-              </div>
-            </div>
           </div>
 
           {/* Wallet USDC balance + network badge */}

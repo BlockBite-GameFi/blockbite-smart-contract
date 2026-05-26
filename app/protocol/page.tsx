@@ -85,6 +85,20 @@ export default function ProtocolPage() {
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
       }}>
         <div>
+          <Link href="/" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontSize: 12, fontWeight: 600,
+            color: T.muted,
+            textDecoration: 'none',
+            marginBottom: 10,
+            padding: '4px 10px',
+            borderRadius: 7,
+            border: `1px solid ${T.border}`,
+            background: 'rgba(255,255,255,0.02)',
+            fontFamily: T.serif,
+          }}>
+            ← Back to Home
+          </Link>
           <h1 style={{ fontFamily: T.serif, fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>
             Protocol Overview
           </h1>

@@ -37,7 +37,7 @@ const TDP_LINKS = [
 
 const NAV_LINKS = [
   { name: 'PRODUCT',      href: '/protocol' },
-  { name: 'HOW IT WORKS', href: '/protocol' },
+  { name: 'HOW IT WORKS', href: '/how-to-play' },
   { name: 'GAME',         href: '/game' },
   { name: 'WAITLIST',     href: '/waitlist' },
 ] as const;

@@ -89,26 +89,26 @@ const HOW_IT_WORKS = [
   {
     num: '01',
     color: '#ff7a3a',
-    title: 'Connect & Import Data',
-    desc: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.',
+    title: 'Upload Recipient List',
+    desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.',
   },
   {
     num: '02',
     color: DS.blue,
-    title: 'Define Tokenomics',
-    desc: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.',
+    title: 'Set Unlock Schedule',
+    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.',
   },
   {
     num: '03',
     color: '#c084fc',
-    title: 'Set Verification Layer',
-    desc: 'Choose Direct Claim for simplicity or add Verification Layers like multisig, oracles, or gamified challenges.',
+    title: 'Recipients Claim',
+    desc: 'When tokens unlock, recipients connect their wallet and claim only what is already vested. No manual transfers, no trust required.',
   },
   {
     num: '04',
     color: DS.green,
-    title: 'Lock, Launch & Manage',
-    desc: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.',
+    title: 'Update or Cancel',
+    desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.',
   },
 ];
 
@@ -348,36 +348,44 @@ export default function Home() {
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
-              FEATURES
+              PROTOCOL FEATURES
             </p>
             <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-              Everything a token distribution needs.{' '}
+              Everything a token campaign needs.{' '}
               <span style={{
                 fontStyle: 'italic',
                 background: 'linear-gradient(90deg, #9945FF, #14F195)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>Nothing it doesn&apos;t.</span>
             </h2>
+            <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
+              Merkle compression, vesting schedules, and per-recipient clawback — all composed into a single on-chain program.
+            </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+
+          {/* ── 3 core protocol differentiators ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 24 }}>
             {([
               {
-                icon: '◎', color: DS.accent,
-                title: 'Flexible Schedules',
-                desc: 'Send tokens to your team, investors, or community with cliff locks, linear streams, and milestone-gated tranches — all in one stream.',
-                tags: ['Cliff support', 'Linear vesting', 'Milestone gates'],
+                icon: '✕',
+                color: DS.accent,
+                title: 'Merkle Compression',
+                desc: 'Distribute to 10,000 wallets with one 32-byte root. Recipients submit proofs, the program verifies on-chain. State stays small and distribution cost stays dramatically lower.',
+                tags: ['32-byte root', '~4,700× cost reduction', 'No per-recipient account'],
               },
               {
-                icon: '◈', color: '#c084fc',
-                title: 'Game-Powered Proof',
-                desc: 'Recipients earn milestone unlocks by playing the BlockBite puzzle game. Gamified, sybil-resistant, and fully verifiable on-chain.',
-                tags: ['Sybil-resistant', 'On-chain proof'],
+                icon: '∿',
+                color: DS.blue,
+                title: 'Vesting Schedules',
+                desc: 'Cliff, linear, and milestone schedules — per recipient, per campaign. The program enforces the curve on-chain, so nobody can claim past the line.',
+                tags: ['Cliff', 'Linear', 'Milestone'],
               },
               {
-                icon: '✦', color: DS.green,
-                title: 'Anti-Dump by Default',
-                desc: 'Hard time locks and milestone gates prevent immediate sell pressure. Align your community around long-term growth.',
-                tags: ['Creator-controlled', 'Fair to recipients'],
+                icon: '◎',
+                color: DS.green,
+                title: 'Per-Recipient Clawback',
+                desc: 'Rotate the Merkle root to remove or replace any allocation. If a campaign is cancelled, recipients keep what was already vested and get a 7-day grace window to claim before unvested funds are swept.',
+                tags: ['Root rotation', '7-day grace', 'Audit trail'],
               },
             ] as const).map((f, i) => (
               <div key={i} style={{
@@ -395,23 +403,79 @@ export default function Home() {
                   display: 'flex', flexDirection: 'column', gap: 16,
                 }}>
                   <div style={{
-                    width: 48, height: 48, borderRadius: 14,
-                    background: `linear-gradient(135deg, ${f.color}22, ${f.color}10)`,
+                    width: 52, height: 52, borderRadius: 14,
+                    background: `linear-gradient(135deg, ${f.color}22, ${f.color}08)`,
                     border: `1px solid ${f.color}44`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, color: f.color,
+                    fontSize: 24, color: f.color,
+                    boxShadow: `0 0 20px ${f.color}18`,
                   }}>{f.icon}</div>
-                  <h3 style={{ fontFamily: DS.cinzel, fontSize: 19, fontWeight: 700, color: '#F8F6FF', margin: 0 }}>{f.title}</h3>
-                  <p style={{ fontFamily: DS.sora, fontSize: 13.5, color: DS.muted, lineHeight: 1.72, margin: 0, flex: 1 }}>{f.desc}</p>
+                  <h3 style={{ fontFamily: DS.cinzel, fontSize: 20, fontWeight: 700, color: '#F8F6FF', margin: 0 }}>{f.title}</h3>
+                  <p style={{ fontFamily: DS.sora, fontSize: 13.5, color: DS.muted, lineHeight: 1.75, margin: 0, flex: 1 }}>{f.desc}</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {f.tags.map(tag => (
                       <span key={tag} style={{
                         fontSize: 11, padding: '4px 12px', borderRadius: 999,
-                        background: DS.bg2, border: `1px solid ${DS.border}`,
-                        color: DS.muted, fontFamily: DS.sora, fontWeight: 500,
+                        background: DS.bg2, border: `1px solid ${f.color}30`,
+                        color: f.color, fontFamily: DS.sora, fontWeight: 600,
+                        letterSpacing: '0.02em',
                       }}>{tag}</span>
                     ))}
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Secondary features row ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {([
+              {
+                icon: '◈', color: '#c084fc',
+                title: 'Game-Powered Proof',
+                desc: 'Recipients earn milestone unlocks by playing BlockBite. Gamified, sybil-resistant, and fully verifiable on-chain.',
+                tags: ['Sybil-resistant', 'On-chain proof'],
+              },
+              {
+                icon: '✦', color: DS.gold,
+                title: 'Anti-Dump by Default',
+                desc: 'Hard time locks and milestone gates prevent immediate sell pressure. Align your community around long-term growth.',
+                tags: ['Creator-controlled', 'Fair to recipients'],
+              },
+              {
+                icon: '⬡', color: DS.ember,
+                title: 'Composable by Design',
+                desc: 'Every instruction is a CPI target. Plug milestones into your existing program, oracle, or governance system without forking.',
+                tags: ['CPI-ready', 'Oracle-compatible'],
+              },
+            ] as const).map((f, i) => (
+              <div key={i} style={{
+                borderRadius: 14,
+                background: DS.bg1,
+                border: `1px solid ${DS.border}`,
+                padding: '22px 22px 18px',
+                display: 'flex', flexDirection: 'column', gap: 12,
+                transition: 'border-color .2s, transform .2s',
+              }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `${f.color}40`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = DS.border; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
+              >
+                <div style={{
+                  width: 40, height: 40, borderRadius: 11,
+                  background: `${f.color}12`, border: `1px solid ${f.color}33`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 19, color: f.color,
+                }}>{f.icon}</div>
+                <h3 style={{ fontFamily: DS.cinzel, fontSize: 16, fontWeight: 700, color: '#F8F6FF', margin: 0 }}>{f.title}</h3>
+                <p style={{ fontFamily: DS.sora, fontSize: 13, color: DS.muted, lineHeight: 1.7, margin: 0, flex: 1 }}>{f.desc}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {f.tags.map(tag => (
+                    <span key={tag} style={{
+                      fontSize: 10.5, padding: '3px 10px', borderRadius: 999,
+                      background: DS.bg2, border: `1px solid ${DS.border}`,
+                      color: DS.muted, fontFamily: DS.sora, fontWeight: 500,
+                    }}>{tag}</span>
+                  ))}
                 </div>
               </div>
             ))}
@@ -432,14 +496,17 @@ export default function Home() {
             <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
               HOW IT WORKS
             </p>
-            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-              Four steps.{' '}
+            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: '0 0 16px' }}>
+              Four moves.{' '}
               <span style={{
                 fontStyle: 'italic',
                 background: 'linear-gradient(90deg, #9945FF, #14F195)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              }}>From setup to claim.</span>
+              }}>From CSV to claim.</span>
             </h2>
+            <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+              Upload recipients, choose how tokens unlock, and let each wallet claim on schedule.
+            </p>
           </div>
 
           {/* 4-column symmetric grid — Vestra standard */}

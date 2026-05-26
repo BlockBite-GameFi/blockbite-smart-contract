@@ -3,8 +3,6 @@
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import GameCanvas from '@/components/game/GameCanvas';
-import PrizePoolCounter from '@/components/PrizePoolCounter';
-import Countdown from '@/components/Countdown';
 import { BIOMES } from '@/lib/game/biomes';
 
 const biome = BIOMES[0]; // Act I — Crystal Caverns (tutorial biome)
@@ -100,30 +98,6 @@ export default function TutorialPage() {
 
           {/* Left sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
-
-            {/* Prize pool */}
-            <div style={{
-              background: `linear-gradient(180deg, ${biome.accent}0d 0%, rgba(8,8,22,0.7) 100%)`,
-              backdropFilter: 'blur(12px)',
-              border: `1px solid ${biome.accent}33`,
-              borderRadius: 16,
-              padding: '20px',
-              textAlign: 'center',
-            }}>
-              <PrizePoolCounter size="sm" />
-            </div>
-
-            {/* Countdown */}
-            <div style={{
-              background: `linear-gradient(180deg, ${biome.accent}0d 0%, rgba(8,8,22,0.7) 100%)`,
-              backdropFilter: 'blur(12px)',
-              border: `1px solid ${biome.accent}33`,
-              borderRadius: 16,
-              padding: '20px',
-              textAlign: 'center',
-            }}>
-              <Countdown size="sm" showLabel={true} />
-            </div>
 
             {/* Scoring guide */}
             <div style={{

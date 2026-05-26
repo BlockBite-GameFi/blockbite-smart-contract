@@ -77,16 +77,6 @@ function usePlayerData(currentLevel: number) {
   return { username, tickets, gamesPlayed, tier: getLevelTier(currentLevel) };
 }
 
-function usePrizePool() {
-  const [pool, setPool] = useState(0);
-  useEffect(() => {
-    fetch('/api/prizepool')
-      .then(r => r.json())
-      .then(d => setPool(typeof d.balance === 'number' ? d.balance : 0))
-      .catch(() => {});
-  }, []);
-  return pool;
-}
 
 function Avatar({ biome, small }: { biome: Biome; small?: boolean }) {
   const size = small ? 36 : 48;
@@ -427,10 +417,10 @@ function TopHeader({ biome, layout, username, tier }: {
 }
 
 function SideCards({
-  biome, level, layout, onEnterLevel, prizePool,
+  biome, level, layout, onEnterLevel,
 }: {
   biome: Biome; level: number; layout: Layout;
-  onEnterLevel: (l: number) => void; prizePool: number;
+  onEnterLevel: (l: number) => void;
 }) {
   const cfg = levelConfig(level);
   return (
@@ -463,30 +453,15 @@ function SideCards({
       >
         START EXPEDITION
       </button>
-      <div style={{
-        marginTop: 'auto', padding: 14, borderRadius: 14,
-        background: 'rgba(0,0,0,0.4)', border: `1px solid ${biome.accent}33`,
-      }}>
-        <div style={{ fontSize: 10, letterSpacing: 1.5, color: biome.glow, opacity: 0.8 }}>
-          PRIZE POOL · ON-CHAIN
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>
-          {prizePool.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-          <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 6 }}>USDC</span>
-        </div>
-        <div style={{ fontSize: 10, color: biome.glow, opacity: 0.55, marginTop: 2 }}>
-          devnet · live on-chain balance
-        </div>
-      </div>
     </div>
   );
 }
 
 function BottomCard({
-  biome, level, onEnterLevel, prizePool,
+  biome, level, onEnterLevel,
 }: {
   biome: Biome; level: number;
-  onEnterLevel: (l: number) => void; prizePool: number;
+  onEnterLevel: (l: number) => void;
 }) {
   const cfg = levelConfig(level);
   return (
@@ -501,12 +476,6 @@ function BottomCard({
           <div style={{ fontSize: 10, letterSpacing: 2, color: biome.glow }}>ONGOING JOURNEY</div>
           <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, marginTop: 4 }}>
             Level {level}: <span style={{ color: biome.glow }}>{cfg.title}</span>
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', paddingLeft: 8 }}>
-          <div style={{ fontSize: 9, letterSpacing: 1, color: biome.glow, opacity: 0.7 }}>PRIZE POOL</div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>
-            {prizePool.toLocaleString()}<span style={{ fontSize: 9, opacity: 0.6 }}> USDC</span>
           </div>
         </div>
       </div>
@@ -532,7 +501,6 @@ function BottomCard({
 
 export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress }: Props) {
   const player    = usePlayerData(currentLevel);
-  const prizePool = usePrizePool();
   const scrollRef = useRef<HTMLDivElement>(null);
   const Art       = ART[biome.id];
 
@@ -915,14 +883,12 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
             level={currentLevel}
             layout={layout}
             onEnterLevel={onEnterLevel}
-            prizePool={prizePool}
           />
         ) : (
           <BottomCard
             biome={biome}
             level={currentLevel}
             onEnterLevel={onEnterLevel}
-            prizePool={prizePool}
           />
         )}
       </div>
