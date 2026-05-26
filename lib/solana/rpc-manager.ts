@@ -27,18 +27,27 @@ import { Connection, Commitment } from '@solana/web3.js';
 import { IS_DEVNET } from './config';
 
 // ── Candidate endpoints ─────────────────────────────────────────────────────
-const PRIMARY   = process.env.NEXT_PUBLIC_RPC_URL;
-const ANKR      = IS_DEVNET
-  ? 'https://rpc.ankr.com/solana_devnet'
-  : 'https://rpc.ankr.com/solana';
+const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
+
+const DEVNET_ENDPOINTS = [
+  'https://api.devnet.solana.com',
+  'https://rpc.ankr.com/solana_devnet',
+];
+
+const MAINNET_ENDPOINTS = [
+  'https://api.mainnet-beta.solana.com',
+  'https://rpc.ankr.com/solana',
+];
+
+const DEFAULTS = IS_DEVNET ? DEVNET_ENDPOINTS : MAINNET_ENDPOINTS;
 
 /**
  * Ordered fallback chain.
- * PRIMARY first (when configured in Vercel), then Ankr.
- * new Set() deduplicates in case they point to the same URL.
+ * PRIMARY first (when configured in Vercel), then official + Ankr.
+ * new Set() deduplicates in case PRIMARY overlaps a default.
  */
 export const RPC_CHAIN: readonly string[] = Object.freeze([
-  ...new Set([...(PRIMARY ? [PRIMARY] : []), ANKR]),
+  ...new Set([...(PRIMARY ? [PRIMARY] : []), ...DEFAULTS]),
 ]);
 
 const LS_KEY = 'bb_rpc_ok';
@@ -55,23 +64,28 @@ const LS_KEY = 'bb_rpc_ok';
 function isInfraError(err: Error): boolean {
   const m = err.message.toLowerCase();
   return (
-    m.includes('403')                ||
-    m.includes('forbidden')          ||
-    m.includes('429')                ||
-    m.includes('rate limit')         ||
-    m.includes('too many requests')  ||
-    m.includes('timeout')            ||
-    m.includes('timed out')          ||
-    m.includes('failed to fetch')    ||
-    m.includes('networkerror')       ||
-    m.includes('network request')    ||
-    m.includes('econnreset')         ||
-    m.includes('econnrefused')       ||
-    m.includes('service unavailable')||
-    m.includes('bad gateway')        ||
-    m.includes('502')                ||
-    m.includes('503')                ||
-    m.includes('504')
+    m.includes('403')                   ||
+    m.includes('forbidden')             ||
+    m.includes('429')                   ||
+    m.includes('rate limit')            ||
+    m.includes('too many requests')     ||
+    m.includes('timeout')               ||
+    m.includes('timed out')             ||
+    m.includes('failed to fetch')       ||
+    m.includes('networkerror')          ||
+    m.includes('network request')       ||
+    m.includes('econnreset')            ||
+    m.includes('econnrefused')          ||
+    m.includes('service unavailable')   ||
+    m.includes('bad gateway')           ||
+    m.includes('502')                   ||
+    m.includes('503')                   ||
+    m.includes('504')                   ||
+    m.includes('-32005')                ||  // node behind / method not available
+    m.includes('-32601')                ||  // method not found (blocked by provider)
+    m.includes('method not found')      ||
+    m.includes('method not supported')  ||
+    m.includes('getprogramaccounts')       // explicit getProgramAccounts block message
   );
 }
 

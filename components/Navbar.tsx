@@ -69,7 +69,7 @@ export default function Navbar() {
             priority
           />
           <div className={styles.logoText}>
-            BLOCK<span className={styles.logoAccent}>BITE</span>
+            BlockBite
           </div>
         </Link>
 

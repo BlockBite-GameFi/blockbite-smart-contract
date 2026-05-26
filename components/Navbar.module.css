@@ -31,15 +31,11 @@
 }
 
 .logoText {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  font-size: 18px;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 20px;
   font-weight: 900;
-  color: var(--text, #fff);
-  letter-spacing: -0.5px;
-}
-
-.logoAccent {
-  color: var(--accent, #a78bfa);
+  color: #fff;
+  letter-spacing: -0.3px;
 }
 
 
