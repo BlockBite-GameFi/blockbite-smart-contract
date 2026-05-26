@@ -39,17 +39,99 @@ type VercelStats = {
   fetchedAt?: string;
 };
 
-function downloadCSV(entries: Entry[]) {
-  const rows = entries.map(e => {
-    const d = new Date(e.ts);
-    return `"${e.email}","${d.toLocaleDateString('en-GB')}","${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}"`;
-  });
-  const csv = ['Email,Date,Time', ...rows].join('\n');
+function downloadCSV(
+  entries:     Entry[],
+  totalStats:  TotalStats   | null,
+  walletStats: WalletStat   | null,
+  vercelStats: VercelStats  | null,
+) {
+  const now = new Date();
+  const fmt  = (d: Date) => d.toLocaleDateString('en-GB');
+  const fmtT = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const q    = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;   // safe-quote
+  const row  = (...cols: (string | number)[]) => cols.map(c => q(c)).join(',');
+  const sep  = ',';                                                              // explicit separator hint (read below)
+
+  const lines: string[] = [
+    // ── Excel hint — tells Excel which delimiter to use regardless of locale ──
+    `sep=${sep}`,
+    '',
+
+    // ── Report header ────────────────────────────────────────────────────────
+    row('BLOCKBITE ADMIN REPORT', ''),
+    row('Generated', `${fmt(now)} ${fmtT(now)}`),
+    row('Export source', 'blockbite.vercel.app/waitlist/dashboard'),
+    '',
+
+    // ── ANALYTICS SUMMARY ────────────────────────────────────────────────────
+    row('=== WEBSITE ANALYTICS (Internal Tracker) ===', ''),
+    row('Metric', 'Value'),
+    row('Total Page Views',       totalStats?.totalViews    ?? 0),
+    row('Unique Visitors',        totalStats?.uniqueVisitors ?? 0),
+    row('Views Today',            totalStats?.today          ?? 0),
+    '',
+  ];
+
+  // Vercel official — only if available
+  if (vercelStats?.available && vercelStats.stats) {
+    lines.push(
+      row('=== WEBSITE ANALYTICS (Vercel Official — Last 30 Days) ===', ''),
+      row('Metric', 'Value'),
+      row('Visitors (Vercel)',   vercelStats.stats.visitors   ?? 'N/A'),
+      row('Page Views (Vercel)', vercelStats.stats.pageViews  ?? 'N/A'),
+      row('Bounce Rate',         vercelStats.stats.bounceRate != null ? `${vercelStats.stats.bounceRate}%` : 'N/A'),
+      '',
+    );
+    if ((vercelStats.pages?.length ?? 0) > 0) {
+      lines.push(
+        row('Page', 'Page Views', 'Unique Visitors'),
+        ...vercelStats.pages!.map(p => row(p.path, p.pageViews, p.visitors)),
+        '',
+      );
+    }
+  }
+
+  // ── WALLET CONNECTIONS ──────────────────────────────────────────────────
+  lines.push(
+    row('=== WALLET CONNECTIONS ===', ''),
+    row('Metric', 'Value'),
+    row('Total Connects',  walletStats?.total  ?? 0),
+    row('Unique Wallets',  walletStats?.unique ?? 0),
+    row('Connects Today',  walletStats?.today  ?? 0),
+    '',
+  );
+  if ((walletStats?.byWallet.length ?? 0) > 0) {
+    lines.push(
+      row('Wallet App', 'Connects', '% Share'),
+      ...walletStats!.byWallet.map(w => {
+        const pct = walletStats!.total > 0
+          ? `${((w.count / walletStats!.total) * 100).toFixed(1)}%`
+          : '0%';
+        return row(w.name, w.count, pct);
+      }),
+      '',
+    );
+  }
+
+  // ── WAITLIST SIGNUPS ────────────────────────────────────────────────────
+  lines.push(
+    row('=== WAITLIST SIGNUPS ===', ''),
+    row('#', 'Email', 'Date', 'Time (WIB)'),
+    ...entries.map((e, i) => {
+      const d = new Date(e.ts);
+      return row(i + 1, e.email, fmt(d), fmtT(d));
+    }),
+  );
+
+  // BOM (﻿) = Excel recognises UTF-8 immediately — no garbled characters
+  const csv  = '﻿' + lines.join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `blockbite-waitlist-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click(); URL.revokeObjectURL(url);
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `blockbite-report-${now.toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
@@ -292,7 +374,7 @@ export default function DashboardPage() {
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {entries.length > 0 && (
-              <button type="button" onClick={() => downloadCSV(entries)}
+              <button type="button" onClick={() => downloadCSV(entries, totalStats, walletStats, vercelStats)}
                 style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 Download CSV
               </button>
