@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
   fetchStream,
@@ -115,7 +116,7 @@ export default function StreamDetailPage() {
     try { return new PublicKey(idParam); } catch { return null; }
   })();
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!streamPda) {
       setFetchErr('Invalid stream address in URL');
       setLoading(false);
@@ -123,23 +124,22 @@ export default function StreamDetailPage() {
     }
     setLoading(true);
     setFetchErr(null);
-    fetchStream(connection, streamPda)
-      .then(async s => {
-        setStream(s);
-        if (s) {
-          try {
-            const [vaultPda] = deriveVaultPDA(s.authority, s.streamId);
-            const bal = await fetchVaultBalance(connection, vaultPda);
-            setVault(bal);
-          } catch { /* vault may not exist yet */ }
-        }
-        setLoading(false);
-      })
-      .catch(e => {
-        setFetchErr((e as Error)?.message ?? 'RPC error');
-        setLoading(false);
-      });
-  }, [connection, idParam]); // eslint-disable-line react-hooks/exhaustive-deps
+    try {
+      // withRpcFallback: 403/429/timeout → auto-switch endpoint, zero human touch.
+      const s = await withRpcFallback(conn => fetchStream(conn, streamPda!));
+      setStream(s);
+      if (s) {
+        const [vaultPda] = deriveVaultPDA(s.authority, s.streamId);
+        const bal = await withRpcFallback(conn => fetchVaultBalance(conn, vaultPda))
+          .catch(() => 0n); // vault may not exist yet — non-fatal
+        setVault(bal);
+      }
+    } catch (e) {
+      setFetchErr((e as Error)?.message ?? 'RPC error');
+    } finally {
+      setLoading(false);
+    }
+  }, [idParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 

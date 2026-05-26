@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useConnection } from '@solana/wallet-adapter-react';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { getAllStreams } from '@/lib/anchor/vesting-client';
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
@@ -59,11 +59,10 @@ function fmt(n: bigint): string {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProtocolPage() {
-  const { connection } = useConnection();
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
 
   useEffect(() => {
-    getAllStreams(connection).then(all => {
+    withRpcFallback(conn => getAllStreams(conn)).then(all => {
       const nowSec = Math.floor(Date.now() / 1000);
       const active = all.filter(s => !s.cancelled && Number(s.endTs.toString()) > nowSec).length;
       const locked = all.reduce((sum, s) => {
@@ -74,7 +73,7 @@ export default function ProtocolPage() {
       const distributed = all.reduce((sum, s) => sum + BigInt(s.amountWithdrawn.toString()), 0n);
       setLiveStats({ streams: all.length, active, locked: fmt(locked), distributed: fmt(distributed) });
     }).catch(() => {});
-  }, [connection]);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: T.bg0, padding: '0 0 60px' }}>

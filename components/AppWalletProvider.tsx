@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
@@ -9,6 +9,7 @@ import { LedgerWalletAdapter } from '@solana/wallet-adapter-ledger';
 import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { ACTIVE_NETWORK, RPC_URL } from '@/lib/solana/config';
+import { preWarmRpc } from '@/lib/solana/rpc-manager';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -55,6 +56,11 @@ export default function AppWalletProvider({ children }: { children: React.ReactN
     // eslint-disable-next-line no-console
     console.warn('[wallet-adapter] error:', err);
   }, []);
+
+  // Pre-warm RPC endpoints on app mount — probes all candidates in parallel
+  // and caches the fastest one in localStorage for zero-latency first calls.
+  // Fire-and-forget, fully automatic (Pasal 27 compliant).
+  useEffect(() => { preWarmRpc(); }, []);
 
   return (
     <ConnectionProvider endpoint={endpoint} config={connectionConfig}>

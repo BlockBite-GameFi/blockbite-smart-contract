@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
   getStreamsByAuthority,
@@ -13,14 +13,11 @@ import {
 } from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
-// ─── RPC fallback (Pasal 27 — zero human touch) ─────────────────────────────
-// If the primary RPC (from AppWalletProvider / NEXT_PUBLIC_RPC_URL) returns
-// HTTP 403 (getProgramAccounts blocked on Solana shared public endpoints),
-// the app automatically retries with the Ankr free public devnet endpoint.
-// No user interaction required — the recovery is fully transparent.
-const FALLBACK_RPC = 'https://rpc.ankr.com/solana_devnet';
-
+// ── Stream fetch helper ──────────────────────────────────────────────────────
+// Passed into withRpcFallback so the manager can substitute any Connection
+// transparently — handles 403 / 429 / timeout without any user action.
 async function fetchAndDedup(
   conn: Connection,
   walletKey: PublicKey,
@@ -110,7 +107,6 @@ function MiniBar({ pct, color }: { pct: number; color: string }) {
 
 export default function StreamsPage() {
   const { publicKey, connected } = useWallet();
-  const { connection } = useConnection();
   const { setVisible } = useWalletModal();
 
   const [streams,  setStreams]  = useState<StreamInfo[]>([]);
@@ -130,33 +126,19 @@ export default function StreamsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Primary attempt — uses RPC from AppWalletProvider (NEXT_PUBLIC_RPC_URL or Ankr default)
-      const all = await fetchAndDedup(connection, publicKey);
+      // withRpcFallback handles 403 / 429 / timeout automatically:
+      //   1. Tries the localStorage-cached working endpoint first.
+      //   2. Falls back through the chain (PRIMARY → Ankr) silently.
+      //   3. Persists the working URL so next session starts there.
+      // Zero human touch — Pasal 27 compliant.
+      const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
       setStreams(all);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const is403 = msg.includes('403') || msg.toLowerCase().includes('forbidden');
-
-      if (is403) {
-        // Auto-fallback — Pasal 27 compliance: zero human touch required.
-        // Primary RPC blocked getProgramAccounts (HTTP 403 on shared Solana endpoint).
-        // Silently retry with Ankr free public endpoint — user sees nothing.
-        try {
-          const fallbackConn = new Connection(FALLBACK_RPC, { commitment: 'confirmed' });
-          const all = await fetchAndDedup(fallbackConn, publicKey);
-          setStreams(all);
-          // Silent recovery — no error shown to user
-        } catch (e2) {
-          const msg2 = e2 instanceof Error ? e2.message : String(e2);
-          setError(`RPC error (primary + Ankr fallback failed): ${msg2}`);
-        }
-      } else {
-        setError(msg);
-      }
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [publicKey, connection]);
+  }, [publicKey]);
 
   useEffect(() => { load(); }, [load]);
 
