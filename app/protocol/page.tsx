@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { getAllStreams } from '@/lib/anchor/vesting-client';
 
@@ -11,21 +12,15 @@ const T = {
   gold:   '#f5c66a',
   green:  '#5fd07a',
   blue:   '#7ad7ff',
-  ember:  '#ff7a3a',
-  red:    '#f87171',
   muted:  'rgba(148,163,184,0.7)',
   border: 'rgba(167,139,250,0.15)',
-  bg0:    '#0b0918',
-  bg1:    '#0f0d1e',
-  bg2:    '#140f2a',
+  bg0:    '#05040d',
+  bg1:    '#09071a',
+  bg2:    '#0f0d20',
   mono:   '"JetBrains Mono",monospace',
   serif:  '"Space Grotesk",system-ui,sans-serif',
 };
 
-// COMPARE table moved to /demo#comparison — unverified competitor claims
-// must not appear on production pages (Pasal 207 compliance).
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '16px 20px', ...style }}>
@@ -48,7 +43,6 @@ function StatBox({ label, value, sub, color }: { label: string; value: string; s
   );
 }
 
-// ─── Live stats ───────────────────────────────────────────────────────────────
 interface LiveStats { streams: number; active: number; locked: string; distributed: string; }
 
 function fmt(n: bigint): string {
@@ -57,7 +51,6 @@ function fmt(n: bigint): string {
   return n.toString();
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
 export default function ProtocolPage() {
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
 
@@ -66,8 +59,8 @@ export default function ProtocolPage() {
       const nowSec = Math.floor(Date.now() / 1000);
       const active = all.filter(s => !s.cancelled && Number(s.endTs.toString()) > nowSec).length;
       const locked = all.reduce((sum, s) => {
-        const total   = BigInt(s.amountTotal.toString());
-        const drawn   = BigInt(s.amountWithdrawn.toString());
+        const total = BigInt(s.amountTotal.toString());
+        const drawn = BigInt(s.amountWithdrawn.toString());
         return sum + (total > drawn ? total - drawn : 0n);
       }, 0n);
       const distributed = all.reduce((sum, s) => sum + BigInt(s.amountWithdrawn.toString()), 0n);
@@ -76,236 +69,192 @@ export default function ProtocolPage() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bg0, padding: '0 0 60px' }}>
+    <div style={{ minHeight: '100vh', background: T.bg0, color: '#e8e1f8' }}>
+      <Navbar />
 
-      {/* ── Header ── */}
-      <div style={{
-        padding: '32px 40px 20px',
-        borderBottom: `1px solid ${T.border}`,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
-      }}>
-        <div>
-          <Link href="/" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 12, fontWeight: 600,
-            color: T.muted,
-            textDecoration: 'none',
-            marginBottom: 10,
-            padding: '4px 10px',
-            borderRadius: 7,
-            border: `1px solid ${T.border}`,
-            background: 'rgba(255,255,255,0.02)',
-            fontFamily: T.serif,
-          }}>
-            ← Back to Home
-          </Link>
-          <h1 style={{ fontFamily: T.serif, fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(88px,12vw,108px) clamp(16px,5vw,40px) 80px' }}>
+
+        {/* ── Page header ── */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            BlockBite TDP
+          </div>
+          <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(28px,5vw,40px)', fontWeight: 800, color: '#fff', marginBottom: 10 }}>
             Protocol Overview
           </h1>
-          <p style={{ fontSize: 12.5, color: T.muted, margin: '4px 0 0' }}>
+          <p style={{ fontSize: 13, color: T.muted, maxWidth: 500, lineHeight: 1.7 }}>
             BlockBite as infrastructure — for project admins, investors &amp; advisors
           </p>
         </div>
-        <Link href="/streams/new" style={{
-          display: 'inline-block',
-          padding: '9px 22px', borderRadius: 10, border: 'none',
-          background: `linear-gradient(135deg, ${T.accent}cc, ${T.accent})`,
-          color: '#fff', fontSize: 13, fontWeight: 700,
-          textDecoration: 'none', fontFamily: T.serif,
-          boxShadow: `0 0 20px ${T.accent}44`,
-        }}>
-          Start Streaming →
-        </Link>
-      </div>
 
-      <div style={{ padding: '28px 40px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
 
-        {/* ── Hero value prop ── */}
-        <div style={{
-          padding: '32px 28px', borderRadius: 20,
-          background: `linear-gradient(135deg, ${T.bg2}, #1a0e38)`,
-          border: `1.5px solid ${T.accent}33`,
-          boxShadow: `0 0 60px ${T.accent}0d`,
-          position: 'relative', overflow: 'hidden',
-        }}>
-          {/* Glow orb */}
+          {/* ── Hero value prop ── */}
           <div style={{
-            position: 'absolute', top: -40, right: -40,
-            width: 200, height: 200, borderRadius: '50%',
-            background: T.accent, opacity: 0.04, filter: 'blur(60px)',
-            pointerEvents: 'none',
-          }} />
-
-          <h2 style={{
-            fontFamily: T.serif, fontSize: 28, fontWeight: 800, color: '#fff',
-            lineHeight: 1.2, margin: '0 0 12px', maxWidth: 480,
+            padding: 'clamp(24px,4vw,36px)', borderRadius: 20,
+            background: `linear-gradient(135deg, ${T.bg2}, #1a0e38)`,
+            border: `1.5px solid ${T.accent}33`,
+            boxShadow: `0 0 60px ${T.accent}0d`,
+            position: 'relative', overflow: 'hidden',
           }}>
-            Stop Distributing Tokens Blindly
-          </h2>
-          <p style={{
-            fontSize: 14, color: 'rgba(232,225,248,.7)',
-            maxWidth: 520, lineHeight: 1.7, margin: '0 0 24px',
-          }}>
-            BlockBite TDP is a programmable token distribution protocol.
-            Create configurable vesting streams with cliff, milestone, linear,
-            and hybrid schedules — backed by audited smart contracts.
-          </p>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <Link href="/streams/new" style={{
-              display: 'inline-block',
-              padding: '11px 24px', borderRadius: 10,
-              background: `linear-gradient(135deg, ${T.accent}cc, ${T.accent})`,
-              color: '#fff', fontSize: 14, fontWeight: 700,
-              textDecoration: 'none', fontFamily: T.serif,
-              boxShadow: `0 0 20px ${T.accent}44`,
-            }}>
-              Create Stream
-            </Link>
-            <button style={{
-              padding: '11px 24px', borderRadius: 10,
-              border: `1px solid ${T.border}`,
-              background: 'rgba(255,255,255,.04)',
-              color: T.muted, fontSize: 14,
-              cursor: 'pointer', fontFamily: T.serif,
-            }}>
-              Read Docs ↗
-            </button>
+            <div style={{
+              position: 'absolute', top: -40, right: -40,
+              width: 200, height: 200, borderRadius: '50%',
+              background: T.accent, opacity: 0.04, filter: 'blur(60px)',
+              pointerEvents: 'none',
+            }} />
+            <h2 style={{ fontFamily: T.serif, fontSize: 'clamp(22px,4vw,30px)', fontWeight: 800, color: '#fff', lineHeight: 1.2, margin: '0 0 12px', maxWidth: 520 }}>
+              Stop Distributing Tokens Blindly
+            </h2>
+            <p style={{ fontSize: 14, color: 'rgba(232,225,248,.7)', maxWidth: 520, lineHeight: 1.7, margin: '0 0 24px' }}>
+              BlockBite TDP is a programmable token distribution protocol.
+              Create configurable vesting streams with cliff, milestone, linear,
+              and hybrid schedules — backed by audited smart contracts.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Link href="/streams/new" style={{
+                padding: '11px 24px', borderRadius: 10,
+                background: `linear-gradient(135deg, ${T.accent}cc, ${T.accent})`,
+                color: '#fff', fontSize: 14, fontWeight: 700,
+                textDecoration: 'none', fontFamily: T.serif,
+                boxShadow: `0 0 20px ${T.accent}44`,
+              }}>
+                Create Stream →
+              </Link>
+              <Link href="/streams" style={{
+                padding: '11px 24px', borderRadius: 10,
+                border: `1px solid ${T.border}`,
+                background: 'rgba(255,255,255,.04)',
+                color: T.muted, fontSize: 14,
+                textDecoration: 'none', fontFamily: T.serif,
+              }}>
+                View Dashboard
+              </Link>
+            </div>
           </div>
-        </div>
 
-        {/* ── Stats row ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
-          {[
-            { label:'Total Streams',      value: liveStats ? String(liveStats.streams)    : '0',  sub:'on devnet program',     color:T.gold   },
-            { label:'Active Streams',     value: liveStats ? String(liveStats.active)     : '0',  sub:'not cancelled & live',  color:T.accent },
-            { label:'Tokens Locked',      value: liveStats ? liveStats.locked             : '0',  sub:'in program vaults',     color:T.green  },
-            { label:'Tokens Distributed', value: liveStats ? liveStats.distributed        : '0',  sub:'total withdrawn',       color:T.blue   },
-          ].map(s => (
-            <Card key={s.label} style={{ padding: '18px 18px' }}>
-              <StatBox {...s} />
-            </Card>
-          ))}
-        </div>
-
-        {/* ── Vesting models ── */}
-        <div>
-          <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
-            Vesting Models
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+          {/* ── Live stats ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,180px),1fr))', gap: 14 }}>
             {[
-              { type:'Linear',    col:T.accent,  icon:'📈', desc:'Constant unlock rate after cliff. Ideal for team & advisor allocations.'     },
-              { type:'Cliff',     col:T.gold,    icon:'🪨', desc:'Hard lock until milestone, then immediate release. Simple & predictable.'     },
-              { type:'Milestone', col:T.blue,    icon:'🏁', desc:'Percentage unlocks tied to product deliverables. Accountability-first.'       },
-              { type:'Hybrid',    col:'#c084fc', icon:'⚡', desc:'Cliff + linear curve. Best of both: initial lock with gradual release.'       },
-            ].map(m => (
-              <Card key={m.type} style={{ padding: '18px 20px', display: 'flex', gap: 14 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-                  background: `${m.col}18`, border: `1px solid ${m.col}44`,
-                  display: 'grid', placeItems: 'center', fontSize: 22,
-                }}>
-                  {m.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: m.col, fontFamily: T.serif, marginBottom: 4 }}>
-                    {m.type}
-                  </div>
-                  <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>{m.desc}</div>
-                </div>
+              { label: 'Total Streams',      value: liveStats ? String(liveStats.streams)     : '0', sub: 'on devnet program',    color: T.gold   },
+              { label: 'Active Streams',     value: liveStats ? String(liveStats.active)      : '0', sub: 'not cancelled & live', color: T.accent },
+              { label: 'Tokens Locked',      value: liveStats ? liveStats.locked              : '0', sub: 'in program vaults',    color: T.green  },
+              { label: 'Tokens Distributed', value: liveStats ? liveStats.distributed         : '0', sub: 'total withdrawn',      color: T.blue   },
+            ].map(s => (
+              <Card key={s.label} style={{ padding: '18px 18px' }}>
+                <StatBox {...s} />
               </Card>
             ))}
           </div>
-        </div>
 
-        {/* ── Comparison table ── */}
-        <div>
-          <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
-            Protocol Comparison
+          {/* ── Vesting models ── */}
+          <div>
+            <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
+              Vesting Models
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 12 }}>
+              {[
+                { type: 'Linear',    col: T.accent,  icon: '📈', desc: 'Constant unlock rate after cliff. Ideal for team & advisor allocations.',     href: '/streams/new/linear'    },
+                { type: 'Cliff',     col: T.gold,    icon: '🪨', desc: 'Hard lock until milestone, then immediate release. Simple & predictable.',     href: '/streams/new/cliff'     },
+                { type: 'Milestone', col: T.blue,    icon: '🏁', desc: 'Percentage unlocks tied to product deliverables. Accountability-first.',       href: '/streams/new/milestone' },
+                { type: 'Hybrid',    col: '#c084fc', icon: '⚡', desc: 'Cliff + linear curve. Best of both: initial lock with gradual release.',       href: '/streams/new/hybrid'    },
+              ].map(m => (
+                <Link key={m.type} href={m.href} style={{ textDecoration: 'none' }}>
+                  <Card style={{ padding: '18px 20px', display: 'flex', gap: 14, cursor: 'pointer', transition: 'border-color .15s', borderColor: `${m.col}22` }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                      background: `${m.col}18`, border: `1px solid ${m.col}44`,
+                      display: 'grid', placeItems: 'center', fontSize: 22,
+                    }}>
+                      {m.icon}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: m.col, fontFamily: T.serif, marginBottom: 4 }}>
+                        {m.type}
+                      </div>
+                      <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.6 }}>{m.desc}</div>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
           </div>
+
+          {/* ── How it works ── */}
+          <div>
+            <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
+              How It Works
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 14 }}>
+              {[
+                { step: '01', title: 'Configure',  icon: '⚙️', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
+                { step: '02', title: 'Deploy',     icon: '🚀', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
+                { step: '03', title: 'Verify',     icon: '✅', desc: 'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
+                { step: '04', title: 'Claim',      icon: '💎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
+              ].map(s => (
+                <Card key={s.step} style={{ textAlign: 'center', padding: '20px 16px' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: T.accent, marginBottom: 8, fontFamily: T.mono }}>
+                    STEP {s.step}
+                  </div>
+                  <div style={{ fontSize: 28, marginBottom: 10 }}>{s.icon}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 6, fontFamily: T.serif }}>
+                    {s.title}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.6 }}>{s.desc}</div>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Protocol comparison note ── */}
           <Card style={{ padding: '20px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 12, color: T.muted, marginBottom: 12 }}>
               Comparative feature data between BlockBite TDP and other protocols
               is available in the demo section to maintain factual accuracy on production pages.
             </div>
-            <a href="/demo#comparison" style={{
+            <Link href="/demo#comparison" style={{
               display: 'inline-block', padding: '8px 18px', borderRadius: 8,
               border: `1px solid ${T.border}`, color: T.accent,
               fontSize: 12, fontWeight: 600, textDecoration: 'none',
             }}>
               View feature comparison →
-            </a>
+            </Link>
           </Card>
-        </div>
 
-        {/* ── How it works ── */}
-        <div>
-          <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
-            How It Works
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
-            {[
-              { step:'01', title:'Configure',  icon:'⚙️', desc:'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
-              { step:'02', title:'Deploy',     icon:'🚀', desc:'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
-              { step:'03', title:'Verify',     icon:'✅', desc:'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
-              { step:'04', title:'Claim',      icon:'💎', desc:'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
-            ].map(s => (
-              <Card key={s.step} style={{ textAlign: 'center', padding: '20px 16px' }}>
-                <div style={{
-                  fontSize: 9, fontWeight: 700, letterSpacing: '.15em',
-                  color: T.accent, marginBottom: 8, fontFamily: T.mono,
-                }}>
-                  STEP {s.step}
-                </div>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>{s.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 6, fontFamily: T.serif }}>
-                  {s.title}
-                </div>
-                <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.6 }}>{s.desc}</div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* ── CTA card ── */}
-        <div style={{
-          padding: '28px 24px', textAlign: 'center',
-          border: `1.5px solid ${T.accent}33`,
-          borderRadius: 20,
-          background: `linear-gradient(135deg,${T.bg1},${T.bg2})`,
-        }}>
-          <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
-            Ready to stream your tokens?
-          </div>
-          <p style={{
-            fontSize: 13, color: T.muted,
-            maxWidth: 400, margin: '0 auto 18px',
-            lineHeight: 1.7,
+          {/* ── Bottom CTA ── */}
+          <div style={{
+            padding: 'clamp(24px,4vw,32px)', textAlign: 'center',
+            border: `1.5px solid ${T.accent}33`,
+            borderRadius: 20,
+            background: `linear-gradient(135deg,${T.bg1},${T.bg2})`,
           }}>
-            Set up your first vesting stream in under 3 minutes.
-            No code required — full smart contract coverage.
-          </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <Link href="/streams/new" style={{
-              display: 'inline-block',
-              padding: '12px 28px', borderRadius: 10,
-              background: `linear-gradient(135deg, ${T.accent}cc, ${T.accent})`,
-              color: '#fff', fontSize: 14, fontWeight: 700,
-              textDecoration: 'none', fontFamily: T.serif,
-              boxShadow: `0 0 20px ${T.accent}44`,
-            }}>
-              Create Stream →
-            </Link>
-            <Link href="/streams" style={{
-              display: 'inline-block',
-              padding: '12px 28px', borderRadius: 10,
-              border: `1px solid ${T.border}`,
-              background: 'rgba(255,255,255,.04)',
-              color: T.muted, fontSize: 14,
-              textDecoration: 'none', fontFamily: T.serif,
-            }}>
-              View Dashboard
-            </Link>
+            <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+              Ready to stream your tokens?
+            </div>
+            <p style={{ fontSize: 13, color: T.muted, maxWidth: 400, margin: '0 auto 18px', lineHeight: 1.7 }}>
+              Set up your first vesting stream in under 3 minutes.
+              No code required — full smart contract coverage.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link href="/streams/new" style={{
+                padding: '12px 28px', borderRadius: 10,
+                background: `linear-gradient(135deg, ${T.accent}cc, ${T.accent})`,
+                color: '#fff', fontSize: 14, fontWeight: 700,
+                textDecoration: 'none', fontFamily: T.serif,
+                boxShadow: `0 0 20px ${T.accent}44`,
+              }}>
+                Create Stream →
+              </Link>
+              <Link href="/streams" style={{
+                padding: '12px 28px', borderRadius: 10,
+                border: `1px solid ${T.border}`,
+                background: 'rgba(255,255,255,.04)',
+                color: T.muted, fontSize: 14,
+                textDecoration: 'none', fontFamily: T.serif,
+              }}>
+                View Dashboard
+              </Link>
+            </div>
           </div>
         </div>
       </div>

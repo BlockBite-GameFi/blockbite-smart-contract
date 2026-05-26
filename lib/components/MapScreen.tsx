@@ -2,11 +2,17 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import type { Biome } from '@/lib/game/biomes';
 import { levelConfig } from '@/lib/game/levelConfig';
 import { getLevelTier } from '@/lib/game/constants';
 import { ART, buildPathD, generateLongNodes } from '@/lib/components/MapArt';
 import { BIOMES } from '@/lib/game/biomes';
+
+const CustomWalletButton = dynamic(
+  () => import('@/components/CustomWalletButton'),
+  { ssr: false, loading: () => <div style={{ height: 36 }} /> }
+);
 
 /**
  * Backdrop3D is intentionally a no-op as of 2026-05-16.
@@ -386,6 +392,9 @@ function DesktopRail({
         }}>
           <span style={{ color: '#fde047', fontWeight: 900, fontSize: 10 }}>TKT</span>
           {tickets} ticket{tickets !== 1 ? 's' : ''}
+        </div>
+        <div style={{ marginTop: 4 }}>
+          <CustomWalletButton />
         </div>
       </div>
     </div>
