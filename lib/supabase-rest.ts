@@ -277,6 +277,110 @@ async function sbListAllPvObjects(): Promise<string[] | null> {
   return all;
 }
 
+// ─── Wallet-connection analytics via Supabase Storage ────────────────────────
+// Same bucket "analytics", prefix: wc/{YYYY-MM-DD}/{ts}-{rand}.json
+// Payload: { anon, walletName, path, ts }
+
+/** Write one wallet-connect event to storage. Fire-and-forget. */
+export async function sbTrackWalletConnect(
+  anon: string, walletName: string, path: string,
+): Promise<void> {
+  if (!supabaseReady()) return;
+  const date = new Date().toISOString().slice(0, 10);
+  const ts   = Date.now();
+  const rand = Math.random().toString(36).slice(2, 8);
+  const key  = `wc/${date}/${ts}-${rand}.json`;
+  const body = JSON.stringify({ anon, walletName, path, ts });
+  try {
+    const res = await fetch(`${SB_URL}/storage/v1/object/${ANA_BUCKET}/${key}`, {
+      method: 'POST',
+      headers: h({ 'Content-Type': 'application/json', 'x-upsert': 'true' }),
+      body,
+      cache: 'no-store',
+    });
+    if (!res.ok && (res.status === 404 || res.status === 400)) {
+      await sbEnsureBucket();
+      await fetch(`${SB_URL}/storage/v1/object/${ANA_BUCKET}/${key}`, {
+        method: 'POST',
+        headers: h({ 'Content-Type': 'application/json', 'x-upsert': 'true' }),
+        body,
+        cache: 'no-store',
+      }).catch(() => {});
+    }
+  } catch { /* non-critical */ }
+}
+
+export type WalletStat = {
+  total:      number;   // total wallet-connect events
+  unique:     number;   // unique anonymised addresses
+  today:      number;   // events today
+  byWallet:   { name: string; count: number }[];  // breakdown by wallet app
+};
+
+/** Aggregate wallet-connect events from Supabase Storage. */
+export async function sbGetWalletStats(): Promise<WalletStat> {
+  const empty: WalletStat = { total: 0, unique: 0, today: 0, byWallet: [] };
+  if (!supabaseReady()) return empty;
+  try {
+    // List wc/ date folders
+    const res1 = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
+      method: 'POST',
+      headers: h(),
+      body: JSON.stringify({ prefix: 'wc/', limit: 365, offset: 0, sortBy: { column: 'name', order: 'desc' } }),
+      cache: 'no-store',
+    });
+    if (!res1.ok) return empty;
+    const dateFolders: { name: string }[] = await res1.json();
+    if (!Array.isArray(dateFolders) || dateFolders.length === 0) return empty;
+
+    // List files in each date folder
+    const all: string[] = [];
+    for (const folder of dateFolders.slice(0, 60)) {
+      const prefix = `wc/${folder.name}/`;
+      const res2 = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ prefix, limit: 1000, offset: 0, sortBy: { column: 'created_at', order: 'desc' } }),
+        cache: 'no-store',
+      });
+      if (!res2.ok) continue;
+      const items: { name: string }[] = await res2.json();
+      if (Array.isArray(items)) all.push(...items.map(i => `${prefix}${i.name}`));
+      if (all.length >= 2000) break;
+    }
+
+    if (all.length === 0) return empty;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const uniqueSet = new Set<string>();
+    const walletMap = new Map<string, number>();
+    let today = 0;
+
+    const reads = await Promise.all(
+      all.slice(0, 500).map(name =>
+        fetch(`${SB_URL}/storage/v1/object/${ANA_BUCKET}/${name}`, { headers: h(), cache: 'no-store' })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null),
+      ),
+    );
+
+    for (const ev of reads) {
+      if (!ev) continue;
+      if (ev.anon) uniqueSet.add(ev.anon);
+      const wName = ev.walletName ?? 'Unknown';
+      walletMap.set(wName, (walletMap.get(wName) ?? 0) + 1);
+      const evDate = ev.ts ? new Date(ev.ts).toISOString().slice(0, 10) : '';
+      if (evDate === todayStr) today++;
+    }
+
+    const byWallet = Array.from(walletMap.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return { total: all.length, unique: uniqueSet.size, today, byWallet };
+  } catch { return empty; }
+}
+
 export type DayStat = { date: string; views: number; visitors: number };
 
 export type TotalViewStats = {

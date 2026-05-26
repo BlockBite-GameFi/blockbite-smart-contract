@@ -10,6 +10,7 @@ import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { ACTIVE_NETWORK, RPC_URL } from '@/lib/solana/config';
 import { preWarmRpc } from '@/lib/solana/rpc-manager';
+import { WalletTracker } from '@/components/WalletTracker';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -65,7 +66,10 @@ export default function AppWalletProvider({ children }: { children: React.ReactN
   return (
     <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
       <WalletProvider wallets={wallets} autoConnect={false} onError={onError}>
-        <WalletModalProvider>{children}</WalletModalProvider>
+        <WalletModalProvider>
+          {children}
+          <WalletTracker />
+        </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );

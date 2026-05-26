@@ -21,6 +21,14 @@ type TotalStats = {
   tableReady: boolean; byDay?: DayStat[];
 };
 
+// Wallet connection stats
+type WalletStat = {
+  total: number;
+  unique: number;
+  today: number;
+  byWallet: { name: string; count: number }[];
+};
+
 // Vercel official analytics
 type VercelStats = {
   available: boolean;
@@ -149,8 +157,9 @@ export default function DashboardPage() {
   const [deleting, setDeleting]     = useState<string | null>(null);
 
   // Analytics state (internal — Supabase Storage)
-  const [pageStats, setPageStats]   = useState<PageStat[] | null>(null);
-  const [totalStats, setTotalStats] = useState<TotalStats | null>(null);
+  const [pageStats, setPageStats]     = useState<PageStat[] | null>(null);
+  const [totalStats, setTotalStats]   = useState<TotalStats | null>(null);
+  const [walletStats, setWalletStats] = useState<WalletStat | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   // Analytics state (official — Vercel)
@@ -197,6 +206,7 @@ export default function DashboardPage() {
       const data = await res.json();
       setPageStats(data.pageStats ?? null);
       setTotalStats(data.totalStats ?? null);
+      setWalletStats(data.walletStats ?? null);
     } catch { /* silent */ } finally { setAnalyticsLoading(false); }
   }, [token]);
 
@@ -476,6 +486,54 @@ export default function DashboardPage() {
             </span>
           </div>
         </div>
+
+        {/* ── WALLET CONNECTIONS SECTION ── */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: MUTED, letterSpacing: '1.8px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
+            ◈ Wallet Connections
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 14, marginBottom: 20 }}>
+          <StatCard label="Total Connects"    value={walletStats?.total  ?? '—'} color={TEAL}   />
+          <StatCard label="Unique Wallets"    value={walletStats?.unique ?? '—'} color={PURPLE} />
+          <StatCard label="Connects Today"    value={walletStats?.today  ?? '—'} color={GREEN}  />
+          <StatCard label="Waitlist Signups"  value={wlCount}                    color={GOLD}   />
+        </div>
+
+        {/* Wallet app breakdown */}
+        {walletStats && walletStats.byWallet.length > 0 && (
+          <Section title="Wallet App Breakdown" badge={`${walletStats.total} connects`}>
+            <div style={{ padding: '8px 0' }}>
+              {walletStats.byWallet.map((w, i) => {
+                const pct = walletStats.total > 0 ? ((w.count / walletStats.total) * 100).toFixed(0) : '0';
+                return (
+                  <div key={w.name} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 20px',
+                    borderBottom: i < walletStats.byWallet.length - 1 ? `1px solid ${BORDER}` : 'none',
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${TEAL}22`, border: `1px solid ${TEAL}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: TEAL, flexShrink: 0 }}>◈</div>
+                    <div style={{ flex: 1, fontSize: 13, color: TEXT, fontWeight: 600 }}>{w.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 80, height: 4, borderRadius: 2, background: BORDER, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: TEAL, borderRadius: 2 }} />
+                      </div>
+                      <span style={{ color: TEAL, fontSize: 13, fontWeight: 700, width: 28, textAlign: 'right' }}>{w.count}</span>
+                      <span style={{ color: MUTED, fontSize: 11, width: 36 }}>{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {walletStats && walletStats.total === 0 && (
+          <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '16px 20px', marginBottom: 20, color: MUTED, fontSize: 13 }}>
+            No wallet connections recorded yet. Data will appear when a user connects their wallet on the site.
+          </div>
+        )}
 
         {/* ── WAITLIST SECTION ── */}
         <div style={{ marginBottom: 8 }}>
