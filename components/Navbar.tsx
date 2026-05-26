@@ -38,7 +38,7 @@ const TDP_LINKS = [
 const NAV_LINKS = [
   { name: 'PRODUCT',      href: '/protocol' },
   { name: 'HOW IT WORKS', href: '/how-to-play' },
-  { name: 'GAME',         href: '/game' },
+  { name: 'PLAY GAME',    href: '/map/1' },
   { name: 'WAITLIST',     href: '/waitlist' },
 ] as const;
 
@@ -80,8 +80,8 @@ export default function Navbar() {
               <Link
                 href={link.href}
                 className={`${styles.link} ${
-                  (link.href === '/game' && (pathname === '/game' || pathname?.startsWith('/tutorial')))
-                  || (link.href !== '/game' && (pathname === link.href || pathname?.startsWith(link.href + '/')))
+                  (link.href === '/map/1' && (pathname?.startsWith('/map') || pathname?.startsWith('/tutorial') || pathname?.startsWith('/play')))
+                  || (link.href !== '/map/1' && (pathname === link.href || pathname?.startsWith(link.href + '/')))
                     ? styles.active : ''
                 }`}
                 style={{ fontFamily: DS.font }}
@@ -95,6 +95,19 @@ export default function Navbar() {
         {/* ── Right controls — Veztra clean: Launch App + Wallet only ── */}
         <div className={styles.right}>
           <CustomWalletButton />
+
+          {/* Play Game CTA */}
+          <Link href="/map/1" style={{
+            padding: '8px 18px', borderRadius: 9999,
+            background: 'rgba(0,245,255,0.10)',
+            border: '1px solid rgba(0,245,255,0.35)',
+            color: '#00F5FF', fontWeight: 700, fontSize: 13,
+            textDecoration: 'none', letterSpacing: '.03em',
+            fontFamily: DS.font, whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            ▶ Play Game
+          </Link>
 
           {/* Launch App primary CTA — rounded-full like Veztra */}
           <Link href="/streams/new" style={{
@@ -135,6 +148,20 @@ export default function Navbar() {
               <span className={styles.mobileLinkInner}>{link.name}</span>
             </Link>
           ))}
+
+          <Link
+            href="/map/1"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              display: 'block', margin: '4px 16px 0',
+              padding: '12px 20px', borderRadius: 12, textAlign: 'center',
+              background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.3)',
+              color: '#00F5FF', fontWeight: 700, fontSize: 14, textDecoration: 'none',
+              fontFamily: DS.font,
+            }}
+          >
+            ▶ Play Game
+          </Link>
 
           <div className={styles.mobileWalletWrap}>
             <CustomWalletButton />

@@ -64,22 +64,21 @@ const I18N = {
       { v: '', l: 'WAITLIST', dynamic: true },
     ],
     features: [
-      { color: MAGENTA, t: 'Distribusi Berbasis Milestone', d: 'Tetapkan kondisi unlock yang terikat pada milestone nyata. Rilis saat ini mendukung vesting linear berbasis waktu dengan cliff.' },
-      { color: TEAL,    t: 'Otomatis & Trustless', d: 'Smart contract menegakkan semua aturan distribusi on-chain. Tanpa transfer manual, tanpa celah pengawasan.' },
-      { color: GOLD,    t: 'Cliff + Vesting Linear', d: 'Konfigurasi periode cliff dan jadwal unlock linear. Setelah upgrade authority dibakar sebelum mainnet, bahkan tim tidak bisa melewati aturan on-chain.' },
-      { color: PURPLE,  t: 'Smart Contract Terverifikasi', d: 'Logika distribusi ditegakkan on-chain. Upgrade authority akan dibakar sebelum mainnet — setelah dibakar, kontrak permanen imutabel. Admin tidak bisa mengubah jadwal vesting setelah deploy.' },
-      { color: CORAL,   t: 'Transparansi Penuh', d: 'Setiap jadwal vesting, event unlock, dan klaim tercatat on-chain. Dapat diaudit siapa saja, kapan saja.' },
-      { color: TEAL,    t: 'Insentif Kontributor Loyal', d: 'Ubah pemegang token pasif menjadi kontributor aktif dengan menyelaraskan reward dengan kesuksesan proyek jangka panjang.' },
+      { color: PURPLE,  t: 'Lapisan Verifikasi Modular', d: 'Kendalikan cara pengguna mengakses token mereka. Pilih dari klaim langsung, persetujuan multisig, oracle, atau verifikasi gamified sebagai filter anti-bot.' },
+      { color: TEAL,    t: 'Logika Tokenomics Adaptif', d: 'Pilih antara linear streaming, cliff vesting, atau milestone based unlocks yang sesuai dengan roadmap unik proyekmu dan kebutuhan distribusi spesifik.' },
+      { color: MAGENTA, t: 'Hilangkan Overhead Manual', d: 'Berhenti membuang ratusan jam untuk distribusi manual dan pengecekan spreadsheet silang.' },
+      { color: GOLD,    t: 'Kontrol Clawback Aktif', d: 'Lindungi treasurymu dari kontrak yang gagal atau pivot proyek. Fitur clawback bawaan kami memungkinkan builder merebut kembali token yang belum vested secara instan.' },
+      { color: CORAL,   t: 'Keamanan Standar Profesional', d: 'BlockBite memastikan aset proyek terkunci dengan aman sambil menyediakan bukti transparan on-chain untuk setiap distribusi.' },
     ],
     featTitle: 'Kenapa BlockBite?',
     featKicker: 'FITUR UTAMA',
-    howTitle: 'Deploy dalam 4 langkah',
+    howTitle: 'Mulai dalam 4 Langkah',
     howKicker: 'CARA KERJA',
     steps: [
-      { t: 'Hubungkan Wallet', d: 'Hubungkan wallet Solanamu — Phantom, Solflare, Backpack, atau wallet compatible apapun.' },
-      { t: 'Tentukan Jadwal', d: 'Atur periode cliff, durasi vesting, dan kondisi unlock milestone untuk setiap kelompok penerima.' },
-      { t: 'Dana Vault', d: 'Depositkan token ke vault milik PDA. Smart contract secara otomatis menegakkan semua aturan — tanpa intervensi admin setelah upgrade authority dibakar.' },
-      { t: 'Distribusi Otomatis', d: 'Penerima mengklaim token yang sudah vested on-chain saat kondisi terpenuhi. Tanpa intervensi manual.' },
+      { t: 'Hubungkan & Impor Data', d: 'Hubungkan walletmu dan upload daftar penerima via CSV atau input manual dalam hitungan detik.' },
+      { t: 'Tentukan Tokenomics', d: 'Sesuaikan strategi perilisan menggunakan linear vesting, periode cliff, atau distribusi berbasis milestone.' },
+      { t: 'Atur Lapisan Verifikasi', d: 'Pilih Direct Claim untuk kemudahan atau tambahkan Verification Layer seperti multisig, oracle, atau tantangan gamified.' },
+      { t: 'Kunci, Luncurkan & Kelola', d: 'Kunci aset untuk mengotomasi klaim pengguna. Monitor distribusi secara real-time dengan kontrol Clawback penuh.' },
     ],
     footer: '© 2026 BlockBite · Dibangun di Solana',
   },
@@ -256,9 +255,9 @@ export default function WaitlistPage() {
         {/* Nav */}
         <nav style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 32px', borderBottom: `1px solid ${border}`,
+          padding: '12px clamp(16px, 5vw, 32px)', borderBottom: `1px solid ${border}`,
           background: 'rgba(8,8,15,0.75)', backdropFilter: 'blur(20px)',
-          position: 'sticky', top: 0, zIndex: 100,
+          position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap', gap: 8,
         }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#fff' }}>
             <img src="/logo.png" alt="BlockBite" width={40} height={40} style={{ objectFit: 'contain', flexShrink: 0 }}/>

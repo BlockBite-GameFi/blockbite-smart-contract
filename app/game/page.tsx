@@ -142,18 +142,26 @@ export default function GamePage() {
             BlockBite Puzzle Game
           </div>
           <p style={{ fontSize: 13, color: DS.muted, maxWidth: 360, textAlign: 'center', lineHeight: 1.6 }}>
-            The interactive game loads here. Connect your wallet and link a vesting stream to have your score count toward on-chain milestone verification.
+            Connect your wallet and link a vesting stream to have your score count toward on-chain milestone verification.
           </p>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <Link href="/tutorial" style={{
-              padding: '11px 24px', borderRadius: 11,
-              background: `linear-gradient(135deg, ${DS.purple}cc, #6b21a8cc)`,
-              color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none',
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Link href="/map/1" style={{
+              padding: '13px 32px', borderRadius: 11,
+              background: `linear-gradient(135deg, #00F5FF, ${DS.purple})`,
+              color: '#000', fontWeight: 800, fontSize: 15, textDecoration: 'none',
+              boxShadow: '0 0 24px rgba(0,245,255,0.35)',
             }}>
-              Launch Game →
+              ▶ Go to Game
+            </Link>
+            <Link href="/tutorial" style={{
+              padding: '13px 20px', borderRadius: 11,
+              background: DS.card, border: `1px solid ${DS.border}`,
+              color: DS.muted, fontWeight: 600, fontSize: 14, textDecoration: 'none',
+            }}>
+              Try Free Preview
             </Link>
             <Link href="/milestones" style={{
-              padding: '11px 20px', borderRadius: 11,
+              padding: '13px 20px', borderRadius: 11,
               background: DS.card, border: `1px solid ${DS.border}`,
               color: DS.muted, fontWeight: 600, fontSize: 14, textDecoration: 'none',
             }}>

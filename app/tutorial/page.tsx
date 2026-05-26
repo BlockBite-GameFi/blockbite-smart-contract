@@ -63,16 +63,7 @@ export default function TutorialPage() {
             fontFamily: "'Orbitron', monospace", fontSize: 13,
             color: biome.glow, fontWeight: 700,
           }}>
-            TUTORIAL
-          </span>
-          <span style={{
-            fontFamily: "'Orbitron', monospace", fontSize: 10,
-            color: '#cbd5e1', opacity: 0.7, letterSpacing: '0.2em',
-            padding: '4px 10px', borderRadius: 999,
-            background: `${biome.accent}22`,
-            border: `1px solid ${biome.accent}55`,
-          }}>
-            FREE PREVIEW · NO TICKET REQUIRED
+            FREE PREVIEW
           </span>
           <span style={{
             fontFamily: "'Orbitron', monospace", fontSize: 10,
@@ -83,6 +74,21 @@ export default function TutorialPage() {
           }}>
             ACT I · {biome.name.toUpperCase()}
           </span>
+          {/* Go to Real Game CTA */}
+          <button
+            type="button"
+            onClick={() => router.push('/map/1')}
+            style={{
+              marginLeft: 'auto', padding: '8px 18px', borderRadius: 10,
+              background: 'linear-gradient(135deg, #00F5FF, #7c3aed)',
+              border: 'none', color: '#000',
+              fontFamily: "'Space Grotesk', sans-serif", fontSize: 12,
+              fontWeight: 800, cursor: 'pointer', letterSpacing: '0.04em',
+              boxShadow: '0 0 16px rgba(0,245,255,0.3)',
+            }}
+          >
+            ▶ Go to Real Game
+          </button>
         </div>
 
         {/* Main 3-column layout */}
