@@ -22,19 +22,8 @@ const T = {
   serif:  '"Space Grotesk",system-ui,sans-serif',
 };
 
-// ─── Protocol comparison data ─────────────────────────────────────────────────
-const COMPARE = [
-  { feat:'Linear Vesting',   bb:true,  sab:true,  sf:true  },
-  { feat:'Cliff Schedule',   bb:true,  sab:true,  sf:false },
-  { feat:'Milestone Unlock', bb:true,  sab:false, sf:false },
-  { feat:'Hybrid Model',     bb:true,  sab:false, sf:false },
-  { feat:'In-game Rewards',  bb:true,  sab:false, sf:false },
-  { feat:'NFT Stream Proof', bb:true,  sab:true,  sf:false },
-  { feat:'Multi-token',      bb:true,  sab:false, sf:true  },
-  { feat:'Cancel & Modify',  bb:true,  sab:true,  sf:true  },
-  { feat:'Cliff + Linear',   bb:true,  sab:true,  sf:false },
-  { feat:'Dashboard UI',     bb:true,  sab:true,  sf:true  },
-];
+// COMPARE table moved to /demo#comparison — unverified competitor claims
+// must not appear on production pages (Pasal 207 compliance).
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -221,53 +210,18 @@ export default function ProtocolPage() {
           <div style={{ fontFamily: T.serif, fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 14 }}>
             Protocol Comparison
           </div>
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,.04)' }}>
-                  <th style={{
-                    padding: '12px 20px', textAlign: 'left',
-                    fontSize: 11, color: T.muted, letterSpacing: '.06em', fontWeight: 600,
-                  }}>
-                    FEATURE
-                  </th>
-                  {[
-                    { name:'BlockBite TDP', col:T.accent },
-                    { name:'Sablier v2',    col:T.muted  },
-                    { name:'Superfluid',    col:T.muted  },
-                  ].map(p => (
-                    <th key={p.name} style={{
-                      padding: '12px 20px', textAlign: 'center',
-                      fontSize: 11, color: p.col, letterSpacing: '.04em', fontWeight: 700,
-                    }}>
-                      {p.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARE.map((r, i) => (
-                  <tr key={r.feat} style={{
-                    borderTop: `1px solid ${T.border}`,
-                    background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)',
-                  }}>
-                    <td style={{ padding: '10px 20px', fontSize: 12, color: 'rgba(232,225,248,.75)' }}>
-                      {r.feat}
-                    </td>
-                    {[r.bb, r.sab, r.sf].map((v, j) => (
-                      <td key={j} style={{ padding: '10px 20px', textAlign: 'center' }}>
-                        <span style={{
-                          fontSize: 16,
-                          color: v ? (j === 0 ? T.green : T.muted) : 'rgba(255,255,255,.15)',
-                        }}>
-                          {v ? '✓' : '—'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <Card style={{ padding: '20px 24px', textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: T.muted, marginBottom: 12 }}>
+              Comparative feature data between BlockBite TDP and other protocols
+              is available in the demo section to maintain factual accuracy on production pages.
+            </div>
+            <a href="/demo#comparison" style={{
+              display: 'inline-block', padding: '8px 18px', borderRadius: 8,
+              border: `1px solid ${T.border}`, color: T.accent,
+              fontSize: 12, fontWeight: 600, textDecoration: 'none',
+            }}>
+              View feature comparison →
+            </a>
           </Card>
         </div>
 

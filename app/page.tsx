@@ -112,15 +112,8 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const COMPARISON = [
-  { feature: 'Milestone Unlock',      bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Fully Automated',       bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Game Verification',     bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Oracle Data Feed',      bb: true,  sablier: false, superfluid: false, streamflow: true  },
-  { feature: 'Cliff + Linear',        bb: true,  sablier: true,  superfluid: false, streamflow: true  },
-  { feature: 'On-chain Enforcement',  bb: true,  sablier: true,  superfluid: true,  streamflow: true  },
-  { feature: 'Anti-dump by Default',  bb: true,  sablier: false, superfluid: false, streamflow: false },
-];
+// COMPARISON table moved to /demo#comparison — unverified competitor claims
+// must not appear on production pages (Pasal 207 compliance).
 
 interface LiveStats { streams: number; active: number; locked: string; distributed: string; }
 
@@ -515,54 +508,21 @@ export default function Home() {
             ))}
           </div>
 
-          {/* ── Comparison table — inside HOW IT WORKS ── */}
-          <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 56 }}>
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
-                WHY BLOCKBITE
-              </div>
-              <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(22px,3vw,36px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-                Built different from day one.
-              </h2>
+          {/* ── Comparison — moved to /demo for Pasal 207 compliance ── */}
+          <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 40, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 10 }}>
+              WHY BLOCKBITE
             </div>
-
-            <div style={{ maxWidth: 900, margin: '0 auto', borderRadius: 20, overflow: 'hidden', border: `1px solid ${DS.border}` }}>
-              {/* Header row */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-                background: DS.bg2, padding: '14px 20px',
-                borderBottom: `1px solid ${DS.border}`,
-              }}>
-                {['Feature', 'BlockBite TDP', 'Sablier v2', 'Superfluid', 'Streamflow'].map((h, i) => (
-                  <div key={i} style={{
-                    fontSize: 10.5, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase',
-                    color: i === 1 ? DS.accent : DS.muted,
-                    textAlign: i === 0 ? 'left' : 'center',
-                    fontFamily: DS.sora,
-                  }}>{h}</div>
-                ))}
-              </div>
-              {/* Rows */}
-              {COMPARISON.map((row, i) => (
-                <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-                  padding: '13px 20px',
-                  background: i % 2 === 0 ? DS.card : 'transparent',
-                  borderBottom: i < COMPARISON.length - 1 ? `1px solid ${DS.border}` : 'none',
-                  alignItems: 'center',
-                }}>
-                  <div style={{ fontSize: 13, color: '#F8F6FF', fontWeight: 500 }}>{row.feature}</div>
-                  {[row.bb, row.sablier, row.superfluid, row.streamflow].map((val, j) => (
-                    <div key={j} style={{ textAlign: 'center' }}>
-                      {val
-                        ? <span style={{ color: j === 0 ? DS.green : 'rgba(95,208,122,.5)', fontSize: 16 }}>✓</span>
-                        : <span style={{ color: 'rgba(255,59,107,.4)', fontSize: 16 }}>✗</span>
-                      }
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+            <p style={{ color: DS.muted, fontSize: 13, marginBottom: 14 }}>
+              Feature comparison with other protocols is available in the demo section.
+            </p>
+            <a href="/demo#comparison" style={{
+              display: 'inline-block', padding: '9px 22px', borderRadius: 10,
+              border: `1px solid ${DS.border}`, color: DS.accent,
+              fontSize: 13, fontWeight: 600, textDecoration: 'none',
+            }}>
+              View comparison →
+            </a>
           </div>
         </div>
       </section>
