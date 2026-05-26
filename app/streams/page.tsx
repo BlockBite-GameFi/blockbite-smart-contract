@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -16,8 +17,6 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 // ── Stream fetch helper ──────────────────────────────────────────────────────
-// Passed into withRpcFallback so the manager can substitute any Connection
-// transparently — handles 403 / 429 / timeout without any user action.
 async function fetchAndDedup(
   conn: Connection,
   walletKey: PublicKey,
@@ -62,6 +61,21 @@ function streamStatus(s: StreamInfo, nowSec: number): string {
   return 'active';
 }
 
+function timeLeft(s: StreamInfo, nowSec: number): string {
+  if (s.cancelled) return 'Cancelled';
+  const endTs   = Number(s.endTs.toString());
+  const cliffTs = Number(s.cliffTs.toString());
+  if (nowSec >= endTs) return 'Ended';
+  if (nowSec < cliffTs) {
+    const days = Math.ceil((cliffTs - nowSec) / 86400);
+    return days > 1 ? `${days}d to cliff` : `<1d to cliff`;
+  }
+  const secs = endTs - nowSec;
+  if (secs < 86400)     return `${Math.ceil(secs / 3600)}h left`;
+  if (secs < 86400 * 7) return `${Math.ceil(secs / 86400)}d left`;
+  return `${Math.ceil(secs / (86400 * 30))}mo left`;
+}
+
 function shortKey(pk: { toBase58(): string } | null): string {
   if (!pk) return '—';
   const s = pk.toBase58();
@@ -70,6 +84,13 @@ function shortKey(pk: { toBase58(): string } | null): string {
 
 function fmtTokens(bn: BN): string {
   const n = Number(bn.toString()) / 1e6;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+  return n.toFixed(2);
+}
+
+function fmtRaw(raw: number): string {
+  const n = raw / 1e6;
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
   return n.toFixed(2);
@@ -94,18 +115,27 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
-function MiniBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <div style={{ width: 64, height: 5, borderRadius: 99, background: 'rgba(255,255,255,.07)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${Math.min(100, pct)}%`, background: color, borderRadius: 99 }} />
-      </div>
-      <span style={{ fontSize: 10.5, color: '#fff', fontFamily: C.mono }}>{Math.round(pct)}%</span>
-    </div>
-  );
+// ─── Column layout (7 cols on desktop, card on mobile) ───────────────────────
+const GRID = '1.8fr 90px 130px 130px 120px 110px 90px';
+const HEADERS = ['STREAM / ROLE', 'TYPE', 'TOTAL', 'CLAIMED', 'UNLOCKED', 'TIME LEFT', 'STATUS'];
+
+const MOBILE_CSS = `
+@media (max-width: 768px) {
+  .sd-table-header { display: none !important; }
+  .sd-table-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px;
+    padding: 16px !important;
+  }
+  .sd-row-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .sd-row-amounts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .sd-col-hide { display: none !important; }
 }
+`;
 
 export default function StreamsPage() {
+  const router = useRouter();
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
 
@@ -115,7 +145,6 @@ export default function StreamsPage() {
   const [filter,   setFilter]   = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all');
   const [nowSec,   setNowSec]   = useState(Math.floor(Date.now() / 1000));
 
-  // Keep clock updated
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
     return () => clearInterval(t);
@@ -126,11 +155,6 @@ export default function StreamsPage() {
     setLoading(true);
     setError(null);
     try {
-      // withRpcFallback handles 403 / 429 / timeout automatically:
-      //   1. Tries the localStorage-cached working endpoint first.
-      //   2. Falls back through the chain (PRIMARY → Ankr) silently.
-      //   3. Persists the working URL so next session starts there.
-      // Zero human touch — Pasal 27 compliant.
       const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
       setStreams(all);
     } catch (e) {
@@ -147,13 +171,14 @@ export default function StreamsPage() {
     return streamStatus(s, nowSec) === filter;
   });
 
-  // Real aggregate metrics
-  const totalLocked = streams.reduce((acc, s) => acc + Number(s.amountTotal.toString()), 0) / 1e6;
+  const totalLocked    = streams.reduce((acc, s) => acc + Number(s.amountTotal.toString()), 0) / 1e6;
   const totalWithdrawn = streams.reduce((acc, s) => acc + Number(s.amountWithdrawn.toString()), 0) / 1e6;
-  const activeCount = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
+  const activeCount    = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
 
   return (
     <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8' }}>
+      {/* eslint-disable-next-line react/no-danger */}
+      <style dangerouslySetInnerHTML={{ __html: MOBILE_CSS }} />
       <Navbar />
 
       {/* ── Header ── */}
@@ -192,13 +217,13 @@ export default function StreamsPage() {
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 100px' }}>
 
-        {/* ── KPI row — REAL numbers ── */}
+        {/* ── KPI row ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 32 }}>
           {[
-            { label: 'Your Streams',       value: String(streams.length),               sub: 'as creator or recipient', color: C.accent },
-            { label: 'Active',             value: String(activeCount),                  sub: 'currently streaming',     color: C.green  },
-            { label: 'Total Locked',       value: totalLocked.toFixed(2) + ' TOKEN',    sub: 'across your streams',     color: C.gold   },
-            { label: 'Total Withdrawn',    value: totalWithdrawn.toFixed(2) + ' TOKEN', sub: 'all-time claimed',        color: C.blue   },
+            { label: 'Your Streams',    value: String(streams.length),               sub: 'as creator or recipient', color: C.accent },
+            { label: 'Active',          value: String(activeCount),                  sub: 'currently streaming',     color: C.green  },
+            { label: 'Total Locked',    value: totalLocked.toFixed(2) + ' TOKEN',    sub: 'across your streams',     color: C.gold   },
+            { label: 'Total Claimed',   value: totalWithdrawn.toFixed(2) + ' TOKEN', sub: 'all-time withdrawn',      color: C.blue   },
           ].map(s => (
             <div key={s.label} style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 16, padding: '18px 20px' }}>
               <div style={{ fontSize: 10, color: C.muted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
@@ -263,14 +288,14 @@ export default function StreamsPage() {
               ))}
               <div style={{ flex: 1 }} />
               <span style={{ fontSize: 11, color: C.muted, alignSelf: 'center' }}>
-                {filtered.length} stream{filtered.length !== 1 ? 's' : ''}
+                {filtered.length} stream{filtered.length !== 1 ? 's' : ''} · click a row to view details
               </span>
             </div>
 
             <div style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'hidden' }}>
-              {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 100px 1fr 130px 130px 110px 100px', padding: '10px 20px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,.03)' }}>
-                {['STREAM PDA', 'TYPE', 'COUNTERPART', 'TOTAL', 'CLAIMABLE NOW', 'PROGRESS', 'STATUS'].map(h => (
+              {/* Table header — hidden on mobile via MOBILE_CSS */}
+              <div className="sd-table-header" style={{ display: 'grid', gridTemplateColumns: GRID, padding: '10px 20px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,.03)' }}>
+                {HEADERS.map(h => (
                   <div key={h} style={{ fontSize: 9.5, color: C.muted, fontWeight: 700, letterSpacing: '.06em' }}>{h}</div>
                 ))}
               </div>
@@ -279,67 +304,100 @@ export default function StreamsPage() {
               {filtered.length === 0 && (
                 <div style={{ padding: '60px 20px', textAlign: 'center', color: C.muted, fontSize: 14 }}>
                   {streams.length === 0
-                    ? <>No streams found. <Link href="/streams/new" style={{ color: C.accent }}>Create your first stream →</Link></>
+                    ? <><Link href="/streams/new" style={{ color: C.accent }}>Create your first stream →</Link></>
                     : 'No streams match this filter.'
                   }
                 </div>
               )}
 
-              {/* Rows */}
+              {/* Rows — click to open stream detail */}
               {filtered.map((s, i) => {
-                const type    = streamType(s);
-                const status  = streamStatus(s, nowSec);
-                const typeCol = TYPE_COLORS[type] ?? C.accent;
-                const total   = Number(s.amountTotal.toString());
-                const withdrawn = Number(s.amountWithdrawn.toString());
-                const claimable = Number(computeUnlocked(s, nowSec));
-                const pct     = total > 0 ? (withdrawn / total) * 100 : 0;
-                const isCreator = publicKey && s.authority.toBase58() === publicKey.toBase58();
-                const counterpart = isCreator ? s.beneficiary : s.authority;
+                const type       = streamType(s);
+                const status     = streamStatus(s, nowSec);
+                const typeCol    = TYPE_COLORS[type] ?? C.accent;
+                const total      = Number(s.amountTotal.toString());
+                const withdrawn  = Number(s.amountWithdrawn.toString());
+                const claimable  = Number(computeUnlocked(s, nowSec));
+                const isCreator  = publicKey && s.authority.toBase58() === publicKey.toBase58();
+                const href       = `/streams/${s.pubkey.toBase58()}`;
+                const tLeft      = timeLeft(s, nowSec);
 
                 return (
-                  <div key={s.pubkey.toBase58()} style={{
-                    display: 'grid', gridTemplateColumns: '2fr 100px 1fr 130px 130px 110px 100px',
-                    padding: '13px 20px', borderTop: i === 0 ? 'none' : `1px solid ${C.border}`,
-                    background: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent', alignItems: 'center',
-                  }}
-                    onMouseEnter={e => (e.currentTarget.style.background = `${C.accent}06`)}
+                  <div
+                    key={s.pubkey.toBase58()}
+                    className="sd-table-row"
+                    onClick={() => router.push(href)}
+                    style={{
+                      display: 'grid', gridTemplateColumns: GRID,
+                      padding: '14px 20px',
+                      borderTop: i === 0 ? 'none' : `1px solid ${C.border}`,
+                      background: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent',
+                      alignItems: 'center', cursor: 'pointer', transition: 'background .12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${C.accent}09`)}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 ? 'rgba(255,255,255,.01)' : 'transparent')}
                   >
-                    {/* PDA + role */}
-                    <div>
-                      <div style={{ fontFamily: C.mono, fontSize: 10.5, color: '#fff', marginBottom: 2 }}>
-                        {shortKey(s.pubkey)}
+                    {/* Stream PDA + role — always visible */}
+                    <div className="sd-row-meta">
+                      <div>
+                        <div style={{ fontFamily: C.mono, fontSize: 10.5, color: '#fff', marginBottom: 2 }}>
+                          {shortKey(s.pubkey)}
+                        </div>
+                        <div style={{ fontSize: 10, color: isCreator ? C.accent : C.green }}>
+                          {isCreator ? 'You created' : 'You receive'}
+                          {s.milestoneCount > 0 && <span style={{ color: C.blue }}> · {s.milestoneCount} milestone{s.milestoneCount !== 1 ? 's' : ''}</span>}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10, color: isCreator ? C.accent : C.green }}>
-                        {isCreator ? 'You created' : 'You receive'}
-                        {s.milestoneCount > 0 && <span style={{ color: C.blue }}> · {s.milestoneCount} milestone{s.milestoneCount !== 1 ? 's' : ''}</span>}
+                      {/* On mobile, show type + status inline */}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <Badge label={type.toUpperCase()} color={typeCol} />
+                        <StatusDot status={status} />
                       </div>
                     </div>
-                    {/* Type */}
-                    <div><Badge label={type.toUpperCase()} color={typeCol} /></div>
-                    {/* Counterpart */}
-                    <div style={{ fontFamily: C.mono, fontSize: 10.5, color: C.muted }}>{shortKey(counterpart)}</div>
-                    {/* Total */}
-                    <div style={{ fontFamily: C.mono, fontSize: 12, color: '#fff' }}>
-                      {fmtTokens(s.amountTotal)} <span style={{ color: C.accent, fontSize: 10 }}>TOKEN</span>
+
+                    {/* Type — hidden on mobile (shown above) */}
+                    <div className="sd-col-hide"><Badge label={type.toUpperCase()} color={typeCol} /></div>
+
+                    {/* Amounts row — shown as grid on mobile */}
+                    <div className="sd-row-amounts">
+                      <div style={{ fontFamily: C.mono, fontSize: 12, color: '#fff' }}>
+                        <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>TOTAL</div>
+                        {fmtTokens(s.amountTotal)}
+                      </div>
+                      <div style={{ fontFamily: C.mono, fontSize: 12, color: withdrawn > 0 ? C.green : C.muted }}>
+                        <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>CLAIMED</div>
+                        {fmtRaw(withdrawn)}
+                      </div>
+                      <div style={{ fontFamily: C.mono, fontSize: 12, color: claimable > 0 ? C.gold : C.muted }}>
+                        <div style={{ fontSize: 9, color: C.muted, marginBottom: 2 }}>UNLOCKED</div>
+                        {fmtRaw(claimable)}
+                      </div>
                     </div>
-                    {/* Claimable */}
-                    <div style={{ fontFamily: C.mono, fontSize: 12, color: claimable > 0 ? C.green : C.muted }}>
-                      {(claimable / 1e6).toFixed(2)}
+
+                    {/* These 3 are hidden on mobile (merged into sd-row-amounts above) */}
+                    <div className="sd-col-hide">
+                      <div style={{ fontFamily: C.mono, fontSize: 12, color: withdrawn > 0 ? C.green : C.muted }}>{fmtRaw(withdrawn)}</div>
+                      <div style={{ fontSize: 9.5, color: C.muted, marginTop: 1 }}>{total > 0 ? `${Math.round((withdrawn / total) * 100)}% withdrawn` : '—'}</div>
                     </div>
-                    {/* Progress */}
-                    <MiniBar pct={pct} color={typeCol} />
-                    {/* Status */}
-                    <StatusDot status={status} />
+                    <div className="sd-col-hide">
+                      <div style={{ fontFamily: C.mono, fontSize: 12, color: claimable > 0 ? C.gold : C.muted }}>{fmtRaw(claimable)}</div>
+                      <div style={{ fontSize: 9.5, color: C.muted, marginTop: 1 }}>claimable now</div>
+                    </div>
+
+                    {/* Time left */}
+                    <div style={{ fontFamily: C.mono, fontSize: 11, color: status === 'active' ? C.blue : C.muted }}>
+                      {tLeft}
+                    </div>
+
+                    {/* Status — hidden on mobile (shown in meta row above) */}
+                    <div className="sd-col-hide"><StatusDot status={status} /></div>
                   </div>
                 );
               })}
 
               {/* Footer */}
               <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)', fontSize: 11, color: C.muted }}>
-                Live on-chain data · Solana devnet · Program:{' '}
-                <span style={{ fontFamily: C.mono, color: C.accent }}>DvhxiL5P…XTFf</span>
+                Live on-chain data · Solana devnet · Click any row to view details, claim, or cancel
                 {streams.length > 0 && (
                   <button onClick={load} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: C.accent, fontSize: 11 }}>
                     ↻ Refresh

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import Navbar from '@/components/Navbar';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
@@ -12,6 +13,7 @@ import {
   fetchVaultBalance,
   computeUnlocked,
   withdraw as doWithdraw,
+  cancelStream,
   deriveVaultPDA,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
@@ -106,9 +108,19 @@ export default function StreamDetailPage() {
   const [vault,    setVault]    = useState<bigint>(0n);
   const [loading,  setLoading]  = useState(true);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
-  const [claiming, setClaiming] = useState(false);
-  const [claimSig, setClaimSig] = useState<string | null>(null);
-  const [claimErr, setClaimErr] = useState<string | null>(null);
+  const [claiming,       setClaiming]       = useState(false);
+  const [claimSig,       setClaimSig]       = useState<string | null>(null);
+  const [claimErr,       setClaimErr]       = useState<string | null>(null);
+  const [confirmCancel,  setConfirmCancel]  = useState(false);
+  const [cancelling,     setCancelling]     = useState(false);
+  const [cancelSig,      setCancelSig]      = useState<string | null>(null);
+  const [cancelErr,      setCancelErr]      = useState<string | null>(null);
+  const [nowSec,         setNowSec]         = useState(Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   // Parse PDA from URL — must be a valid base58 Solana pubkey
   const streamPda = (() => {
@@ -170,6 +182,36 @@ export default function StreamDetailPage() {
     }
   };
 
+  // ── Cancel handler ───────────────────────────────────────────────────────
+  const handleCancel = async () => {
+    if (!stream || !publicKey || !streamPda) return;
+    setCancelling(true);
+    setCancelErr(null);
+    setCancelSig(null);
+    setConfirmCancel(false);
+    try {
+      const [vaultPda]     = deriveVaultPDA(stream.authority, stream.streamId);
+      const authorityAta   = await getAssociatedTokenAddress(stream.mint, stream.authority);
+      const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, stream.beneficiary);
+      const sig = await cancelStream({
+        connection,
+        authority:     publicKey,
+        beneficiary:   stream.beneficiary,
+        stream:        streamPda,
+        vault:         vaultPda,
+        authorityAta,
+        beneficiaryAta,
+        sendTransaction: (tx, conn) => sendTransaction(tx, conn),
+      });
+      setCancelSig(sig);
+      load();
+    } catch (e: unknown) {
+      setCancelErr((e as Error)?.message ?? 'Cancel failed');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   // ── Loading state ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -210,7 +252,6 @@ export default function StreamDetailPage() {
   }
 
   // ── Derived values ───────────────────────────────────────────────────────
-  const nowSec    = Math.floor(Date.now() / 1000);
   const startTs   = Number(stream.startTs.toString());
   const cliffTs   = Number(stream.cliffTs.toString());
   const endTs     = Number(stream.endTs.toString());
@@ -266,15 +307,31 @@ export default function StreamDetailPage() {
   const cliffDays = Math.max(0, Math.round((cliffTs - startTs) / 86400));
   const activeDays = Math.max(1, Math.round((endTs - cliffTs) / 86400));
 
+  const timeRemaining = (() => {
+    if (stream.cancelled) return 'Cancelled';
+    if (nowSec >= endTs) return 'Ended';
+    if (nowSec < cliffTs) {
+      const d = Math.ceil((cliffTs - nowSec) / 86400);
+      return `${d}d to cliff`;
+    }
+    const secs = endTs - nowSec;
+    if (secs < 3600)      return `${Math.ceil(secs / 60)}min left`;
+    if (secs < 86400)     return `${Math.ceil(secs / 3600)}h left`;
+    if (secs < 86400 * 7) return `${Math.ceil(secs / 86400)}d left`;
+    return `${Math.ceil(secs / (86400 * 30))}mo left`;
+  })();
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: C.bg0, padding: '0 0 60px' }}>
+      <Navbar />
 
       {/* Header */}
       <div style={{
-        padding: '32px 40px 20px',
+        padding: 'clamp(80px,10vw,100px) clamp(16px,5vw,40px) 20px',
         borderBottom: `1px solid ${C.border}`,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        gap: 16, flexWrap: 'wrap',
       }}>
         <div>
           <div style={{ marginBottom: 4 }}>
@@ -308,10 +365,72 @@ export default function StreamDetailPage() {
               Connect wallet to claim
             </div>
           )}
+          {/* Cancel button — only visible to creator, only on active/pending streams */}
+          {publicKey && stream && !stream.cancelled && publicKey.equals(stream.authority) && (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              disabled={cancelling}
+              style={{
+                padding: '9px 20px', borderRadius: 10, border: `1px solid ${C.red}55`,
+                cursor: cancelling ? 'default' : 'pointer',
+                background: `${C.red}0f`,
+                color: C.red, fontSize: 13, fontWeight: 700, fontFamily: C.serif,
+                opacity: cancelling ? 0.6 : 1,
+              }}
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel Stream'}
+            </button>
+          )}
         </div>
       </div>
 
-      <div style={{ padding: '24px 40px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* ── Cancel confirmation modal ──────────────────────────────────────── */}
+      {confirmCancel && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'rgba(5,4,13,.85)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: C.bg1, border: `1px solid ${C.red}44`, borderRadius: 20,
+            padding: '32px 36px', maxWidth: 400, width: '90%', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+            <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 10px' }}>
+              Cancel this stream?
+            </h2>
+            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 24px' }}>
+              This action is <strong style={{ color: C.red }}>irreversible</strong>.
+              All unvested tokens will be returned to your wallet.
+              The beneficiary keeps tokens already vested.
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                onClick={handleCancel}
+                style={{
+                  padding: '11px 28px', borderRadius: 11, border: 'none',
+                  background: C.red, color: '#fff', fontWeight: 800, fontSize: 14,
+                  cursor: 'pointer', fontFamily: C.serif,
+                }}
+              >
+                Yes, Cancel Stream
+              </button>
+              <button
+                onClick={() => setConfirmCancel(false)}
+                style={{
+                  padding: '11px 24px', borderRadius: 11, border: `1px solid ${C.border}`,
+                  background: 'rgba(255,255,255,.03)', color: C.muted, fontSize: 14,
+                  cursor: 'pointer', fontFamily: C.serif,
+                }}
+              >
+                Keep Stream
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ padding: '24px clamp(16px,5vw,40px)', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
         {/* Claim result banner */}
         {claimSig && (
@@ -339,15 +458,40 @@ export default function StreamDetailPage() {
             ✗ {claimErr}
           </div>
         )}
+        {cancelSig && (
+          <div style={{
+            padding: '12px 16px', borderRadius: 10,
+            background: `${C.red}0a`, border: `1px solid ${C.red}44`,
+            fontSize: 12, color: C.red,
+          }}>
+            Stream cancelled ·{' '}
+            <a
+              href={`https://explorer.solana.com/tx/${cancelSig}?cluster=devnet`}
+              target="_blank" rel="noreferrer"
+              style={{ color: C.red }}
+            >
+              {cancelSig.slice(0, 8)}…{cancelSig.slice(-6)} ↗
+            </a>
+          </div>
+        )}
+        {cancelErr && (
+          <div style={{
+            padding: '12px 16px', borderRadius: 10,
+            background: `${C.red}0a`, border: `1px solid ${C.red}44`,
+            fontSize: 12, color: C.red,
+          }}>
+            ✗ {cancelErr}
+          </div>
+        )}
 
         {/* KPI row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,140px),1fr))', gap: 12 }}>
           {[
-            { l: 'Total',      v: fmtTokens(total),                                                      c: '#fff'   },
-            { l: 'Withdrawn',  v: fmtTokens(withdrawn),                                                   c: C.green  },
-            { l: 'Claimable',  v: fmtTokens(claimable),                                                   c: C.gold   },
-            { l: 'Vault Bal',  v: fmtTokens(vault),                                                       c: C.accent },
-            { l: 'Still Locked', v: fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n),       c: C.muted  },
+            { l: 'Total',       v: fmtTokens(total),                                                  c: '#fff'    },
+            { l: 'Claimed',     v: fmtTokens(withdrawn),                                              c: C.green   },
+            { l: 'Unlocked',    v: fmtTokens(claimable),                                              c: C.gold    },
+            { l: 'Still Locked',v: fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n),    c: C.accent  },
+            { l: 'Time Left',   v: timeRemaining,                                                     c: stream.cancelled || nowSec >= endTs ? C.muted : C.blue },
           ].map(x => (
             <Card key={x.l} style={{ padding: '14px 16px' }}>
               <div style={{ fontSize: 9.5, color: C.muted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -385,7 +529,7 @@ export default function StreamDetailPage() {
         </div>
 
         {/* Curve + schedule/milestone panel */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 16 }}>
 
           {/* Vesting curve SVG */}
           <Card>
@@ -527,7 +671,7 @@ export default function StreamDetailPage() {
           <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
             Mathematical Breakdown — On-Chain Formula
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,160px),1fr))', gap: 12, marginBottom: 14 }}>
             {[
               { label: 'Total Duration',   val: `${vestDays} days`,     col: typeCol  },
               { label: 'Cliff Period',      val: `${cliffDays} days`,    col: C.ember  },

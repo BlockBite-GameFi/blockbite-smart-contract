@@ -52,14 +52,15 @@ export default function ClaimPage() {
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
 
-  const [streams,   setStreams]   = useState<StreamInfo[]>([]);
-  const [selected,  setSelected]  = useState<number>(0);
-  const [loading,   setLoading]   = useState(false);
-  const [claiming,  setClaiming]  = useState(false);
-  const [txSig,     setTxSig]     = useState<string | null>(null);
-  const [claimErr,  setClaimErr]  = useState<string | null>(null);
-  const [error,     setError]     = useState<string | null>(null);
-  const [nowSec,    setNowSec]    = useState(Math.floor(Date.now() / 1000));
+  const [streams,     setStreams]     = useState<StreamInfo[]>([]);
+  const [selected,    setSelected]    = useState<number>(0);
+  const [loading,     setLoading]     = useState(false);
+  const [claimStage,  setClaimStage]  = useState<'idle' | 'approving' | 'confirming' | 'done'>('idle');
+  const [txSig,       setTxSig]       = useState<string | null>(null);
+  const [claimErr,    setClaimErr]    = useState<string | null>(null);
+  const [error,       setError]       = useState<string | null>(null);
+  const [nowSec,      setNowSec]      = useState(Math.floor(Date.now() / 1000));
+  const claiming = claimStage === 'approving' || claimStage === 'confirming';
 
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 10_000);
@@ -96,7 +97,7 @@ export default function ClaimPage() {
 
   const handleClaim = useCallback(async () => {
     if (!stream || !publicKey || claimable === 0) return;
-    setClaiming(true);
+    setClaimStage('approving');
     setClaimErr(null);
     setTxSig(null);
     try {
@@ -112,14 +113,18 @@ export default function ClaimPage() {
         vault:          vaultPda,
         beneficiaryAta,
         mint:           stream.mint,
-        sendTransaction: sendTransaction as unknown as SendTx,
+        sendTransaction: async (tx, conn) => {
+          const s = await (sendTransaction as unknown as SendTx)(tx, conn);
+          setClaimStage('confirming'); // wallet approved, now waiting for chain
+          return s;
+        },
       });
       setTxSig(sig);
-      await load(); // Refresh balances
+      setClaimStage('done');
+      await load();
     } catch (e) {
       setClaimErr(e instanceof Error ? e.message : 'Transaction failed');
-    } finally {
-      setClaiming(false);
+      setClaimStage('idle');
     }
   }, [stream, publicKey, claimable, connection, sendTransaction, load]);
 
@@ -200,7 +205,7 @@ export default function ClaimPage() {
 
         {/* ── Stream selector + claim panel ── */}
         {connected && !loading && streams.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))', gap: 20, alignItems: 'start' }}>
 
             {/* Stream list */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -279,7 +284,7 @@ export default function ClaimPage() {
                 </div>
 
                 {/* Stats grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,120px),1fr))', gap: 12, marginBottom: 24 }}>
                   {[
                     { label: 'Total Locked', val: fmtU(stream.amountTotal), col: DS.accent },
                     { label: 'Withdrawn',    val: fmtU(stream.amountWithdrawn), col: DS.muted },
@@ -343,11 +348,13 @@ export default function ClaimPage() {
                     opacity: claiming ? 0.7 : 1,
                   }}
                 >
-                  {claiming
-                    ? 'Waiting for wallet…'
-                    : claimable === 0
-                      ? status === 'pending' ? 'Cliff not reached' : 'Nothing to claim'
-                      : `Claim ${(claimable / 1e6).toFixed(4)} TOKEN`}
+                  {claimStage === 'approving'
+                    ? 'Waiting for wallet approval…'
+                    : claimStage === 'confirming'
+                      ? 'Confirming on chain…'
+                      : claimable === 0
+                        ? status === 'pending' ? 'Cliff not reached' : 'Nothing to claim'
+                        : `Claim ${(claimable / 1e6).toFixed(4)} TOKEN`}
                 </button>
 
                 <div style={{ fontSize: 10.5, color: DS.muted, textAlign: 'center', marginTop: 10 }}>

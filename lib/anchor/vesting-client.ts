@@ -160,7 +160,13 @@ export async function withdraw(p: WithdrawParams): Promise<string> {
     })
     .instruction();
 
-  const tx = new Transaction().add(ix);
+  const tx = new Transaction();
+
+  // Auto-create beneficiary ATA if it doesn't exist — prevents "account not found" on first claim
+  const ataCrIx = await ensureAtaIx(p.connection, p.beneficiary, p.beneficiary, p.mint);
+  if (ataCrIx) tx.add(ataCrIx);
+
+  tx.add(ix);
   tx.feePayer = p.beneficiary;
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
