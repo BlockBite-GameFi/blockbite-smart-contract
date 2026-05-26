@@ -1,14 +1,60 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import GameCanvas from '@/components/game/GameCanvas';
 import { BIOMES } from '@/lib/game/biomes';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { getStreamsByAuthority } from '@/lib/anchor/vesting-client';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 const biome = BIOMES[0]; // Act I — Crystal Caverns (tutorial biome)
 
+function pad2(n: number) { return String(n).padStart(2, '0'); }
+
+function useCampaignCountdown(endDate: Date | null) {
+  const [t, setT] = useState({ d: 0, h: 0, m: 0, s: 0, urgent: false });
+  useEffect(() => {
+    if (!endDate) return;
+    const tick = () => {
+      const diff = Math.max(0, endDate.getTime() - Date.now());
+      setT({
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff % 86400000) / 3600000),
+        m: Math.floor((diff % 3600000) / 60000),
+        s: Math.floor((diff % 60000) / 1000),
+        urgent: diff < 6 * 3600000,
+      });
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [endDate]);
+  return t;
+}
+
 export default function TutorialPage() {
   const router = useRouter();
+  const { publicKey, connected } = useWallet();
+  const { connection } = useConnection();
+  const [campaignEnd, setCampaignEnd] = useState<Date | null>(null);
+  const countdown = useCampaignCountdown(campaignEnd);
+
+  useEffect(() => {
+    if (!publicKey) { setCampaignEnd(null); return; }
+    withRpcFallback(conn => getStreamsByAuthority(conn, publicKey))
+      .then(streams => {
+        const active = streams.filter(s => !s.cancelled);
+        if (!active.length) { setCampaignEnd(null); return; }
+        // Show the campaign ending soonest (most urgently needs attention)
+        const nearest = active.sort(
+          (a, b) => Number(a.endTs.toString()) - Number(b.endTs.toString()),
+        )[0];
+        setCampaignEnd(new Date(Number(nearest.endTs.toString()) * 1000));
+      })
+      .catch(() => setCampaignEnd(null));
+  }, [publicKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -225,6 +271,69 @@ export default function TutorialPage() {
               >
                 ENTER MAP → LEVEL 1
               </button>
+            </div>
+
+            {/* ── PERIOD countdown ── */}
+            <div style={{
+              background: `linear-gradient(180deg, ${biome.accent}0d 0%, rgba(8,8,22,0.7) 100%)`,
+              backdropFilter: 'blur(12px)',
+              border: `1px solid ${countdown.urgent ? '#FF3366' : biome.accent}33`,
+              borderRadius: 16, padding: '20px', textAlign: 'center',
+            }}>
+              <div style={{
+                fontFamily: "'Orbitron', monospace", fontSize: 11,
+                color: countdown.urgent ? '#FF3366' : biome.accent,
+                letterSpacing: '0.08em', marginBottom: 12,
+              }}>
+                {countdown.urgent ? '⚠ ENDING SOON' : 'CAMPAIGN PERIOD'}
+              </div>
+
+              {!connected ? (
+                <div style={{ fontSize: 11, color: '#555577', lineHeight: 1.6 }}>
+                  Connect your wallet to see your active campaign period.
+                </div>
+              ) : !campaignEnd ? (
+                <div style={{ fontSize: 11, color: '#555577', lineHeight: 1.6 }}>
+                  No active campaign.{' '}
+                  <a href="/streams/new" style={{ color: '#00F5FF', textDecoration: 'none' }}>Create a stream →</a>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 10 }}>
+                    {[
+                      { v: countdown.d, l: 'D' },
+                      { v: countdown.h, l: 'H' },
+                      { v: countdown.m, l: 'M' },
+                      { v: countdown.s, l: 'S' },
+                    ].map((u, i) => (
+                      <span key={u.l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <span style={{
+                            fontFamily: "'Orbitron', monospace", fontSize: 22, fontWeight: 800, lineHeight: 1,
+                            color: countdown.urgent ? '#FF3366' : '#00F5FF',
+                            textShadow: countdown.urgent ? '0 0 16px #FF336688' : '0 0 16px rgba(0,245,255,0.5)',
+                          }}>
+                            {pad2(u.v)}
+                          </span>
+                          <span style={{ fontSize: 9, color: '#55557a', fontWeight: 600 }}>{u.l}</span>
+                        </span>
+                        {i < 3 && (
+                          <span style={{
+                            fontFamily: "'Orbitron', monospace", fontSize: 22, fontWeight: 800,
+                            color: countdown.urgent ? '#FF336666' : '#33337a', marginTop: -8,
+                          }}>:</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#555577' }}>
+                    Ends {campaignEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 10, color: '#5fd07a' }}>
+                    ✓ Must play game to claim tokens
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Prizes CTA */}

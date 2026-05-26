@@ -108,6 +108,7 @@ export default function StreamDetailPage() {
   const [vault,    setVault]    = useState<bigint>(0n);
   const [loading,  setLoading]  = useState(true);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [gamesPlayed, setGamesPlayed] = useState(0);
   const [claiming,       setClaiming]       = useState(false);
   const [claimSig,       setClaimSig]       = useState<string | null>(null);
   const [claimErr,       setClaimErr]       = useState<string | null>(null);
@@ -120,6 +121,13 @@ export default function StreamDetailPage() {
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
     return () => clearInterval(t);
+  }, []);
+
+  // Read game history from localStorage — gate for claim
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const g = parseInt(localStorage.getItem('bb_games_played') ?? '0', 10);
+    setGamesPlayed(isNaN(g) ? 0 : g);
   }, []);
 
   // Parse PDA from URL — must be a valid base58 Solana pubkey
@@ -344,8 +352,25 @@ export default function StreamDetailPage() {
             {streamPda.toBase58()}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          {publicKey && claimable > 0n && !stream.cancelled && (
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Game gate — shown when stream requires game play AND user hasn't played yet */}
+          {publicKey && claimable > 0n && !stream.cancelled && requiredTier > 0 && gamesPlayed === 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 14px', borderRadius: 10,
+              background: '#f5c66a1a', border: '1px solid #f5c66a44',
+              fontSize: 12, color: '#f5c66a',
+            }}>
+              <span>⚠ Play the game first to claim</span>
+              <a href="/map/1" style={{
+                padding: '5px 12px', borderRadius: 8,
+                background: 'linear-gradient(135deg,#00F5FF,#7c3aed)',
+                color: '#000', fontWeight: 800, fontSize: 11,
+                textDecoration: 'none',
+              }}>▶ Play Game</a>
+            </div>
+          )}
+          {publicKey && claimable > 0n && !stream.cancelled && (requiredTier === 0 || gamesPlayed > 0) && (
             <button
               onClick={handleClaim}
               disabled={claiming}

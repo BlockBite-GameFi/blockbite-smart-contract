@@ -55,6 +55,7 @@ export default function ClaimPage() {
   const [streams,     setStreams]     = useState<StreamInfo[]>([]);
   const [selected,    setSelected]    = useState<number>(0);
   const [loading,     setLoading]     = useState(false);
+  const [gamesPlayed, setGamesPlayed] = useState(0);
   const [claimStage,  setClaimStage]  = useState<'idle' | 'approving' | 'confirming' | 'done'>('idle');
   const [txSig,       setTxSig]       = useState<string | null>(null);
   const [claimErr,    setClaimErr]    = useState<string | null>(null);
@@ -65,6 +66,12 @@ export default function ClaimPage() {
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 10_000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const g = parseInt(localStorage.getItem('bb_games_played') ?? '0', 10);
+    setGamesPlayed(isNaN(g) ? 0 : g);
   }, []);
 
   const load = useCallback(async () => {
@@ -94,6 +101,8 @@ export default function ClaimPage() {
   const pctUnlocked = total > 0 ? Math.min(100, ((withdrawn + claimable) / total) * 100) : 0;
   const pctClaimed  = total > 0 ? Math.min(100, (withdrawn / total) * 100) : 0;
   const status = stream ? streamStatus(stream, nowSec) : null;
+  const requiredTier = stream ? (stream.requiredTier ?? 0) : 0;
+  const gameGateBlocked = requiredTier > 0 && gamesPlayed === 0;
 
   const handleClaim = useCallback(async () => {
     if (!stream || !publicKey || claimable === 0) return;
@@ -334,16 +343,25 @@ export default function ClaimPage() {
                   </div>
                 )}
 
+                {/* Game gate warning */}
+                {gameGateBlocked && claimable > 0 && status !== 'pending' && status !== 'cancelled' && (
+                  <div style={{ background: '#f5c66a1a', border: '1px solid #f5c66a44', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: DS.gold, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <span>⚠ Play the game first to claim tokens</span>
+                    <a href="/map/1" style={{ padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg,#00F5FF,#7c3aed)', color: '#000', fontWeight: 800, fontSize: 11, textDecoration: 'none', whiteSpace: 'nowrap' }}>▶ Play Game</a>
+                  </div>
+                )}
+
                 {/* Claim button */}
                 <button
                   onClick={handleClaim}
-                  disabled={claimable === 0 || claiming || status === 'pending' || status === 'cancelled'}
+                  disabled={claimable === 0 || claiming || status === 'pending' || status === 'cancelled' || gameGateBlocked}
                   style={{
-                    width: '100%', padding: '14px', borderRadius: 14, border: 'none', cursor: claimable > 0 && !claiming ? 'pointer' : 'default',
-                    background: claimable > 0 && !claiming && status !== 'pending'
+                    width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+                    cursor: claimable > 0 && !claiming && !gameGateBlocked && status !== 'pending' ? 'pointer' : 'default',
+                    background: claimable > 0 && !claiming && !gameGateBlocked && status !== 'pending'
                       ? `linear-gradient(135deg,${DS.green},#2d8f4e)`
                       : 'rgba(255,255,255,.06)',
-                    color: claimable > 0 && !claiming && status !== 'pending' ? '#fff' : DS.muted,
+                    color: claimable > 0 && !claiming && !gameGateBlocked && status !== 'pending' ? '#fff' : DS.muted,
                     fontWeight: 700, fontSize: 14, fontFamily: DS.sora,
                     opacity: claiming ? 0.7 : 1,
                   }}
@@ -352,9 +370,11 @@ export default function ClaimPage() {
                     ? 'Waiting for wallet approval…'
                     : claimStage === 'confirming'
                       ? 'Confirming on chain…'
-                      : claimable === 0
-                        ? status === 'pending' ? 'Cliff not reached' : 'Nothing to claim'
-                        : `Claim ${(claimable / 1e6).toFixed(4)} TOKEN`}
+                      : gameGateBlocked
+                        ? 'Play game to unlock claim'
+                        : claimable === 0
+                          ? status === 'pending' ? 'Cliff not reached' : 'Nothing to claim'
+                          : `Claim ${(claimable / 1e6).toFixed(4)} TOKEN`}
                 </button>
 
                 <div style={{ fontSize: 10.5, color: DS.muted, textAlign: 'center', marginTop: 10 }}>
