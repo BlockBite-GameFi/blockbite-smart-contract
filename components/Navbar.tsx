@@ -13,15 +13,14 @@ const CustomWalletButton = dynamic(
   { ssr: false, loading: () => <div className={styles.walletPlaceholder} /> }
 );
 
-// ─── Design System V3 colors ──────────────────────────────────────────────────
+// ─── Design tokens — matches site-wide Space Grotesk theme ───────────────────
 const DS = {
   accent:   '#a78bff',
   accentDk: '#5e35d4',
   border:   'rgba(167,139,255,.13)',
   bg1:      '#09071a',
   muted:    'rgba(232,225,248,.5)',
-  cinzel:   "'Space Grotesk', system-ui, sans-serif",
-  sora:     "'Sora', system-ui, sans-serif",
+  font:     "'Space Grotesk', system-ui, sans-serif",
 };
 
 const TDP_LINKS = [
@@ -44,18 +43,10 @@ const NAV_LINKS = [
 ] as const;
 
 export default function Navbar() {
-  const [menuOpen, setMenuOpen]   = useState(false);
-  const [scrolled, setScrolled]   = useState(false);
-  const [tdpOpen,  setTdpOpen]    = useState(false);
-  const [gameTooltip, setGameTooltip] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const { lang, setLang, theme, setTheme } = useApp();
-
-  const isTdpActive = pathname.startsWith('/streams') || pathname.startsWith('/claim')
-    || pathname === '/milestones' || pathname === '/calculator'
-    || pathname === '/analytics'  || pathname === '/audit'
-    || pathname === '/protocol'   || pathname === '/distribute'
-    || pathname === '/partners';
+  useApp(); // keep context alive for child components
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -77,18 +68,8 @@ export default function Navbar() {
             style={{ objectFit: 'contain', flexShrink: 0 }}
             priority
           />
-          <div className={styles.logoText} style={{ fontFamily: DS.cinzel }}>
+          <div className={styles.logoText}>
             BLOCK<span className={styles.logoAccent}>BITE</span>
-            <span style={{
-              marginLeft: 7, fontSize: 9, fontWeight: 700, letterSpacing: '1.5px',
-              padding: '2px 6px', borderRadius: 5,
-              background: `linear-gradient(135deg, ${DS.accent}33, ${DS.accentDk}33)`,
-              border: `1px solid ${DS.border}`,
-              color: DS.accent,
-              fontFamily: DS.sora,
-              verticalAlign: 'middle',
-              lineHeight: 1,
-            }}>TDP</span>
           </div>
         </Link>
 
@@ -103,7 +84,7 @@ export default function Navbar() {
                   || (link.href !== '/game' && (pathname === link.href || pathname?.startsWith(link.href + '/')))
                     ? styles.active : ''
                 }`}
-                style={{ fontFamily: DS.sora }}
+                style={{ fontFamily: DS.font }}
               >
                 {link.name}
               </Link>
@@ -121,7 +102,7 @@ export default function Navbar() {
             background: `linear-gradient(90deg, #9945FF, #00C2FF)`,
             color: '#fff', fontWeight: 700, fontSize: 13,
             textDecoration: 'none', letterSpacing: '.03em',
-            fontFamily: DS.sora, whiteSpace: 'nowrap',
+            fontFamily: DS.font, whiteSpace: 'nowrap',
             boxShadow: '0 0 20px rgba(153,69,255,.35)',
           }}>
             Launch App
@@ -149,7 +130,7 @@ export default function Navbar() {
               href={link.href}
               className={`${styles.mobileLink} ${pathname === link.href || pathname?.startsWith(link.href + '/') ? styles.active : ''}`}
               onClick={() => setMenuOpen(false)}
-              style={{ fontFamily: DS.sora }}
+              style={{ fontFamily: DS.font }}
             >
               <span className={styles.mobileLinkInner}>{link.name}</span>
             </Link>
