@@ -16,12 +16,23 @@ export const ACTIVE_NETWORK: WalletAdapterNetwork =
 export const IS_DEVNET = ACTIVE_NETWORK === WalletAdapterNetwork.Devnet;
 
 // ── RPC endpoint ───────────────────────────────────────────────────
-// Falls back to public Solana RPC; set NEXT_PUBLIC_RPC_URL for a private node.
+// Priority: NEXT_PUBLIC_RPC_URL env var (set in Vercel dashboard) → Ankr free public
+// → official Solana public endpoint.
+//
+// WHY NOT api.devnet.solana.com:
+//   Solana's shared public RPC permanently blocks getProgramAccounts (used by
+//   Anchor's program.account.*.all() and .allWithFilter()) — it returns HTTP 403
+//   "Access forbidden". This restriction is intentional and will not be lifted.
+//   Ankr's free public endpoint (no API key required) supports this method.
+//
+// For higher throughput set NEXT_PUBLIC_RPC_URL to a dedicated node, e.g.:
+//   Helius devnet: https://devnet.helius-rpc.com/?api-key=YOUR_KEY  (free tier)
+//   QuickNode:     https://YOUR_SLUG.solana-devnet.quiknode.pro/YOUR_KEY/
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ??
   (IS_DEVNET
-    ? 'https://api.devnet.solana.com'
-    : 'https://api.mainnet-beta.solana.com');
+    ? 'https://rpc.ankr.com/solana_devnet'
+    : 'https://rpc.ankr.com/solana');
 
 // ── USDC SPL Mint addresses ────────────────────────────────────────
 // Devnet:  BlockBite mock-USDC (mint authority = team wallet). Circle's official

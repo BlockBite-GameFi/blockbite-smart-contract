@@ -119,7 +119,14 @@ export default function StreamsPage() {
       all.sort((a, b) => Number(b.endTs.toString()) - Number(a.endTs.toString()));
       setStreams(all);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load streams');
+      const msg = e instanceof Error ? e.message : String(e);
+      // 403 from Solana public RPC = getProgramAccounts blocked on shared endpoint.
+      // The app now defaults to Ankr (supports getProgramAccounts). If this still
+      // appears, set NEXT_PUBLIC_RPC_URL in Vercel to a dedicated RPC node.
+      const is403 = msg.includes('403') || msg.toLowerCase().includes('forbidden');
+      setError(is403
+        ? 'RPC 403 — Solana public endpoint blocked getProgramAccounts. Switching to Ankr RPC on next load. Click Retry.'
+        : msg);
     } finally {
       setLoading(false);
     }

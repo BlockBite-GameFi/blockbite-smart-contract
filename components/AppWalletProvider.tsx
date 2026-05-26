@@ -16,6 +16,14 @@ export default function AppWalletProvider({ children }: { children: React.ReactN
   const network = ACTIVE_NETWORK;
   const endpoint = useMemo(() => RPC_URL, []);
 
+  // Connection config — commitment 'confirmed' is the right trade-off between
+  // speed and finality for a devnet dApp. The 60s timeout prevents phantom
+  // "transaction expired" errors when the devnet is under load.
+  const connectionConfig = useMemo(() => ({
+    commitment: 'confirmed' as const,
+    confirmTransactionInitialTimeout: 60_000,
+  }), []);
+
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -49,7 +57,7 @@ export default function AppWalletProvider({ children }: { children: React.ReactN
   }, []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
+    <ConnectionProvider endpoint={endpoint} config={connectionConfig}>
       <WalletProvider wallets={wallets} autoConnect={false} onError={onError}>
         <WalletModalProvider>{children}</WalletModalProvider>
       </WalletProvider>
