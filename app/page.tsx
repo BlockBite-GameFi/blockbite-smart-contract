@@ -189,11 +189,11 @@ export default function Home() {
       <Navbar />
 
       {/* ─── HERO ──────────────────────────────────────────────────────────────── */}
-      <section style={{
+      <section className="m-hero" style={{
         position: 'relative', zIndex: 1,
         minHeight: '100vh',
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '140px 24px 100px', textAlign: 'center', gap: 32,
+        padding: 'clamp(88px,14vw,140px) 20px clamp(64px,10vw,100px)', textAlign: 'center', gap: 28,
         background: [
           'radial-gradient(ellipse 80% 55% at 50% 20%, rgba(153,69,255,0.18) 0%, transparent 65%)',
           'radial-gradient(ellipse 50% 35% at 80% 80%, rgba(0,194,255,0.10) 0%, transparent 60%)',
@@ -284,31 +284,31 @@ export default function Home() {
         </p>
 
         {/* CTAs */}
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link href="/waitlist" style={{
-            padding: '16px 40px', borderRadius: 9999,
+        <div className="m-cta-wrap" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 480 }}>
+          <Link href="/waitlist" className="m-cta-btn" style={{
+            padding: '15px 36px', borderRadius: 9999,
             background: 'linear-gradient(90deg, #9945FF 0%, #00C2FF 100%)',
-            color: '#fff', fontWeight: 800, fontSize: 16,
+            color: '#fff', fontWeight: 800, fontSize: 15,
             textDecoration: 'none', letterSpacing: '.04em',
             boxShadow: '0 0 40px rgba(153,69,255,.55), 0 4px 24px rgba(0,0,0,.4)',
             fontFamily: DS.cinzel,
             transition: 'transform .2s, box-shadow .2s',
-            display: 'inline-block',
+            display: 'inline-block', textAlign: 'center',
           }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 60px rgba(153,69,255,.70), 0 4px 24px rgba(0,0,0,.4)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 40px rgba(153,69,255,.55), 0 4px 24px rgba(0,0,0,.4)'; }}
           >
             Secure Your Spot Now!
           </Link>
-          <Link href="/streams/new" style={{
-            padding: '16px 32px', borderRadius: 9999,
+          <Link href="/streams/new" className="m-cta-btn" style={{
+            padding: '15px 28px', borderRadius: 9999,
             background: 'rgba(153,69,255,.08)',
             border: '1px solid rgba(153,69,255,.45)',
-            color: '#F8F6FF', fontWeight: 600, fontSize: 16,
+            color: '#F8F6FF', fontWeight: 600, fontSize: 15,
             textDecoration: 'none', letterSpacing: '.02em',
             fontFamily: DS.sora,
             backdropFilter: 'blur(12px)',
-            display: 'inline-block',
+            display: 'inline-block', textAlign: 'center',
           }}>
             Launch App →
           </Link>
@@ -344,7 +344,7 @@ export default function Home() {
       </section>
 
       {/* ─── FEATURES ──────────────────────────────────────────────────────────── */}
-      <section style={{ position: 'relative', zIndex: 1, padding: '96px 24px' }}>
+      <section className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
@@ -439,9 +439,9 @@ export default function Home() {
       </section>
 
       {/* ─── HOW IT WORKS ──────────────────────────────────────────────────────── */}
-      <section style={{
+      <section className="m-section" style={{
         position: 'relative', zIndex: 1,
-        padding: '96px 24px',
+        padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
         background: DS.bg1,
         borderTop: `1px solid ${DS.border}`,
         borderBottom: `1px solid ${DS.border}`,
@@ -508,7 +508,7 @@ export default function Home() {
               CHOOSE YOUR VERIFICATION LAYER
             </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 64 }}>
+          <div className="m-verify-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,200px),1fr))', gap: 16, marginBottom: 64 }}>
             {VERIFY_METHODS.map((m, i) => (
               <div key={i} style={{
                 padding: '20px 18px', borderRadius: 14,
@@ -550,7 +550,7 @@ export default function Home() {
       </section>
 
       {/* ─── WHO USES IT ───────────────────────────────────────────────────────── */}
-      <section style={{ position: 'relative', zIndex: 1, padding: '80px 24px' }}>
+      <section className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(44px,7vw,80px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 52 }}>
             <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
@@ -612,7 +612,7 @@ export default function Home() {
       </section>
 
       {/* ─── FAQ ───────────────────────────────────────────────────────────────── */}
-      <section id="faq" style={{ position: 'relative', zIndex: 1, padding: '80px 24px' }}>
+      <section id="faq" className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(44px,7vw,80px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
@@ -692,9 +692,9 @@ export default function Home() {
       </section>
 
       {/* ─── FINAL CTA ─────────────────────────────────────────────────────────── */}
-      <section style={{
+      <section className="m-section" style={{
         position: 'relative', zIndex: 1,
-        padding: '100px 24px 120px', textAlign: 'center',
+        padding: 'clamp(56px,9vw,100px) clamp(16px,4vw,24px) clamp(64px,10vw,120px)', textAlign: 'center',
         background: 'radial-gradient(ellipse 60% 70% at 50% 50%, rgba(153,69,255,.12) 0%, transparent 70%)',
       }}>
         <h2 style={{
@@ -707,20 +707,22 @@ export default function Home() {
         <p style={{ fontSize: 15, color: DS.muted, maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.7 }}>
           Join the projects already streaming tokens with cliff, linear, and milestone vesting on Solana.
         </p>
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/streams/new" style={{
+        <div className="m-cta-wrap" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 400, margin: '0 auto' }}>
+          <Link href="/streams/new" className="m-cta-btn" style={{
             padding: '15px 40px', borderRadius: 9999,
             background: 'linear-gradient(90deg, #9945FF 0%, #00C2FF 100%)',
-            color: '#fff', fontWeight: 700, fontSize: 16, textDecoration: 'none',
+            color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none',
             boxShadow: '0 0 40px rgba(153,69,255,.40)',
+            textAlign: 'center', display: 'inline-block',
           }}>
             Launch App →
           </Link>
-          <Link href="/streams" style={{
+          <Link href="/streams" className="m-cta-btn" style={{
             padding: '15px 36px', borderRadius: 9999,
             background: 'rgba(153,69,255,.06)',
             border: '1px solid rgba(153,69,255,.35)',
-            color: '#F8F6FF', fontWeight: 600, fontSize: 16, textDecoration: 'none',
+            color: '#F8F6FF', fontWeight: 600, fontSize: 15, textDecoration: 'none',
+            textAlign: 'center', display: 'inline-block',
           }}>
             View Streams
           </Link>
@@ -728,10 +730,10 @@ export default function Home() {
       </section>
 
       {/* ─── FOOTER ────────────────────────────────────────────────────────────── */}
-      <footer style={{
+      <footer className="m-footer" style={{
         position: 'relative', zIndex: 1,
         borderTop: `1px solid ${DS.border}`,
-        padding: '28px 24px',
+        padding: 'clamp(20px,3vw,28px) clamp(16px,4vw,24px)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 12,
         fontSize: 12, color: DS.muted,
@@ -739,7 +741,7 @@ export default function Home() {
         fontFamily: DS.sora,
       }}>
         <div>© 2026 BlockBite · Token Distribution Protocol on Solana</div>
-        <div style={{ display: 'flex', gap: 20 }}>
+        <div className="m-footer-links" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Twitter / X</a>
           <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Discord</a>
           <a href="https://github.com/nayrbryanGaming/blockblast" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>GitHub</a>
@@ -749,6 +751,53 @@ export default function Home() {
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
         @keyframes heroGlow { 0%,100%{opacity:.18} 50%{opacity:.28} }
+
+        /* ── Pasal 16 — Full Mobile Responsiveness ───────────────────────── */
+
+        /* Verification grid: 2 cols on ≤640px, 1 col on ≤400px */
+        @media (max-width: 640px) {
+          .m-verify-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 400px) {
+          .m-verify-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        /* CTA buttons: full-width stacked column on mobile */
+        @media (max-width: 500px) {
+          .m-cta-wrap {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          .m-cta-btn {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+        }
+
+        /* Footer: stack on mobile */
+        @media (max-width: 560px) {
+          .m-footer {
+            flex-direction: column !important;
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .m-footer-links {
+            justify-content: center !important;
+          }
+        }
+
+        /* Reduce connector line ghost on mobile (it overlaps on narrow screens) */
+        @media (max-width: 768px) {
+          .m-connector { display: none !important; }
+        }
       `}</style>
     </div>
   );
