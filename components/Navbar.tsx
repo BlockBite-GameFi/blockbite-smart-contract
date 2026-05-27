@@ -36,7 +36,6 @@ const TDP_LINKS = [
 ];
 
 const NAV_LINKS = [
-  { name: 'HOME',         href: '/' },
   { name: 'PRODUCT',      href: '/protocol' },
   { name: 'HOW IT WORKS', href: '/how-to-play' },
   { name: 'PLAY GAME',    href: '/map/1' },
@@ -59,20 +58,50 @@ export default function Navbar() {
     <nav className={`${styles.nav} ${scrolled ? styles.scrolled : ''}`}>
       <div className={styles.inner}>
 
-        {/* ── Logo ──────────────────────────────────────────────────────── */}
-        <Link href="/" className={styles.logo}>
-          <Image
-            src="/logo.png"
-            alt="BlockBite"
-            width={38}
-            height={38}
-            style={{ objectFit: 'contain', flexShrink: 0 }}
-            priority
-          />
-          <div className={styles.logoText}>
-            BlockBite
-          </div>
-        </Link>
+        {/* ── Logo + conditional Back-to-Landing button ──────────────── */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+          <Link href="/" className={styles.logo}>
+            <Image
+              src="/logo.png"
+              alt="BlockBite"
+              width={38}
+              height={38}
+              style={{ objectFit: 'contain', flexShrink: 0 }}
+              priority
+            />
+            <div className={styles.logoText}>
+              BlockBite
+            </div>
+          </Link>
+
+          {/* Back to Landing Page — only visible on sub-pages */}
+          {pathname !== '/' && (
+            <Link href="/" style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '5px 13px', borderRadius: 8,
+              border: '1px solid rgba(167,139,255,.22)',
+              background: 'rgba(167,139,255,.07)',
+              color: 'rgba(232,225,248,.55)',
+              fontSize: 11.5, fontWeight: 700,
+              textDecoration: 'none', letterSpacing: '.04em',
+              fontFamily: DS.font, whiteSpace: 'nowrap',
+              transition: 'all .15s',
+            }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.color = '#a78bff';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.55)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.14)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.color = 'rgba(232,225,248,.55)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.22)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.07)';
+              }}
+            >
+              ← Landing Page
+            </Link>
+          )}
+        </div>
 
         {/* ── Desktop links — Veztra clean style ────────────────────────── */}
         <ul className={styles.links}>
@@ -138,6 +167,27 @@ export default function Navbar() {
       {/* ── Mobile drawer ──────────────────────────────────────────────────── */}
       {menuOpen && (
         <div className={styles.mobileMenu}>
+
+          {/* Back to Landing Page — mobile */}
+          {pathname !== '/' && (
+            <Link
+              href="/"
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                margin: '4px 16px 8px',
+                padding: '10px 16px', borderRadius: 10,
+                border: '1px solid rgba(167,139,255,.22)',
+                background: 'rgba(167,139,255,.07)',
+                color: 'rgba(232,225,248,.65)',
+                fontSize: 13, fontWeight: 700, textDecoration: 'none',
+                fontFamily: DS.font, letterSpacing: '.03em',
+              }}
+            >
+              ← Landing Page
+            </Link>
+          )}
+
           {NAV_LINKS.map((link) => (
             <Link
               key={link.name}
