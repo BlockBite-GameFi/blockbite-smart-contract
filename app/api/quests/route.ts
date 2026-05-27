@@ -1,14 +1,26 @@
 /**
- * GET  /api/quests           → list active quests
- * POST /api/quests           → create quest (body: { adminWallet, title, ... })
+ * GET  /api/quests           → list active quests (public)
+ * POST /api/quests           → create quest — requires x-admin-token header
  *
- * No wallet-signature gating for Phase 0 — admin identity is asserted by
- * the body and recorded as-is. Week 7 will add ed25519 message signing
- * + an admin allow-list keyed by Vercel env.
+ * Auth: Bearer token compared with ADMIN_TOKEN env var using timingSafeEqual
+ * to prevent timing-based token enumeration.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { createQuest, listQuests, type Quest, type QuestType } from '@/lib/quests/store';
+
+function isAdmin(req: NextRequest): boolean {
+  const secret = process.env.ADMIN_TOKEN;
+  if (!secret) return false;
+  const provided = req.headers.get('x-admin-token') ?? '';
+  try {
+    return provided.length === secret.length &&
+      timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
+  } catch {
+    return false;
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +49,10 @@ function isValidType(t: string): t is QuestType {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isAdmin(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let body: Partial<Quest>;
   try { body = await req.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
 
