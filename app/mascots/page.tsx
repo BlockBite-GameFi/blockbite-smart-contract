@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import Navbar from '@/components/Navbar';
 
 const CREW = [
   {
@@ -62,31 +63,13 @@ export default function MascotsPage() {
         .crew-card:hover { transform: translateY(-8px) scale(1.02); }
       `}</style>
 
-      {/* Nav */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', gap: 16,
-        padding: '16px 32px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(7,6,15,0.85)', backdropFilter: 'blur(20px)',
-        position: 'sticky', top: 0, zIndex: 100,
-      }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#fff' }}>
-          <img src="/logo.png" alt="BlockBite" width={32} height={32} style={{ objectFit: 'contain' }} />
-          <span style={{ fontSize: 17, fontWeight: 900 }}>BlockBite</span>
-        </Link>
-        <div style={{ flex: 1 }} />
-        <Link href="/game" style={{
-          padding: '8px 20px', borderRadius: 999,
-          background: 'linear-gradient(135deg, #a78bfa, #7dd3fc)',
-          color: '#0a0a14', fontWeight: 900, fontSize: 13, textDecoration: 'none',
-          letterSpacing: '.5px',
-        }}>PLAY NOW</Link>
-      </nav>
+      {/* Standard Navbar */}
+      <Navbar />
 
       {/* Hero */}
       <section style={{
         textAlign: 'center',
-        padding: 'clamp(48px,8vw,96px) 24px 32px',
+        padding: 'clamp(80px,10vw,112px) 24px 32px',
         animation: 'bbFadeUp .6s ease both',
       }}>
         <div style={{
