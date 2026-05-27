@@ -163,27 +163,6 @@ export default function HowToPlayPage() {
       <main style={{ paddingTop: 72, minHeight: '100vh', paddingBottom: 100 }}>
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '0 24px' }}>
 
-          {/* Back button */}
-          <div style={{ paddingTop: 32, paddingBottom: 8 }}>
-            <Link href="/" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontSize: 13, fontWeight: 600,
-              color: '#55557A',
-              textDecoration: 'none',
-              padding: '6px 12px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.07)',
-              background: 'rgba(255,255,255,0.03)',
-              transition: 'color 0.15s',
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#00F5FF'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#55557A'; }}
-            >
-              ← Back to Home
-            </Link>
-          </div>
-
           {/* Page title */}
           <div style={{ textAlign: 'center', padding: '24px 0 48px' }}>
             <div style={{

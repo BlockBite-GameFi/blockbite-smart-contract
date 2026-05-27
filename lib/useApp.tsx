@@ -89,9 +89,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const l = localStorage.getItem('bb:lang') as Lang | null;
     if (l === 'en' || l === 'id') setLangState(l);
-    // TDP design is dark-only — always force dark regardless of saved preference
-    localStorage.setItem('bb:theme', 'dark');
-    document.documentElement.dataset.theme = 'dark';
+    const t = localStorage.getItem('bb:theme') as Theme | null;
+    if (t === 'dark' || t === 'light') {
+      setThemeState(t);
+      document.documentElement.dataset.theme = t;
+    } else {
+      document.documentElement.dataset.theme = 'dark';
+    }
     setMounted(true);
   }, []);
 

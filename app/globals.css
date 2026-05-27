@@ -1,7 +1,6 @@
-/* Theme tokens — always dark for TDP design. */
+/* Theme tokens — dark default. */
 :root,
-:root[data-theme='dark'],
-:root[data-theme='light'] {
+:root[data-theme='dark'] {
   --bg: #08081a; --surface: rgba(255,255,255,0.05); --text: #F8F6FF;
   --text-dim: #94a3b8; --border: #1f1f3a;
   --accent: #9945FF; --accent2: #00C2FF;
@@ -14,6 +13,21 @@
   --ds-text:     #F8F6FF;
   --ds-text-dim: #94a3b8;
   --ds-border:   rgba(153,69,255,0.20);
+}
+
+/* Light theme overrides */
+:root[data-theme='light'] {
+  --bg: #f7f7fb; --surface: rgba(0,0,0,0.04); --text: #0a0a14;
+  --text-dim: #475569; --border: #e2e8f0;
+  --accent: #6d28d9; --accent2: #0d9488;
+  --warn: #b45309; --danger: #b91c1c; --ok: #15803d;
+  --header-grad: linear-gradient(180deg, #ede9fe 0%, #f7f7fb 100%);
+
+  --ds-bg:       #f7f7fb;
+  --ds-surface:  rgba(0,0,0,0.04);
+  --ds-text:     #0a0a14;
+  --ds-text-dim: #475569;
+  --ds-border:   #e2e8f0;
 }
 html, body { margin: 0; background: var(--ds-bg); color: var(--ds-text);
   font-family: 'Montserrat', 'Nunito', 'DM Sans', system-ui, sans-serif;

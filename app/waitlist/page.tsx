@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { useApp } from '@/lib/useApp';
 
 /* ── BlockBite Brand ── */
 const MAGENTA  = '#b12c84';
@@ -91,7 +92,7 @@ const LS_DONE  = 'bb_wl_done';
 const LS_EMAIL = 'bb_wl_email';
 
 export default function WaitlistPage() {
-  const [lang, setLang]   = useState<Lang>('en');
+  const { lang, setLang } = useApp();
   const [email, setEmail] = useState('');
   const [done, setDone]   = useState(false);
   const [busy, setBusy]   = useState(false);
@@ -269,20 +270,6 @@ export default function WaitlistPage() {
           <p style={{ fontSize: 'clamp(15px,2vw,19px)', color: '#c8ccd6', maxWidth: 600, lineHeight: 1.65, margin: 0, fontFamily: 'Roboto,sans-serif', fontWeight: 400 }}>
             {txt.sub}
           </p>
-
-          {/* Lang switcher — centered inline with content */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: 999, padding: 3, gap: 3 }}>
-            {(['en','id'] as Lang[]).map(l => (
-              <button key={l} onClick={() => setLang(l)} style={{
-                border: 'none', background: lang === l ? MAGENTA : 'transparent',
-                color: lang === l ? '#fff' : dim,
-                padding: '6px 18px', borderRadius: 999, fontWeight: 700, fontSize: 11,
-                cursor: 'pointer', fontFamily: 'Montserrat,sans-serif', transition: '0.15s', letterSpacing: '1px',
-              }}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
 
           {/* Floating block decorations */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>

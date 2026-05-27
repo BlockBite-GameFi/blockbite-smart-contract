@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import styles from './Navbar.module.css';
-import { useApp } from '@/lib/useApp';
+import { useApp, type Lang } from '@/lib/useApp';
 
 const CustomWalletButton = dynamic(
   () => import('./CustomWalletButton'),
@@ -46,7 +46,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  useApp(); // keep context alive for child components
+  const { lang, setLang, theme, setTheme } = useApp();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -124,6 +124,37 @@ export default function Navbar() {
 
         {/* ── Right controls — Veztra clean: Launch App + Wallet only ── */}
         <div className={styles.right}>
+
+          {/* ── Lang + Theme toggles ── */}
+          <div className={styles.langThemeControls}>
+            {/* Language toggle */}
+            <div className={styles.langPill}>
+              {(['en', 'id'] as Lang[]).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  className={styles.langBtn}
+                  data-active={lang === l ? 'true' : 'false'}
+                  onClick={() => setLang(l)}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Theme toggle */}
+            <button
+              type="button"
+              className={styles.iconToggle}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <span className={styles.themeIcon}>
+                {theme === 'dark' ? '☀' : '🌙'}
+              </span>
+            </button>
+          </div>
+
           <CustomWalletButton />
 
           {/* Play Game CTA */}
@@ -187,6 +218,33 @@ export default function Navbar() {
               ← Home
             </Link>
           )}
+
+          {/* Lang + Theme in mobile drawer */}
+          <div className={styles.mobileLangThemeRow}>
+            <div className={styles.langPill}>
+              {(['en', 'id'] as Lang[]).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  className={styles.langBtn}
+                  data-active={lang === l ? 'true' : 'false'}
+                  onClick={() => setLang(l)}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={styles.iconToggle}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            >
+              <span className={styles.themeIcon}>
+                {theme === 'dark' ? '☀' : '🌙'}
+              </span>
+            </button>
+          </div>
 
           {NAV_LINKS.map((link) => (
             <Link
