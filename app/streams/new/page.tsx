@@ -25,7 +25,7 @@ const C = {
 const TYPES = [
   {
     href:    '/streams/new/linear',
-    icon:    '📈',
+    icon:    '∿',
     label:   'Linear',
     color:   C.accent,
     tagline: 'Smooth continuous unlock',
@@ -35,7 +35,7 @@ const TYPES = [
   },
   {
     href:    '/streams/new/cliff',
-    icon:    '🪨',
+    icon:    '⌐',
     label:   'Cliff',
     color:   C.gold,
     tagline: 'All tokens, one unlock date',
@@ -45,7 +45,7 @@ const TYPES = [
   },
   {
     href:    '/streams/new/milestone',
-    icon:    '🏁',
+    icon:    '◎',
     label:   'Milestone',
     color:   C.blue,
     tagline: 'Performance-gated release',
@@ -55,7 +55,7 @@ const TYPES = [
   },
   {
     href:    '/streams/new/hybrid',
-    icon:    '⚡',
+    icon:    '◆',
     label:   'Hybrid',
     color:   C.purple,
     tagline: 'Cliff + milestone + linear',
@@ -191,7 +191,7 @@ export default function NewStreamTypePicker() {
           background: `${C.accent}08`, border: `1px solid ${C.accent}22`,
           display: 'flex', alignItems: 'flex-start', gap: 12,
         }}>
-          <span style={{ fontSize: 18, flexShrink: 0 }}>🎮</span>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>◈</span>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#e8e1f8', marginBottom: 3 }}>
               All stream types support BlockBite Game Gate

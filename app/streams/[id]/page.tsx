@@ -414,8 +414,8 @@ export default function StreamDetailPage() {
                 opacity: claiming ? 0.6 : 1,
               }}
             >
-              {claimStage === 'approving'  ? '🔐 Approve in wallet…'
-               : claimStage === 'confirming' ? '🔄 Confirming on Solana…'
+              {claimStage === 'approving'  ? '◈ Approve in wallet…'
+               : claimStage === 'confirming' ? '▶ Confirming on Solana…'
                : `Claim ${fmtTokens(claimable)} tokens`}
             </button>
           )}
@@ -441,8 +441,8 @@ export default function StreamDetailPage() {
                 opacity: cancelling ? 0.6 : 1,
               }}
             >
-              {cancelStage === 'approving'  ? '🔐 Approve in wallet…'
-               : cancelStage === 'confirming' ? '🔄 Confirming on Solana…'
+              {cancelStage === 'approving'  ? '◈ Approve in wallet…'
+               : cancelStage === 'confirming' ? '▶ Confirming on Solana…'
                : 'Cancel Stream'}
             </button>
           )}

@@ -166,22 +166,22 @@ function Toggle({ value, onChange, label, sub }: {
 // ─── Stream-type cards ────────────────────────────────────────────────────────
 const STREAM_TYPES = [
   {
-    id: 'linear', label: 'Linear', icon: '📈',
+    id: 'linear', label: 'Linear', icon: '∿',
     color: C.accent,
     desc: 'Tokens release continuously from cliff to end date. Smooth, proportional unlock.',
   },
   {
-    id: 'cliff', label: 'Cliff', icon: '🪨',
+    id: 'cliff', label: 'Cliff', icon: '⌐',
     color: C.gold,
     desc: 'All tokens locked until cliff date, then released at once. Simple & predictable.',
   },
   {
-    id: 'milestone', label: 'Milestone', icon: '🏁',
+    id: 'milestone', label: 'Milestone', icon: '◎',
     color: C.blue,
     desc: 'Token batches unlock when specific achievements are verified on-chain.',
   },
   {
-    id: 'hybrid', label: 'Hybrid', icon: '⚡',
+    id: 'hybrid', label: 'Hybrid', icon: '◆',
     color: '#c084fc',
     desc: 'Cliff + milestone + linear combined. Most flexible distribution model.',
   },
@@ -191,9 +191,9 @@ type StreamType = (typeof STREAM_TYPES)[number]['id'];
 
 // ─── Gate types ───────────────────────────────────────────────────────────────
 const GATE_OPTIONS = [
-  { id: 'manual',   label: 'Manual',   icon: '✍️', desc: 'Creator approves each recipient manually.' },
-  { id: 'oracle',   label: 'Oracle',   icon: '🔮', desc: 'On-chain oracle verifies conditions automatically.' },
-  { id: 'multisig', label: 'Multi-sig', icon: '🔐', desc: 'Requires M-of-N wallet signatures to unlock.' },
+  { id: 'manual',   label: 'Manual',   icon: '◈', desc: 'Creator approves each recipient manually.' },
+  { id: 'oracle',   label: 'Oracle',   icon: '◎', desc: 'On-chain oracle verifies conditions automatically.' },
+  { id: 'multisig', label: 'Multi-sig', icon: '⌐', desc: 'Requires M-of-N wallet signatures to unlock.' },
 ] as const;
 type GateType = (typeof GATE_OPTIONS)[number]['id'];
 
@@ -262,11 +262,11 @@ export default function CreateCampaignPage() {
   const msTotal       = milestones.slice(0, milestoneCount).reduce((s, m) => s + m.pct, 0);
 
   const STEPS = [
-    { label: 'Campaign',   icon: '📋' },
-    { label: 'Schedule',   icon: '📅' },
-    { label: 'Gates',      icon: '🔒' },
-    { label: 'Recipients', icon: '👥' },
-    { label: 'Review',     icon: '🚀' },
+    { label: 'Campaign',   icon: '◈' },
+    { label: 'Schedule',   icon: '∿' },
+    { label: 'Gates',      icon: '⌐' },
+    { label: 'Recipients', icon: '◆' },
+    { label: 'Review',     icon: '▲' },
   ];
 
   const selType = STREAM_TYPES.find(t => t.id === streamType)!;
@@ -293,7 +293,7 @@ export default function CreateCampaignPage() {
                 padding: '14px 18px', background: `${C.game}0d`, border: `1px solid ${C.game}33`,
                 borderRadius: 12, marginBottom: 20, fontSize: 13, color: C.game,
               }}>
-                🎮 BlockBite Game Gate active — recipients must reach <strong>Level {gameLevel}</strong> to unlock
+                ◈ BlockBite Game Gate active — recipients must reach <strong>Level {gameLevel}</strong> to unlock
               </div>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -551,7 +551,7 @@ export default function CreateCampaignPage() {
                         background: gameGate ? `${C.game}18` : 'rgba(255,255,255,.04)',
                         border: `1px solid ${gameGate ? C.game + '44' : C.border}`,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-                      }}>🎮</div>
+                      }}>◈</div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: gameGate ? C.game : '#e8e1f8' }}>
                           BlockBite Game Gate
@@ -874,7 +874,7 @@ export default function CreateCampaignPage() {
                 color: '#0b0a14', fontWeight: 900, fontSize: 14, cursor: 'pointer',
                 boxShadow: `0 0 20px ${C.gold}44`, fontFamily: C.serif,
                 letterSpacing: '.02em',
-              }}>🚀 Launch Campaign</button>
+              }}>▲ Launch Campaign</button>
             )}
           </div>
         </div>
@@ -915,7 +915,7 @@ export default function CreateCampaignPage() {
             transition: 'all .2s',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: gameGate ? 12 : 0 }}>
-              <span style={{ fontSize: 18 }}>🎮</span>
+              <span style={{ fontSize: 18 }}>◈</span>
               <div style={{ fontSize: 12, fontWeight: 700, color: gameGate ? C.game : C.muted }}>
                 BlockBite Game Gate
               </div>

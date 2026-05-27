@@ -221,16 +221,11 @@ export default function HowToPlayPage() {
             </p>
           </div>
 
-          {/* ── Main 2-col layout ── */}
-          <div className="guide-outer" style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 200px',
-            gap: 48,
-            alignItems: 'start',
-          }}>
+          {/* ── Main layout — content centered, sidebar floats right ── */}
+          <div className="guide-outer" style={{ position: 'relative' }}>
 
-            {/* ══ LEFT: Content ══════════════════════════════════ */}
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 72 }}>
+            {/* ══ CENTER: Content ═════════════════════════════════ */}
+            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 72 }}>
 
               {/* ── 1. Introduction ── */}
               <section id="intro" style={{ scrollMarginTop: 88 }}>
@@ -451,7 +446,7 @@ export default function HowToPlayPage() {
                     color: '#00F5FF',
                     letterSpacing: '0.1em',
                     marginBottom: 12,
-                  }}>⚡ CHAIN BONUS</div>
+                  }}>◆ CHAIN BONUS</div>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, 1fr)',
@@ -871,11 +866,15 @@ export default function HowToPlayPage() {
 
             </div>{/* end LEFT */}
 
-            {/* ══ RIGHT: Sticky Nav ══════════════════════════════ */}
+            {/* ══ RIGHT: Sticky Nav — floats outside centered content ══ */}
             <nav className="guide-nav" style={{
-              position: 'sticky',
-              top: 88,
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              width: 200,
             }}>
+              {/* Inner div is sticky so it follows the scroll */}
+              <div style={{ position: 'sticky', top: 88 }}>
               <div style={{
                 fontFamily: "'Orbitron', monospace",
                 fontSize: 10,
@@ -952,6 +951,7 @@ export default function HowToPlayPage() {
                   BUY TICKETS
                 </Link>
               </div>
+              </div>{/* end sticky inner */}
             </nav>{/* end RIGHT */}
 
           </div>{/* end guide-outer */}
@@ -959,10 +959,7 @@ export default function HowToPlayPage() {
       </main>
 
       <style>{`
-        @media (max-width: 900px) {
-          .guide-outer {
-            grid-template-columns: 1fr !important;
-          }
+        @media (max-width: 1060px) {
           .guide-nav {
             display: none !important;
           }

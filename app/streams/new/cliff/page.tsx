@@ -65,7 +65,7 @@ export default function CliffPage() {
     <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8',
       display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: C.serif }}>
       <div style={{ textAlign: 'center', maxWidth: 460, padding: '0 24px' }}>
-        <div style={{ fontSize: 52, marginBottom: 20 }}>🪨</div>
+        <div style={{ fontSize: 52, marginBottom: 20 }}>⌐</div>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: C.gold, marginBottom: 8 }}>Stream Created!</h2>
         <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
           Cliff vesting locked until <strong style={{ color: C.gold }}>
@@ -94,10 +94,10 @@ export default function CliffPage() {
   );
 
   return (
-    <StreamPageShell typeLabel="Cliff" typeIcon="🪨" typeColor={COLOR}
+    <StreamPageShell typeLabel="Cliff" typeIcon="⌐" typeColor={COLOR}
       subtitle="All tokens lock until cliff date. Nothing before, everything after."
       sidebar={
-        <StreamSidebar typeLabel="Cliff" typeColor={COLOR} typeIcon="🪨"
+        <StreamSidebar typeLabel="Cliff" typeColor={COLOR} typeIcon="⌐"
           totalDeposit={deposit} token={token || 'TOKEN'} recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel} onSubmit={handleCreate}
           isSubmitting={isSubmitting} txStatus={txStatus}

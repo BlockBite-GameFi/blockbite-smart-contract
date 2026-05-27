@@ -215,7 +215,7 @@ export function GameGateCard({ enabled, onChange, level, onLevelChange }: {
           background: enabled ? `${C.game}18` : 'rgba(255,255,255,.04)',
           border: `1px solid ${enabled ? C.game + '44' : C.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-        }}>🎮</div>
+        }}>◈</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: enabled ? C.game : '#e8e1f8' }}>
             BlockBite Game Gate
@@ -336,7 +336,7 @@ export function StreamSidebar({
             background: `${'#4ade80'}0d`, border: `1px solid ${'#4ade80'}33`,
             display: 'flex', alignItems: 'center', gap: 7,
           }}>
-            <span style={{ fontSize: 14 }}>🎮</span>
+            <span style={{ fontSize: 14 }}>◈</span>
             <span style={{ fontSize: 11.5, color: '#4ade80', fontWeight: 600 }}>
               Game Gate: Level {gameLevel}
             </span>
@@ -355,8 +355,8 @@ export function StreamSidebar({
           boxShadow: isSubmitting ? 'none' : `0 0 20px ${typeColor}44`,
           transition: 'all .15s',
         }}>
-          {txStatus === 'approving'  ? '⏳ Approve in wallet…'
-           : txStatus === 'confirming' ? '🔄 Confirming…'
+          {txStatus === 'approving'  ? '◈ Approve in wallet…'
+           : txStatus === 'confirming' ? '▶ Confirming…'
            : `Create ${recipientCount > 1 ? `${recipientCount} ` : ''}${typeLabel} Stream${recipientCount > 1 ? 's' : ''}`}
         </button>
         {txErr && (
@@ -399,9 +399,9 @@ export function FieldError({ msg }: { msg?: string }) {
 
 // ─── 3-stage transaction progress bar ────────────────────────────────────────
 const TX_STAGES: { key: TxStatus; label: string; icon: string }[] = [
-  { key: 'approving',  label: 'Wallet Approval',     icon: '🔐' },
-  { key: 'confirming', label: 'Sending to Solana',   icon: '📡' },
-  { key: 'done',       label: 'Confirmed On-Chain',  icon: '✅' },
+  { key: 'approving',  label: 'Wallet Approval',     icon: '◈' },
+  { key: 'confirming', label: 'Sending to Solana',   icon: '▶' },
+  { key: 'done',       label: 'Confirmed On-Chain',  icon: '✓' },
 ];
 
 export function TxProgress({
@@ -443,7 +443,7 @@ export function TxProgress({
                   transition: 'all .3s',
                 }}>
                   {isDone ? '✓' : isActive ? (
-                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>◆</span>
                   ) : stage.icon}
                 </div>
                 <span style={{

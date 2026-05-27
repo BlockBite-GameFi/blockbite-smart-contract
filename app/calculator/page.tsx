@@ -148,7 +148,7 @@ export default function CalculatorPage() {
             {/* Allocations */}
             <Card>
               <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                👥 Allocation %
+                ◆ Allocation %
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <RangeSlider label="Team & Founders" value={team}      onChange={setTeam}      min={0} max={40} unit="%" color={C.accent} />
@@ -176,7 +176,7 @@ export default function CalculatorPage() {
             {/* Schedule */}
             <Card>
               <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                📅 Vesting Schedule
+                ∿ Vesting Schedule
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <RangeSlider label="Cliff period" value={cliff} onChange={setCliff} min={0} max={730} unit=" days" color={C.ember} />
@@ -187,7 +187,7 @@ export default function CalculatorPage() {
             {/* Milestone config */}
             <Card>
               <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                🎯 Milestone Gates
+                ◎ Milestone Gates
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <RangeSlider label="Milestones" value={milestones} onChange={setMilestones} min={0} max={4} color={C.blue} />
@@ -209,7 +209,7 @@ export default function CalculatorPage() {
             {/* Market pressure */}
             <Card glow={pCol}>
               <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                📊 Market Pressure — Team Unlock
+                ◈ Market Pressure — Team Unlock
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
@@ -233,11 +233,11 @@ export default function CalculatorPage() {
               </div>
 
               {[
-                { l: 'Team allocation',    v: `${teamAlloc.toLocaleString()} TOKEN`,            icon: '👥' },
-                { l: 'Daily unlock',       v: `${dailyUnlock.toFixed(0)} TOKEN`,               icon: '📅' },
-                { l: 'Rate / second',      v: `${ratePerSec.toFixed(6)} T/s`,                  icon: '⚡' },
-                { l: 'Cliff date',         v: `Day ${cliff}`,                                  icon: '🔒' },
-                { l: 'Full vest',          v: `Day ${cliff + vest}`,                           icon: '✅' },
+                { l: 'Team allocation',    v: `${teamAlloc.toLocaleString()} TOKEN`,            icon: '◆' },
+                { l: 'Daily unlock',       v: `${dailyUnlock.toFixed(0)} TOKEN`,               icon: '∿' },
+                { l: 'Rate / second',      v: `${ratePerSec.toFixed(6)} T/s`,                  icon: '◆' },
+                { l: 'Cliff date',         v: `Day ${cliff}`,                                  icon: '⌐' },
+                { l: 'Full vest',          v: `Day ${cliff + vest}`,                           icon: '✓' },
               ].map((r, i, a) => (
                 <div key={r.l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < a.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, color: C.muted, fontSize: 12 }}>
@@ -251,7 +251,7 @@ export default function CalculatorPage() {
             {/* Vesting curve SVG */}
             <Card>
               <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                📈 Vesting Curve — Team ({vest}d + {cliff}d cliff)
+                ∿ Vesting Curve — Team ({vest}d + {cliff}d cliff)
               </div>
               <svg
                 width="100%" viewBox={`0 0 ${CHART_W} ${CHART_H + 30}`}
