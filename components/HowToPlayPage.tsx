@@ -59,9 +59,9 @@ const SCORING_TABLE = [
 ];
 
 const PRIZE_TIERS = [
-  { rank: '1st',  medal: '🥇', pct: 30, color: '#FFD700' },
-  { rank: '2nd',  medal: '🥈', pct: 20, color: '#C0C0C0' },
-  { rank: '3rd',  medal: '🥉', pct: 15, color: '#CD7F32' },
+  { rank: '1st',  medal: '▲', pct: 30, color: '#FFD700' },
+  { rank: '2nd',  medal: '◆', pct: 20, color: '#C0C0C0' },
+  { rank: '3rd',  medal: '◎', pct: 15, color: '#CD7F32' },
   { rank: '4th',  medal: '',   pct: 10, color: '#00FF88' },
   { rank: '5th',  medal: '',   pct:  8, color: '#00FF88' },
   { rank: '6th',  medal: '',   pct:  6, color: '#00F5FF' },
@@ -85,7 +85,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How are prizes distributed?',
-    a: 'BlockBite uses the TDP (Token Distribution Protocol) — Sablier-style streaming vesting on Solana. Each player gets a milestone-vesting stream funded by ticket entry. At month end, the game admin signs toggle_milestone(true) via CPI for the top 10 players, unlocking their streams. Winners then call withdraw() to pull per-second streamed USDC. Losers\' streams cancel back to the prize pool. All transparent on-chain.',
+    a: 'BlockBite uses the TDP (Token Distribution Protocol) — streaming vesting on Solana. Each player gets a milestone-vesting stream funded by ticket entry. At month end, the game admin signs toggle_milestone(true) via CPI for the top 10 players, unlocking their streams. Winners then call withdraw() to pull per-second streamed USDC. Losers\' streams cancel back to the prize pool. All transparent on-chain.',
   },
   {
     q: 'What if I disconnect during a game?',
@@ -217,7 +217,7 @@ export default function HowToPlayPage() {
               margin: '0 auto',
               lineHeight: 1.6,
             }}>
-              Game mechanics + scoring + how TDP (our Sablier-style vesting protocol) streams prizes to your wallet.
+              Game mechanics + scoring + how TDP streams vesting prizes directly to your wallet.
             </p>
           </div>
 
@@ -699,7 +699,7 @@ export default function HowToPlayPage() {
                   border: '1px solid rgba(255,215,0,0.1)',
                   background: 'rgba(255,215,0,0.02)',
                 })}>
-                  <div style={{ fontSize: 28, flexShrink: 0 }}>🔗</div>
+                  <div style={{ fontSize: 28, flexShrink: 0, color: '#FFD700', fontWeight: 700 }}>⬡</div>
                   <div>
                     <div style={{
                       fontFamily: "'Orbitron', monospace",
