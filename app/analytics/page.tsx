@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import { useConnection } from '@solana/wallet-adapter-react';
 import {
   getAllStreams,
@@ -92,27 +93,28 @@ export default function AnalyticsPage() {
     .slice(0, 6);
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, padding: '0 0 60px' }}>
+    <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8' }}>
+      <Navbar />
 
-      {/* ── Header ── */}
-      <div style={{ padding: '32px 40px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(88px,12vw,108px) clamp(16px,5vw,40px) 80px' }}>
+
+      {/* ── Page header ── */}
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>← Streams</Link>
-            <span style={{ color: C.muted, fontSize: 12 }}>·</span>
-            <Link href="/demo#analytics" style={{ color: C.accent, fontSize: 12, textDecoration: 'none' }}>View demo ↗</Link>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            TDP · Protocol Analytics
           </div>
-          <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>
+          <h1 style={{ fontFamily: C.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: '#fff', margin: 0 }}>
             Protocol Analytics
           </h1>
-          <p style={{ fontSize: 12.5, color: C.muted, margin: '4px 0 0' }}>
+          <p style={{ fontSize: 12.5, color: C.muted, margin: '6px 0 0' }}>
             Live on-chain data · Solana devnet · Program DvhxiL5P…XTFf
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 2, background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 9, padding: 3 }}>
             {(['7d', '30d', '90d', 'all'] as const).map(p => (
-              <button key={p} onClick={() => setPeriod(p)} style={{
+              <button type="button" key={p} onClick={() => setPeriod(p)} style={{
                 padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
                 background: period === p ? C.accent : 'transparent',
                 color: period === p ? '#fff' : C.muted,
@@ -120,7 +122,7 @@ export default function AnalyticsPage() {
               }}>{p}</button>
             ))}
           </div>
-          <button onClick={load} style={{ padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.accent, cursor: 'pointer', fontSize: 11 }}>
+          <button type="button" onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.accent, cursor: 'pointer', fontSize: 12, fontFamily: C.serif }}>
             ↻ Refresh
           </button>
         </div>
@@ -282,6 +284,7 @@ export default function AnalyticsPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

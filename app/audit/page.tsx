@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { VESTING_PROGRAM_ID } from '@/lib/anchor/vesting-client';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
@@ -118,24 +119,25 @@ export default function AuditPage() {
   const actionTypes = [...new Set(txRows.map(r => r.label))];
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, padding: '0 0 60px' }}>
+    <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8' }}>
+      <Navbar />
 
-      {/* ── Header ── */}
-      <div style={{ padding: '32px 40px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(88px,12vw,108px) clamp(16px,5vw,40px) 80px' }}>
+
+      {/* ── Page header ── */}
+      <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>← Streams</Link>
-            <span style={{ color: C.muted, fontSize: 12 }}>·</span>
-            <Link href="/demo#audit" style={{ color: C.accent, fontSize: 12, textDecoration: 'none' }}>View demo ↗</Link>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            TDP · Audit Trail
           </div>
-          <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>
-            Audit Trail
+          <h1 style={{ fontFamily: C.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: '#fff', margin: 0 }}>
+            On-Chain Audit Trail
           </h1>
-          <p style={{ fontSize: 12.5, color: C.muted, margin: '4px 0 0' }}>
+          <p style={{ fontSize: 12.5, color: C.muted, margin: '6px 0 0' }}>
             Real on-chain transactions · Program {VESTING_PROGRAM_ID.toBase58().slice(0, 8)}…{VESTING_PROGRAM_ID.toBase58().slice(-4)} · Solana devnet
           </p>
         </div>
-        <button onClick={load} style={{ padding: '8px 16px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.accent, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
+        <button onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.accent, cursor: 'pointer', fontSize: 12, fontFamily: C.serif, alignSelf: 'flex-start' }}>
           ↻ Refresh
         </button>
       </div>
@@ -248,6 +250,7 @@ export default function AuditPage() {
           {' '}·{' '}
           <Link href="/demo#audit" style={{ color: C.muted }}>View demo log</Link>
         </div>
+      </div>
       </div>
     </div>
   );
