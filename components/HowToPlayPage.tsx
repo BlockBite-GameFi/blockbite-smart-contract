@@ -221,11 +221,17 @@ export default function HowToPlayPage() {
             </p>
           </div>
 
-          {/* ── Main layout — content centered, sidebar floats right ── */}
-          <div className="guide-outer" style={{ position: 'relative' }}>
+          {/* ── Main layout — CSS Grid: content + sidebar side-by-side, no overlap ── */}
+          <div className="guide-outer" style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 760px) 200px',
+            columnGap: 40,
+            alignItems: 'start',
+            justifyContent: 'center',
+          }}>
 
-            {/* ══ CENTER: Content ═════════════════════════════════ */}
-            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 72 }}>
+            {/* ══ LEFT: Content ═══════════════════════════════════ */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 72 }}>
 
               {/* ── 1. Introduction ── */}
               <section id="intro" style={{ scrollMarginTop: 88 }}>
@@ -866,15 +872,12 @@ export default function HowToPlayPage() {
 
             </div>{/* end LEFT */}
 
-            {/* ══ RIGHT: Sticky Nav — floats outside centered content ══ */}
+            {/* ══ RIGHT: Sticky Nav — grid column, no absolute, no overlap ══ */}
             <nav className="guide-nav" style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              width: 200,
+              position: 'sticky',
+              top: 88,
+              alignSelf: 'start',
             }}>
-              {/* Inner div is sticky so it follows the scroll */}
-              <div style={{ position: 'sticky', top: 88 }}>
               <div style={{
                 fontFamily: "'Orbitron', monospace",
                 fontSize: 10,
@@ -951,7 +954,6 @@ export default function HowToPlayPage() {
                   BUY TICKETS
                 </Link>
               </div>
-              </div>{/* end sticky inner */}
             </nav>{/* end RIGHT */}
 
           </div>{/* end guide-outer */}
@@ -959,9 +961,14 @@ export default function HowToPlayPage() {
       </main>
 
       <style>{`
-        @media (max-width: 1060px) {
+        /* Hide sidebar + collapse to single centred column below 1100px */
+        @media (max-width: 1099px) {
           .guide-nav {
             display: none !important;
+          }
+          .guide-outer {
+            grid-template-columns: minmax(0, 760px) !important;
+            justify-content: center !important;
           }
         }
         @media (max-width: 600px) {
