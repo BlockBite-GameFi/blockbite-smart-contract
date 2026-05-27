@@ -254,20 +254,11 @@ export default function WaitlistPage() {
       <div style={{ position: 'relative', zIndex: 1 }}>
         <Navbar />
 
-        {/* Nav */}
-        <nav style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px clamp(16px, 5vw, 32px)', borderBottom: `1px solid ${border}`,
-          background: 'rgba(8,8,15,0.75)', backdropFilter: 'blur(20px)',
-          position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap', gap: 8,
-        }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#fff' }}>
-            <img src="/logo.png" alt="BlockBite" width={40} height={40} style={{ objectFit: 'contain', flexShrink: 0 }}/>
-            <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.5px', fontFamily: 'Montserrat,sans-serif' }}>BlockBite</span>
-          </Link>
+        {/* ── Hero ── */}
+        <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '96px 24px 48px', gap: 28, animation: 'bbSlide 0.6s ease both' }}>
 
-          {/* Lang switcher */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: 999, padding: 3, gap: 3 }}>
+          {/* Lang switcher — floated to top of content area */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: 999, padding: 3, gap: 3, alignSelf: 'flex-end', marginBottom: -8 }}>
             {(['en','id'] as Lang[]).map(l => (
               <button key={l} onClick={() => setLang(l)} style={{
                 border: 'none', background: lang === l ? MAGENTA : 'transparent',
@@ -279,10 +270,6 @@ export default function WaitlistPage() {
               </button>
             ))}
           </div>
-        </nav>
-
-        {/* ── Hero ── */}
-        <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '72px 24px 48px', gap: 28, animation: 'bbSlide 0.6s ease both' }}>
 
           {/* Headline */}
           <h1 style={{ fontSize: 'clamp(36px,8vw,90px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-2px', maxWidth: 820, margin: 0, fontFamily: 'Montserrat,sans-serif' }}>
