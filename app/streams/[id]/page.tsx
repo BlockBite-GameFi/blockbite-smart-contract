@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
@@ -94,6 +95,23 @@ function inferType(
   return 'hybrid';
 }
 
+// ─── Error humanizer (mirrors _shared.tsx version, no cross-import needed) ───
+function humanizeRpcError(e: unknown): string {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  if (msg.includes('user rejected') || msg.includes('user cancelled') || msg.includes('user denied'))
+    return 'Transaction cancelled — you rejected the wallet prompt.';
+  if (msg.includes('insufficient funds') || msg.includes('insufficient balance'))
+    return 'Insufficient balance — not enough tokens or SOL for fees.';
+  if (msg.includes('blockhash') || msg.includes('expired'))
+    return 'Transaction expired — please try again.';
+  if (msg.includes('wallet not connected') || msg.includes('not connected'))
+    return 'Wallet disconnected — reconnect and try again.';
+  if (msg.includes('timeout') || msg.includes('timed out'))
+    return 'Network timeout — Solana devnet may be slow. Retry in a moment.';
+  const raw = (e instanceof Error ? e.message : String(e));
+  return raw.length > 120 ? raw.slice(0, 117) + '…' : raw;
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 type RawStream = NonNullable<Awaited<ReturnType<typeof fetchStream>>>;
 
@@ -101,21 +119,25 @@ export default function StreamDetailPage() {
   const params   = useParams();
   const idParam  = params?.id as string | undefined;
 
-  const { connection }               = useConnection();
+  const { connection }                 = useConnection();
   const { publicKey, sendTransaction } = useWallet();
+  const { setVisible }                 = useWalletModal();
 
   const [stream,   setStream]   = useState<RawStream | null>(null);
   const [vault,    setVault]    = useState<bigint>(0n);
   const [loading,  setLoading]  = useState(true);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [gamesPlayed, setGamesPlayed] = useState(0);
-  const [claiming,       setClaiming]       = useState(false);
+  type TxStage = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+  const [claimStage,     setClaimStage]     = useState<TxStage>('idle');
   const [claimSig,       setClaimSig]       = useState<string | null>(null);
   const [claimErr,       setClaimErr]       = useState<string | null>(null);
   const [confirmCancel,  setConfirmCancel]  = useState(false);
-  const [cancelling,     setCancelling]     = useState(false);
+  const [cancelStage,    setCancelStage]    = useState<TxStage>('idle');
   const [cancelSig,      setCancelSig]      = useState<string | null>(null);
   const [cancelErr,      setCancelErr]      = useState<string | null>(null);
+  const claiming  = claimStage  === 'approving' || claimStage  === 'confirming';
+  const cancelling = cancelStage === 'approving' || cancelStage === 'confirming';
   const [nowSec,         setNowSec]         = useState(Math.floor(Date.now() / 1000));
 
   useEffect(() => {
@@ -163,10 +185,10 @@ export default function StreamDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Withdraw / Claim handler ─────────────────────────────────────────────
+  // ── Withdraw / Claim handler — 3-stage (approving → confirming → done) ──────
   const handleClaim = async () => {
     if (!stream || !publicKey || !streamPda) return;
-    setClaiming(true);
+    setClaimStage('approving');
     setClaimErr(null);
     setClaimSig(null);
     try {
@@ -174,26 +196,31 @@ export default function StreamDetailPage() {
       const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, publicKey);
       const sig = await doWithdraw({
         connection,
-        beneficiary:     publicKey,
-        stream:          streamPda,
-        vault:           vaultPda,
+        beneficiary:    publicKey,
+        stream:         streamPda,
+        vault:          vaultPda,
         beneficiaryAta,
-        mint:            stream.mint,
-        sendTransaction: (tx, conn) => sendTransaction(tx, conn),
+        mint:           stream.mint,
+        sendTransaction: async (tx, conn) => {
+          const s = await sendTransaction(tx, conn); // user approves here
+          setClaimStage('confirming');                // move to stage 2
+          return s;
+        },
       });
       setClaimSig(sig);
-      load(); // refresh on-chain state
+      setClaimStage('done');
+      load();
     } catch (e: unknown) {
-      setClaimErr((e as Error)?.message ?? 'Transaction failed');
-    } finally {
-      setClaiming(false);
+      const msg = humanizeRpcError(e);
+      setClaimErr(msg);
+      setClaimStage('error');
     }
   };
 
-  // ── Cancel handler ───────────────────────────────────────────────────────
+  // ── Cancel handler — 3-stage ─────────────────────────────────────────────
   const handleCancel = async () => {
     if (!stream || !publicKey || !streamPda) return;
-    setCancelling(true);
+    setCancelStage('approving');
     setCancelErr(null);
     setCancelSig(null);
     setConfirmCancel(false);
@@ -203,20 +230,25 @@ export default function StreamDetailPage() {
       const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, stream.beneficiary);
       const sig = await cancelStream({
         connection,
-        authority:     publicKey,
-        beneficiary:   stream.beneficiary,
-        stream:        streamPda,
-        vault:         vaultPda,
+        authority:      publicKey,
+        beneficiary:    stream.beneficiary,
+        stream:         streamPda,
+        vault:          vaultPda,
         authorityAta,
         beneficiaryAta,
-        sendTransaction: (tx, conn) => sendTransaction(tx, conn),
+        sendTransaction: async (tx, conn) => {
+          const s = await sendTransaction(tx, conn);
+          setCancelStage('confirming');
+          return s;
+        },
       });
       setCancelSig(sig);
+      setCancelStage('done');
       load();
     } catch (e: unknown) {
-      setCancelErr((e as Error)?.message ?? 'Cancel failed');
-    } finally {
-      setCancelling(false);
+      const msg = humanizeRpcError(e);
+      setCancelErr(msg);
+      setCancelStage('error');
     }
   };
 
@@ -382,13 +414,19 @@ export default function StreamDetailPage() {
                 opacity: claiming ? 0.6 : 1,
               }}
             >
-              {claiming ? 'Claiming…' : `Claim ${fmtTokens(claimable)} tokens`}
+              {claimStage === 'approving'  ? '🔐 Approve in wallet…'
+               : claimStage === 'confirming' ? '🔄 Confirming on Solana…'
+               : `Claim ${fmtTokens(claimable)} tokens`}
             </button>
           )}
           {!publicKey && claimable > 0n && (
-            <div style={{ fontSize: 12, color: C.muted, alignSelf: 'center' }}>
-              Connect wallet to claim
-            </div>
+            <button onClick={() => setVisible(true)} style={{
+              padding: '9px 20px', borderRadius: 10, border: `1px solid ${C.accent}55`,
+              background: `${C.accent}0f`, color: C.accent,
+              fontSize: 13, fontWeight: 700, fontFamily: C.serif, cursor: 'pointer',
+            }}>
+              Connect Wallet to Claim
+            </button>
           )}
           {/* Cancel button — only visible to creator, only on active/pending streams */}
           {publicKey && stream && !stream.cancelled && publicKey.equals(stream.authority) && (
@@ -403,7 +441,9 @@ export default function StreamDetailPage() {
                 opacity: cancelling ? 0.6 : 1,
               }}
             >
-              {cancelling ? 'Cancelling…' : 'Cancel Stream'}
+              {cancelStage === 'approving'  ? '🔐 Approve in wallet…'
+               : cancelStage === 'confirming' ? '🔄 Confirming on Solana…'
+               : 'Cancel Stream'}
             </button>
           )}
         </div>
@@ -456,6 +496,53 @@ export default function StreamDetailPage() {
       )}
 
       <div style={{ padding: '24px clamp(16px,5vw,40px)', display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+        {/* 3-stage claim progress */}
+        {(claimStage === 'approving' || claimStage === 'confirming') && (
+          <div style={{ padding: '14px 18px', borderRadius: 12, border: `1px solid ${C.accent}33`,
+            background: `${C.accent}06`, display: 'flex', alignItems: 'center', gap: 14 }}>
+            {[
+              { label: 'Wallet Approval', done: claimStage === 'confirming' },
+              { label: 'Sending to Solana', done: false },
+              { label: 'Confirmed On-Chain', done: false },
+            ].map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                  background: s.done ? `${C.green}22` : i === (claimStage === 'confirming' ? 1 : 0) ? `${C.accent}22` : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${s.done ? C.green + '66' : i === (claimStage === 'confirming' ? 1 : 0) ? C.accent + '66' : C.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                  {s.done ? '✓' : '·'}
+                </div>
+                <span style={{ fontSize: 11, color: s.done ? C.green : i === (claimStage === 'confirming' ? 1 : 0) ? '#e8e1f8' : C.muted,
+                  whiteSpace: 'nowrap' }}>{s.label}</span>
+                {i < 2 && <div style={{ width: 24, height: 1, background: C.border, marginLeft: 4 }} />}
+              </div>
+            ))}
+          </div>
+        )}
+        {/* 3-stage cancel progress */}
+        {(cancelStage === 'approving' || cancelStage === 'confirming') && (
+          <div style={{ padding: '14px 18px', borderRadius: 12, border: `1px solid ${C.red}33`,
+            background: `${C.red}06`, display: 'flex', alignItems: 'center', gap: 14 }}>
+            {[
+              { label: 'Wallet Approval', done: cancelStage === 'confirming' },
+              { label: 'Sending to Solana', done: false },
+              { label: 'Confirmed On-Chain', done: false },
+            ].map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                  background: s.done ? `${C.green}22` : i === (cancelStage === 'confirming' ? 1 : 0) ? `${C.red}22` : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${s.done ? C.green + '66' : i === (cancelStage === 'confirming' ? 1 : 0) ? C.red + '66' : C.border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                  {s.done ? '✓' : '·'}
+                </div>
+                <span style={{ fontSize: 11, color: s.done ? C.green : i === (cancelStage === 'confirming' ? 1 : 0) ? C.red : C.muted,
+                  whiteSpace: 'nowrap' }}>{s.label}</span>
+                {i < 2 && <div style={{ width: 24, height: 1, background: C.border, marginLeft: 4 }} />}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Claim result banner */}
         {claimSig && (

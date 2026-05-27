@@ -384,6 +384,159 @@ export function StreamSidebar({
   );
 }
 
+// ─── Tx status type (mirrors useStreamCreate) ────────────────────────────────
+export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+
+// ─── Inline field validation error ───────────────────────────────────────────
+export function FieldError({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return (
+    <div style={{ fontSize: 11, color: C.red, marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span>⚠</span> {msg}
+    </div>
+  );
+}
+
+// ─── 3-stage transaction progress bar ────────────────────────────────────────
+const TX_STAGES: { key: TxStatus; label: string; icon: string }[] = [
+  { key: 'approving',  label: 'Wallet Approval',     icon: '🔐' },
+  { key: 'confirming', label: 'Sending to Solana',   icon: '📡' },
+  { key: 'done',       label: 'Confirmed On-Chain',  icon: '✅' },
+];
+
+export function TxProgress({
+  status, sig, error, cluster = 'devnet',
+}: {
+  status: TxStatus;
+  sig?: string | null;
+  error?: string | null;
+  cluster?: string;
+}) {
+  if (status === 'idle') return null;
+
+  const activeIdx = status === 'done' ? 2
+    : status === 'confirming' ? 1
+    : 0;
+
+  return (
+    <div style={{
+      borderRadius: 14, border: `1px solid ${status === 'error' ? C.red + '55' : C.accent + '33'}`,
+      background: status === 'error' ? `${C.red}08` : `${C.accent}06`,
+      padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14,
+    }}>
+      {/* Stage steps */}
+      <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+        {TX_STAGES.map((stage, i) => {
+          const isActive  = i === activeIdx && status !== 'done' && status !== 'error';
+          const isDone    = status === 'done' || i < activeIdx;
+          const isFuture  = i > activeIdx && status !== 'done';
+          return (
+            <div key={stage.key} style={{ display: 'flex', alignItems: 'center', flex: i < TX_STAGES.length - 1 ? 1 : undefined }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16,
+                  background: isDone ? `${C.green}22` : isActive ? `${C.accent}18` : 'rgba(255,255,255,.04)',
+                  border: `1.5px solid ${isDone ? C.green + '66' : isActive ? C.accent + '66' : C.border}`,
+                  boxShadow: isActive ? `0 0 12px ${C.accent}33` : 'none',
+                  transition: 'all .3s',
+                }}>
+                  {isDone ? '✓' : isActive ? (
+                    <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                  ) : stage.icon}
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
+                  color: isDone ? C.green : isActive ? '#e8e1f8' : C.muted,
+                }}>
+                  {stage.label}
+                </span>
+              </div>
+              {i < TX_STAGES.length - 1 && (
+                <div style={{
+                  flex: 1, height: 1.5, margin: '0 8px', marginBottom: 22,
+                  background: i < activeIdx || status === 'done' ? C.green + '66' : C.border,
+                  transition: 'background .3s',
+                }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Status message */}
+      {status === 'approving' && (
+        <div style={{ fontSize: 12.5, color: C.accent, textAlign: 'center' }}>
+          Open your wallet and approve the transaction…
+        </div>
+      )}
+      {status === 'confirming' && (
+        <div style={{ fontSize: 12.5, color: '#e8e1f8', textAlign: 'center' }}>
+          Transaction sent — waiting for Solana to confirm…
+        </div>
+      )}
+      {status === 'done' && sig && (
+        <div style={{ fontSize: 12, color: C.green, textAlign: 'center' }}>
+          ✓ Stream created on-chain ·{' '}
+          <a
+            href={`https://explorer.solana.com/tx/${sig}?cluster=${cluster}`}
+            target="_blank" rel="noreferrer"
+            style={{ color: C.green, textDecoration: 'underline' }}
+          >
+            {sig.slice(0, 8)}…{sig.slice(-6)} ↗
+          </a>
+        </div>
+      )}
+      {status === 'error' && error && (
+        <div style={{ fontSize: 12, color: C.red, textAlign: 'center', lineHeight: 1.6 }}>
+          ✗ {humanizeError(error)}
+        </div>
+      )}
+
+      {/* Spin keyframes injected inline */}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ─── Convert raw contract / RPC errors to user-friendly messages ─────────────
+export function humanizeError(e: unknown): string {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  if (msg.includes('user rejected') || msg.includes('user cancelled') || msg.includes('user denied'))
+    return 'Transaction cancelled — you rejected the wallet prompt.';
+  if (msg.includes('insufficient funds') || msg.includes('insufficient balance') || msg.includes('insufficient lamports'))
+    return 'Insufficient balance — not enough tokens or SOL for fees.';
+  if (msg.includes('blockhash') || msg.includes('expired'))
+    return 'Transaction expired — please try again.';
+  if (msg.includes('already in use') || msg.includes('already exists'))
+    return 'Stream account already exists at this address.';
+  if (msg.includes('invalid account data') || msg.includes('incorrect program id'))
+    return 'Program not deployed — ensure the vesting program is on devnet.';
+  if (msg.includes('0x1') || msg.includes('custom program error: 0x1'))
+    return 'Insufficient token balance for this stream amount.';
+  if (msg.includes('0x11') || msg.includes('arithmetic'))
+    return 'Arithmetic overflow — reduce the stream amount.';
+  if (msg.includes('wallet not connected') || msg.includes('not connected'))
+    return 'Wallet not connected — connect Phantom or Solflare first.';
+  if (msg.includes('403') || msg.includes('forbidden'))
+    return 'RPC blocked this request — switching endpoint automatically.';
+  if (msg.includes('timeout') || msg.includes('timed out'))
+    return 'Network timeout — Solana devnet may be slow. Retry in a moment.';
+  if (msg.includes('failed to fetch') || msg.includes('network'))
+    return 'Network error — check your connection and try again.';
+  // Fallback: surface the raw message, capped at 120 chars
+  const raw = (e instanceof Error ? e.message : String(e));
+  return raw.length > 120 ? raw.slice(0, 117) + '…' : raw;
+}
+
+// ─── Convert game gate level → on-chain required tier (0 | 1 | 2) ────────────
+export function levelToTier(level: number): 0 | 1 | 2 {
+  if (level <= 0)  return 0;  // no gate
+  if (level <= 25) return 1;  // beginner / intermediate
+  return 2;                   // advanced / expert
+}
+
 // ─── Shared page shell ────────────────────────────────────────────────────────
 export function StreamPageShell({
   typeLabel, typeIcon, typeColor, subtitle, children, sidebar,

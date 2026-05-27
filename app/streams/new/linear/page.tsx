@@ -2,19 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
+  FieldError, TxProgress, humanizeError, levelToTier,
 } from '../_shared';
 
 export default function LinearPage() {
   const { connected }  = useWallet();
   const { setVisible } = useWalletModal();
-  const [done, setDone] = useState(false);
-
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
@@ -25,30 +25,56 @@ export default function LinearPage() {
   const [cliffDays,  setCliffDays]  = useState(30);
   const [vestDays,   setVestDays]   = useState(365);
   const [cancelable, setCancelable] = useState(false);
-
-  const [gameGate,  setGameGate]  = useState(false);
-  const [gameLevel, setGameLevel] = useState(10);
+  const [gameGate,   setGameGate]   = useState(false);
+  const [gameLevel,  setGameLevel]  = useState(10);
+  const [fieldErrors,setFieldErrors]= useState<Record<string, string>>({});
 
   const COLOR   = C.accent;
   const deposit = Number(amount) || 0;
   const daily   = vestDays > 0 ? (deposit / vestDays).toFixed(2) : '0';
   const perSec  = vestDays > 0 ? (deposit / (vestDays * 86400)).toFixed(6) : '0';
 
-  const handleCreate = async () => {
-    if (!connected) { setVisible(true); return; }
-    const now     = Math.floor(Date.now() / 1000);
-    const startTs = startDate ? Math.floor(new Date(startDate).getTime() / 1000) : now;
-    const cliffTs = startTs + cliffDays * 86400;
-    const endTs   = cliffTs + vestDays * 86400;
-    const reqTier = (gameGate ? (gameLevel <= 10 ? 1 : 2) : 0) as 0 | 1 | 2;
-    const ok = await submit({ beneficiary: recipient, token, amount, startTs, cliffTs, endTs, requiredTier: reqTier });
-    if (ok) setDone(true);
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!token) errs.token = 'Select a token';
+    if (mode === 'manual') {
+      if (!recipient) {
+        errs.recipient = 'Enter recipient wallet address';
+      } else {
+        try { new PublicKey(recipient); }
+        catch { errs.recipient = 'Not a valid Solana address (check for typos)'; }
+      }
+      if (!amount || Number(amount) <= 0) errs.amount = 'Enter an amount greater than 0';
+    }
+    if (!startDate) errs.startDate = 'Select a start date';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  if (done) return (
+  const handleCreate = async () => {
+    if (!connected) { setVisible(true); return; }
+    if (!validate()) return;
+
+    const startTs = Math.floor(new Date(startDate).getTime() / 1000);
+    const cliffTs = startTs + cliffDays * 86400;
+    const endTs   = cliffTs + vestDays * 86400;
+
+    await submit({
+      beneficiary:  recipient,
+      token,
+      amount,
+      startTs,
+      cliffTs,
+      endTs,
+      requiredTier: gameGate ? levelToTier(gameLevel) : 0,
+    });
+  };
+
+  /* ─── Success screen ──────────────────────────────────────────────── */
+  if (txStatus === 'done') return (
     <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8',
       display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: C.serif }}>
-      <div style={{ textAlign: 'center', maxWidth: 440 }}>
+      <div style={{ textAlign: 'center', maxWidth: 460, padding: '0 24px' }}>
         <div style={{ fontSize: 52, marginBottom: 20 }}>📈</div>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: C.gold, marginBottom: 8 }}>Stream Created!</h2>
         <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
@@ -57,11 +83,11 @@ export default function LinearPage() {
         </p>
         {txSig && (
           <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}44`, fontSize: 12, color: C.green }}>
-            ✓ Tx:{' '}
+            background: `${C.green}0a`, border: `1px solid ${C.green}33`, fontSize: 12 }}>
+            <span style={{ color: C.muted }}>Tx: </span>
             <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
-              target="_blank" rel="noreferrer" style={{ color: C.green }}>
-              {txSig.slice(0, 8)}…{txSig.slice(-6)} ↗
+              target="_blank" rel="noreferrer" style={{ color: C.green, wordBreak: 'break-all' }}>
+              {txSig} ↗
             </a>
           </div>
         )}
@@ -70,7 +96,7 @@ export default function LinearPage() {
             padding: '11px 24px', borderRadius: 11, textDecoration: 'none', fontWeight: 700, fontSize: 13,
             background: `linear-gradient(135deg,${COLOR},${C.accentDk})`, color: '#fff',
           }}>View Streams →</Link>
-          <button onClick={() => { setDone(false); reset(); }} style={{
+          <button onClick={reset} style={{
             padding: '11px 24px', borderRadius: 11, border: `1px solid ${C.border}`,
             background: 'rgba(255,255,255,.03)', color: C.muted, fontSize: 13,
             cursor: 'pointer', fontFamily: C.serif,
@@ -80,6 +106,7 @@ export default function LinearPage() {
     </main>
   );
 
+  /* ─── Main form ───────────────────────────────────────────────────── */
   return (
     <StreamPageShell
       typeLabel="Linear" typeIcon="📈" typeColor={COLOR}
@@ -91,7 +118,7 @@ export default function LinearPage() {
           recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel}
           onSubmit={handleCreate}
-          txStatus={txStatus} txErr={txErr} isSubmitting={isSubmitting}
+          isSubmitting={isSubmitting}
         />
       }
     >
@@ -101,27 +128,38 @@ export default function LinearPage() {
 
         <div>
           <Label required>Token</Label>
-          <SSelect value={token} onChange={setToken} placeholder="Select Token"
+          <SSelect value={token}
+            onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
+            placeholder="Select Token"
             options={[
               { v: 'BBT',  l: 'BBT — BlockBite Token' },
               { v: 'USDC', l: 'USDC' },
               { v: 'SOL',  l: 'SOL (wrapped)' },
             ]}
           />
+          <FieldError msg={fieldErrors.token} />
         </div>
 
         {mode === 'manual' && (
           <>
             <div>
               <Label required>Recipient</Label>
-              <SInput value={recipient} onChange={setRecipient} placeholder="Solana wallet address…" />
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
-                Tokens unlock continuously to this wallet from cliff to end date
-              </div>
+              <SInput value={recipient}
+                onChange={v => { setRecipient(v); setFieldErrors(p => ({ ...p, recipient: '' })); }}
+                placeholder="Solana wallet address…" />
+              <FieldError msg={fieldErrors.recipient} />
+              {!fieldErrors.recipient && (
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+                  Tokens unlock continuously to this wallet from cliff to end date
+                </div>
+              )}
             </div>
             <div>
               <Label required>Total Amount</Label>
-              <SInput value={amount} onChange={setAmount} placeholder="e.g. 1000000" type="number" prefix="◎" />
+              <SInput value={amount}
+                onChange={v => { setAmount(v); setFieldErrors(p => ({ ...p, amount: '' })); }}
+                placeholder="e.g. 1000000" type="number" prefix="◎" />
+              <FieldError msg={fieldErrors.amount} />
             </div>
           </>
         )}
@@ -147,27 +185,23 @@ export default function LinearPage() {
         <div style={{ fontSize: 12, color: C.muted }}>
           Tokens unlock continuously over time, from cliff date to end date.
         </div>
-
         <div>
-          <Label>Start Date</Label>
-          <SInput value={startDate} onChange={setStartDate} type="date" placeholder="" />
+          <Label required>Start Date</Label>
+          <SInput value={startDate}
+            onChange={v => { setStartDate(v); setFieldErrors(p => ({ ...p, startDate: '' })); }}
+            type="date" placeholder="" />
+          <FieldError msg={fieldErrors.startDate} />
         </div>
-
-        <SSlider
-          label="Cliff Period" value={cliffDays} onChange={setCliffDays}
+        <SSlider label="Cliff Period" value={cliffDays} onChange={setCliffDays}
           min={0} max={730} unit=" days" color={C.ember}
-          note={cliffDays === 0 ? 'No cliff' : `Cliff: Day ${cliffDays}`}
-        />
-        <SSlider
-          label="Vesting Duration" value={vestDays} onChange={setVestDays}
+          note={cliffDays === 0 ? 'No cliff' : `Cliff: Day ${cliffDays}`} />
+        <SSlider label="Vesting Duration" value={vestDays} onChange={setVestDays}
           min={30} max={1460} unit=" days" color={COLOR}
-          note={`Completes: Day ${cliffDays + vestDays}`}
-        />
-
+          note={`Completes: Day ${cliffDays + vestDays}`} />
         {deposit > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
-              { l: 'Cliff unlock',  v: `Day ${cliffDays}`,           c: C.ember  },
+              { l: 'Cliff unlock',  v: `Day ${cliffDays}`,            c: C.ember  },
               { l: 'Fully vested',  v: `Day ${cliffDays + vestDays}`, c: COLOR    },
               { l: 'Daily rate',    v: `${daily} ${token || 'T'}/day`,c: C.green  },
               { l: 'Per second',    v: `${perSec} T/s`,               c: C.blue   },
@@ -183,11 +217,14 @@ export default function LinearPage() {
       </Section>
 
       <Section title="Unlock Requirements">
-        <GameGateCard
-          enabled={gameGate} onChange={setGameGate}
-          level={gameLevel} onLevelChange={setGameLevel}
-        />
+        <GameGateCard enabled={gameGate} onChange={setGameGate}
+          level={gameLevel} onLevelChange={setGameLevel} />
       </Section>
+
+      {/* 3-stage TX progress */}
+      {(isSubmitting || txStatus === 'error') && (
+        <TxProgress status={txStatus} sig={txSig} error={txErr ? humanizeError(txErr) : null} />
+      )}
 
       <div style={{ padding: '11px 15px', borderRadius: 10,
         background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, fontSize: 12, color: C.gold }}>
