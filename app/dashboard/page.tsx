@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import Navbar from '@/components/Navbar';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
@@ -278,44 +278,10 @@ export default function DashboardPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: BG, color: '#fff' }}>
-
-      {/* Navbar */}
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 32px', borderBottom: '1px solid #1a1a2e',
-        position: 'sticky', top: 0, background: BG, zIndex: 50,
-      }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <Image src="/logo.png" alt="BLOCKBITE" width={32} height={32} />
-          <span style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, color: '#fff', fontSize: 18 }}>
-            BLOCKBITE
-          </span>
-        </Link>
-        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-          <Link href="/distribute" style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, color: PURPLE, fontWeight: 700, textDecoration: 'none' }}>DISTRIBUTE</Link>
-          <Link href="/game"        style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, color: '#888', textDecoration: 'none' }}>PLAY</Link>
-          <Link href="/leaderboard" style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 14, color: '#888', textDecoration: 'none' }}>LEADERBOARD</Link>
-          {connected ? (
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: TEAL }}>
-              {publicKey ? shortPk(publicKey) : ''}
-            </span>
-          ) : (
-            <button
-              onClick={() => setVisible(true)}
-              style={{
-                padding: '8px 20px', background: `linear-gradient(135deg, ${MAGENTA}, ${PURPLE})`,
-                border: 'none', borderRadius: 8, color: '#fff',
-                fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-              }}
-            >
-              Connect Wallet
-            </button>
-          )}
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero */}
-      <div style={{ padding: '48px 32px 24px', maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ padding: '88px 32px 24px', maxWidth: 960, margin: '0 auto' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: TEAL, letterSpacing: 2, marginBottom: 8 }}>
           TOKEN DISTRIBUTION PROTOCOL
         </div>
