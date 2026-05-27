@@ -303,7 +303,6 @@ function FinishFlag({ x, y, biome }: { x: number; y: number; biome: Biome }) {
 
 const NAV_ITEMS = [
   { href: '/game',        label: 'Play' },
-  { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/shop',        label: 'Shop' },
   { href: '/how-to-play', label: 'Guide' },
 ];
