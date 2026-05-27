@@ -14,6 +14,26 @@ const CustomWalletButton = dynamic(
   { ssr: false, loading: () => <div style={{ height: 36 }} /> }
 );
 
+// ─── Design System tokens (mirrors Navbar / globals.css) ──────────────────────
+const DS = {
+  bg:       'rgba(8,8,26,0.92)',
+  blur:     'blur(20px)',
+  border:   'rgba(167,139,255,0.15)',
+  borderSub:'rgba(167,139,255,0.08)',
+  surface:  'rgba(255,255,255,0.04)',
+  surface2: 'rgba(255,255,255,0.07)',
+  accent:   '#a78bfa',       // purple
+  accentDk: '#c4b5fd',
+  textDim:  '#94a3b8',
+  font:     "'Space Grotesk', system-ui, sans-serif",
+  fontMono: "'JetBrains Mono', monospace",
+  kicker: {
+    fontSize: 9, letterSpacing: 2.5, fontWeight: 700,
+    color: '#a78bfa', textTransform: 'uppercase' as const,
+  },
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
 /**
  * Backdrop3D is intentionally a no-op as of 2026-05-16.
  *
@@ -103,12 +123,13 @@ function Pill({ label, value, biome, small }: {
 }) {
   return (
     <div style={{
-      padding: small ? '6px 10px' : '8px 12px', borderRadius: 12,
-      background: 'rgba(0,0,0,0.4)', border: `1px solid ${biome.accent}44`,
-      display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
+      padding: small ? '7px 10px' : '9px 12px', borderRadius: 10,
+      background: DS.surface, border: `1px solid ${DS.border}`,
+      display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0,
+      fontFamily: DS.font,
     }}>
-      <div style={{ fontSize: 9, letterSpacing: 1.5, color: biome.glow, opacity: 0.85 }}>{label}</div>
-      <div style={{ fontSize: small ? 12 : 14, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ ...DS.kicker, color: DS.textDim, letterSpacing: 1.5 }}>{label}</div>
+      <div style={{ fontSize: small ? 12 : 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {value}
       </div>
     </div>
@@ -238,19 +259,14 @@ function ActSelector({ biome }: { biome: Biome }) {
   return (
     <div style={{
       flexShrink: 0,
-      padding: '8px 12px',
-      display: 'flex', alignItems: 'center', gap: 8,
-      background: 'rgba(8,8,22,0.7)', backdropFilter: 'blur(14px)',
-      borderTop: `1px solid ${biome.accent}22`,
-      borderBottom: `1px solid ${biome.accent}33`,
+      padding: '0 12px',
+      height: 48,
+      display: 'flex', alignItems: 'center', gap: 6,
+      background: DS.bg, backdropFilter: DS.blur,
+      borderBottom: `1px solid ${DS.border}`,
       overflowX: 'auto', whiteSpace: 'nowrap',
+      scrollbarWidth: 'none',
     }}>
-      <span style={{
-        fontSize: 10, letterSpacing: 2, color: biome.glow, opacity: 0.7,
-        marginRight: 6, flexShrink: 0,
-      }}>
-        ACTS
-      </span>
       {BIOMES.map((b) => {
         const active = b.id === biome.id;
         return (
@@ -259,27 +275,29 @@ function ActSelector({ biome }: { biome: Biome }) {
             href={`/map/${b.act}`}
             style={{
               flexShrink: 0,
-              padding: '7px 13px', borderRadius: 999,
-              background: active
-                ? `linear-gradient(135deg, ${b.accent}, ${b.glow})`
-                : 'rgba(255,255,255,0.04)',
-              border: active
-                ? `1px solid ${b.glow}`
-                : `1px solid ${b.accent}33`,
-              color: active ? '#0a0a14' : '#cbd5e1',
-              fontSize: 11, fontWeight: active ? 900 : 600,
-              letterSpacing: 1, textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              boxShadow: active ? `0 0 14px ${b.accent}66` : 'none',
+              padding: '5px 12px', borderRadius: 999,
+              background: active ? `linear-gradient(135deg, ${b.accent}dd, ${b.glow}cc)` : DS.surface,
+              border: active ? `1px solid ${b.glow}88` : `1px solid ${DS.border}`,
+              color: active ? '#0a0a14' : DS.textDim,
+              fontSize: 11, fontWeight: active ? 800 : 500,
+              letterSpacing: active ? 0.5 : 0,
+              textDecoration: 'none',
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              boxShadow: active ? `0 2px 12px ${b.accent}55` : 'none',
+              fontFamily: DS.font,
+              transition: 'all 0.15s',
             }}
           >
             <span style={{
-              width: 8, height: 8, borderRadius: 2,
+              width: 6, height: 6, borderRadius: '50%',
               background: b.accent,
-              boxShadow: `0 0 6px ${b.glow}`,
+              boxShadow: `0 0 5px ${b.glow}`,
+              flexShrink: 0,
             }} />
-            {`ACT ${['I','II','III','IV','V','VI','VII','VIII'][b.act - 1]}`}
-            <span style={{ opacity: active ? 0.7 : 0.5, fontWeight: 600 }}>
+            <span style={{ fontWeight: 800, fontSize: 10, letterSpacing: 0.5 }}>
+              {['I','II','III','IV','V','VI','VII','VIII'][b.act - 1]}
+            </span>
+            <span style={{ opacity: active ? 0.75 : 0.45, fontSize: 10 }}>
               {b.name}
             </span>
           </Link>
@@ -345,53 +363,83 @@ function DesktopRail({
   const displayName = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : username;
+
   return (
     <div style={{
-      width: 240, flexShrink: 0, padding: 24,
-      background: 'rgba(8,8,22,0.55)', backdropFilter: 'blur(16px)',
-      borderRight: `1px solid ${biome.accent}33`,
-      display: 'flex', flexDirection: 'column', gap: 6,
-      height: '100%',
-      position: 'relative', zIndex: 2,
+      width: 200, flexShrink: 0,
+      background: DS.bg, backdropFilter: DS.blur,
+      borderRight: `1px solid ${DS.border}`,
+      display: 'flex', flexDirection: 'column',
+      height: '100%', position: 'relative', zIndex: 2,
+      fontFamily: DS.font,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <Avatar biome={biome} small />
-        <div>
-          <div style={{ fontSize: 10, letterSpacing: 1.5, color: biome.glow }}>{tier.toUpperCase()}</div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{displayName}</div>
-          <div style={{ fontSize: 10, opacity: 0.55, color: '#94a3b8' }}>{gamesPlayed} games played</div>
+
+      {/* ── Player identity block ── */}
+      <div style={{
+        padding: '18px 16px 14px',
+        borderBottom: `1px solid ${DS.borderSub}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar biome={biome} small />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ ...DS.kicker, marginBottom: 2 }}>{tier}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
+            </div>
+            <div style={{ fontSize: 10, color: DS.textDim, marginTop: 1 }}>
+              {gamesPlayed} games played
+            </div>
+          </div>
         </div>
       </div>
-      {NAV_ITEMS.map((item) => (
-        <Link key={item.href} href={item.href} style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 14px', borderRadius: 10,
-          background: item.href === '/game' ? `${biome.accent}22` : 'transparent',
-          border: item.href === '/game' ? `1px solid ${biome.accent}55` : '1px solid transparent',
-          color: item.href === '/game' ? biome.glow : '#cbd5e1',
-          fontSize: 14, fontWeight: item.href === '/game' ? 700 : 500,
-          textDecoration: 'none',
-        }}>
-          {item.label}
-        </Link>
-      ))}
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+      {/* ── Navigation ── */}
+      <div style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV_ITEMS.map((item) => {
+          const active = item.href === '/game';
+          return (
+            <Link key={item.href} href={item.href} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 10,
+              background: active ? 'rgba(167,139,255,0.12)' : 'transparent',
+              border: `1px solid ${active ? 'rgba(167,139,255,0.3)' : 'transparent'}`,
+              color: active ? DS.accentDk : DS.textDim,
+              fontSize: 13, fontWeight: active ? 700 : 500,
+              textDecoration: 'none', fontFamily: DS.font,
+              transition: 'all 0.15s',
+            }}>
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* ── Bottom stats + wallet ── */}
+      <div style={{
+        marginTop: 'auto',
+        padding: '12px 12px 16px',
+        borderTop: `1px solid ${DS.borderSub}`,
+        display: 'flex', flexDirection: 'column', gap: 6,
+      }}>
+        {/* Reward chip */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '6px 10px', borderRadius: 14,
-          background: 'rgba(0,0,0,0.45)', border: `1px solid ${biome.glow}55`,
-          fontSize: 13, fontWeight: 700, color: '#fff', width: '100%',
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '7px 11px', borderRadius: 10,
+          background: DS.surface, border: `1px solid ${biome.glow}44`,
+          fontSize: 12, fontWeight: 700, color: '#fff',
         }}>
-          <span style={{ color: biome.glow }}>◆</span> {cfg.reward} / level
+          <span style={{ color: biome.glow, fontSize: 13 }}>◆</span>
+          <span>{cfg.reward} / level</span>
         </div>
+        {/* Ticket chip */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '6px 10px', borderRadius: 14,
-          background: 'rgba(0,0,0,0.45)', border: '1px solid #fde04755',
-          fontSize: 13, fontWeight: 700, color: '#fff', width: '100%',
+          display: 'flex', alignItems: 'center', gap: 7,
+          padding: '7px 11px', borderRadius: 10,
+          background: DS.surface, border: '1px solid rgba(253,224,71,0.22)',
+          fontSize: 12, fontWeight: 700, color: '#fff',
         }}>
-          <span style={{ color: '#fde047', fontWeight: 900, fontSize: 10 }}>TKT</span>
-          {tickets} ticket{tickets !== 1 ? 's' : ''}
+          <span style={{ color: '#fde047', fontWeight: 900, fontSize: 9, letterSpacing: 1 }}>TKT</span>
+          <span>{tickets} ticket{tickets !== 1 ? 's' : ''}</span>
         </div>
         <div style={{ marginTop: 4 }}>
           <CustomWalletButton />
