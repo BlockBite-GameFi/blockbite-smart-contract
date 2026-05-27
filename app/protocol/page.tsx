@@ -154,17 +154,18 @@ export default function ProtocolPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 12 }}>
               {[
-                { type: 'Linear',    col: T.accent,  icon: '📈', desc: 'Constant unlock rate after cliff. Ideal for team & advisor allocations.',     href: '/streams/new/linear'    },
-                { type: 'Cliff',     col: T.gold,    icon: '🪨', desc: 'Hard lock until milestone, then immediate release. Simple & predictable.',     href: '/streams/new/cliff'     },
-                { type: 'Milestone', col: T.blue,    icon: '🏁', desc: 'Percentage unlocks tied to product deliverables. Accountability-first.',       href: '/streams/new/milestone' },
-                { type: 'Hybrid',    col: '#c084fc', icon: '⚡', desc: 'Cliff + linear curve. Best of both: initial lock with gradual release.',       href: '/streams/new/hybrid'    },
+                { type: 'Linear',    col: T.accent,  icon: '∿',  desc: 'Constant unlock rate after cliff. Ideal for team & advisor allocations.',     href: '/streams/new/linear'    },
+                { type: 'Cliff',     col: T.gold,    icon: '◇',  desc: 'Hard lock until milestone, then immediate release. Simple & predictable.',     href: '/streams/new/cliff'     },
+                { type: 'Milestone', col: T.blue,    icon: '◉',  desc: 'Percentage unlocks tied to product deliverables. Accountability-first.',       href: '/streams/new/milestone' },
+                { type: 'Hybrid',    col: '#c084fc', icon: '⬡',  desc: 'Cliff + linear curve. Best of both: initial lock with gradual release.',       href: '/streams/new/hybrid'    },
               ].map(m => (
                 <Link key={m.type} href={m.href} style={{ textDecoration: 'none' }}>
                   <Card style={{ padding: '18px 20px', display: 'flex', gap: 14, cursor: 'pointer', transition: 'border-color .15s', borderColor: `${m.col}22` }}>
                     <div style={{
                       width: 44, height: 44, borderRadius: 12, flexShrink: 0,
                       background: `${m.col}18`, border: `1px solid ${m.col}44`,
-                      display: 'grid', placeItems: 'center', fontSize: 22,
+                      display: 'grid', placeItems: 'center', fontSize: 20,
+                      fontFamily: T.mono, fontWeight: 700, color: m.col,
                     }}>
                       {m.icon}
                     </div>
@@ -187,16 +188,16 @@ export default function ProtocolPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 14 }}>
               {[
-                { step: '01', title: 'Configure',  icon: '⚙️', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
-                { step: '02', title: 'Deploy',     icon: '🚀', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
-                { step: '03', title: 'Verify',     icon: '✅', desc: 'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
-                { step: '04', title: 'Claim',      icon: '💎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
+                { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
+                { step: '02', title: 'Deploy',     icon: '▲', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
+                { step: '03', title: 'Verify',     icon: '✦', desc: 'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
+                { step: '04', title: 'Claim',      icon: '◎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
               ].map(s => (
                 <Card key={s.step} style={{ textAlign: 'center', padding: '20px 16px' }}>
                   <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: T.accent, marginBottom: 8, fontFamily: T.mono }}>
                     STEP {s.step}
                   </div>
-                  <div style={{ fontSize: 28, marginBottom: 10 }}>{s.icon}</div>
+                  <div style={{ fontSize: 26, marginBottom: 10, color: T.accent, fontWeight: 700 }}>{s.icon}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 6, fontFamily: T.serif }}>
                     {s.title}
                   </div>
