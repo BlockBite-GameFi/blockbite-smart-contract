@@ -31,7 +31,7 @@ const I18N = {
       { v: '', l: 'WAITLIST', dynamic: true },
     ],
     features: [
-      { color: PURPLE,  t: 'Modular Verification Layers', d: 'Take control over how users access their tokens. Choose from simple direct claims, multisig approvals, oracle, or gamified verification to act as an anti-bots filter.' },
+      { color: PURPLE,  t: 'Modular Verification Layers', d: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
       { color: TEAL,    t: 'Adaptive Tokenomics Logic', d: 'Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project\'s unique roadmap and specific distribution needs.' },
       { color: MAGENTA, t: 'Eliminate Manual Overhead', d: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.' },
       { color: GOLD,    t: 'Active Clawback Control', d: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.' },
@@ -44,7 +44,7 @@ const I18N = {
     steps: [
       { t: 'Connect & Import Data', d: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
       { t: 'Define Tokenomics', d: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
-      { t: 'Set Verification Layer', d: 'Choose Direct Claim for simplicity or add Verification Layers like multisig, oracles, or gamified challenges.' },
+      { t: 'Set Verification Layer', d: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.' },
       { t: 'Lock, Launch & Manage', d: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
     ],
     footer: '© 2026 BlockBite · Built on Solana',
@@ -64,7 +64,7 @@ const I18N = {
       { v: '', l: 'WAITLIST', dynamic: true },
     ],
     features: [
-      { color: PURPLE,  t: 'Lapisan Verifikasi Modular', d: 'Kendalikan cara pengguna mengakses token mereka. Pilih dari klaim langsung, persetujuan multisig, oracle, atau verifikasi gamified sebagai filter anti-bot.' },
+      { color: PURPLE,  t: 'Lapisan Verifikasi Modular', d: 'Kendalikan cara pengguna mengakses token mereka. Pilih antara klaim langsung yang sederhana untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
       { color: TEAL,    t: 'Logika Tokenomics Adaptif', d: 'Pilih antara linear streaming, cliff vesting, atau milestone based unlocks yang sesuai dengan roadmap unik proyekmu dan kebutuhan distribusi spesifik.' },
       { color: MAGENTA, t: 'Hilangkan Overhead Manual', d: 'Berhenti membuang ratusan jam untuk distribusi manual dan pengecekan spreadsheet silang.' },
       { color: GOLD,    t: 'Kontrol Clawback Aktif', d: 'Lindungi treasurymu dari kontrak yang gagal atau pivot proyek. Fitur clawback bawaan kami memungkinkan builder merebut kembali token yang belum vested secara instan.' },
@@ -77,7 +77,7 @@ const I18N = {
     steps: [
       { t: 'Hubungkan & Impor Data', d: 'Hubungkan walletmu dan upload daftar penerima via CSV atau input manual dalam hitungan detik.' },
       { t: 'Tentukan Tokenomics', d: 'Sesuaikan strategi perilisan menggunakan linear vesting, periode cliff, atau distribusi berbasis milestone.' },
-      { t: 'Atur Lapisan Verifikasi', d: 'Pilih Direct Claim untuk kemudahan atau tambahkan Verification Layer seperti multisig, oracle, atau tantangan gamified.' },
+      { t: 'Atur Lapisan Verifikasi', d: 'BlockBite adalah mesin terintegrasi untuk logistik token otomatis. Kami menghilangkan kerumitan dan risiko manajemen manual dengan sistem otomatis yang menangani vesting, streaming, dan distribusi dengan lapisan keamanan fleksibel, memastikan treasury Anda terlindungi dan token Anda terkirim dengan presisi tinggi.' },
       { t: 'Kunci, Luncurkan & Kelola', d: 'Kunci aset untuk mengotomasi klaim pengguna. Monitor distribusi secara real-time dengan kontrol Clawback penuh.' },
     ],
     footer: '© 2026 BlockBite · Dibangun di Solana',

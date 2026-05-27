@@ -32,17 +32,17 @@ const VERIFY_METHODS = [
   {
     icon: '⬡',
     color: DS.blue,
-    title: 'Automated',
-    sub: 'Always On',
-    desc: 'Token streams run fully on-chain. No manual intervention needed — conditions execute the moment they are met.',
-    badge: 'Fully Automated',
+    title: 'Direct Claim',
+    sub: 'Fastest Setup',
+    desc: 'The fastest setup for simple distributions. Users can claim their tokens instantly as soon as the schedule unlocks without any extra steps or requirements.',
+    badge: 'No Extra Steps',
   },
   {
     icon: '◈',
     color: '#c084fc',
-    title: 'Game',
+    title: 'Gamified',
     sub: 'Play to Unlock',
-    desc: 'Recipients earn milestone unlocks through the BlockBite puzzle game. Gamified, sybil-resistant, and on-chain verifiable.',
+    desc: 'The defense against automated bots. Users must complete and pass a specific level or reach a target milestone in the game to unlock their tokens.',
     badge: 'Sybil-Resistant',
   },
   {
@@ -101,8 +101,8 @@ const HOW_IT_WORKS = [
   {
     num: '03',
     color: '#c084fc',
-    title: 'Recipients Claim',
-    desc: 'When tokens unlock, recipients connect their wallet and claim only what is already vested. No manual transfers, no trust required.',
+    title: 'Set Verification Layer',
+    desc: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.',
   },
   {
     num: '04',
@@ -369,8 +369,8 @@ export default function Home() {
               {
                 icon: '◈', color: DS.accent,
                 title: 'Modular Verification Layers',
-                desc: 'Take control over how users access their tokens. Choose from simple direct claims, multisig approvals, oracle, or gamified verification to act as an anti-bots filter.',
-                tags: ['Direct Claim', 'Multisig', 'Oracle', 'Gamified'],
+                desc: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.',
+                tags: ['Direct Claim', 'Gamified'],
               },
               {
                 icon: '∿', color: DS.blue,
@@ -637,15 +637,15 @@ export default function Home() {
               },
               {
                 q: 'Who controls the locked tokens?',
-                a: 'Nobody. Tokens are locked in a PDA-controlled vault — a program-derived address with no private key. Only the on-chain program can release tokens, and only when the vesting schedule allows it.',
+                a: 'Tokens are secured in audited, non-custodial smart contracts on Solana. Neither BlockBite nor outside parties can touch them. As the builder, you retain exclusive emergency control via our clawback feature to reclaim unvested tokens if conditions change.',
               },
               {
                 q: 'What vesting schedules are supported?',
-                a: 'Cliff vesting (all tokens at a single date), linear vesting (gradual release over time), and milestone-gated tranches. All schedules support an optional cliff period before linear release begins.',
+                a: 'We support highly adaptive tokenomics logic. You can use linear streaming for second-by-second unlocks, cliff schedules for timed lockups, or milestone-based unlocks that release tokens only when project goals are achieved.',
               },
               {
-                q: 'What is the game verification layer?',
-                a: 'Recipients can earn milestone unlocks by playing the BlockBite puzzle game. It\'s gamified, sybil-resistant, and the result is fully verifiable on-chain — no one can fake a score.',
+                q: 'What is the gamified verification layer?',
+                a: 'It is a mechanical filter built to block automated scripts and farming bots. When active, users must complete a specific level or reach a target milestone in a game to prove they are human before the smart contract unlocks their tokens.',
               },
               {
                 q: 'What happens if a stream is cancelled?',
