@@ -74,7 +74,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Back to Landing Page — only visible on sub-pages */}
+          {/* ← Home — only visible on sub-pages */}
           {pathname !== '/' && (
             <Link href="/" style={{
               display: 'flex', alignItems: 'center', gap: 5,
@@ -98,7 +98,7 @@ export default function Navbar() {
                 (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.12)';
               }}
             >
-              ← Landing Page
+              ← Home
             </Link>
           )}
         </div>
@@ -168,7 +168,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className={styles.mobileMenu}>
 
-          {/* Back to Landing Page — mobile */}
+          {/* ← Home — mobile */}
           {pathname !== '/' && (
             <Link
               href="/"
@@ -184,7 +184,7 @@ export default function Navbar() {
                 fontFamily: DS.font, letterSpacing: '.03em',
               }}
             >
-              ← Landing Page
+              ← Home
             </Link>
           )}
 

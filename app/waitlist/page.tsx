@@ -257,20 +257,6 @@ export default function WaitlistPage() {
         {/* ── Hero ── */}
         <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '96px 24px 48px', gap: 28, animation: 'bbSlide 0.6s ease both' }}>
 
-          {/* Lang switcher — floated to top of content area */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: 999, padding: 3, gap: 3, alignSelf: 'flex-end', marginBottom: -8 }}>
-            {(['en','id'] as Lang[]).map(l => (
-              <button key={l} onClick={() => setLang(l)} style={{
-                border: 'none', background: lang === l ? MAGENTA : 'transparent',
-                color: lang === l ? '#fff' : dim,
-                padding: '6px 14px', borderRadius: 999, fontWeight: 700, fontSize: 11,
-                cursor: 'pointer', fontFamily: 'Montserrat,sans-serif', transition: '0.15s', letterSpacing: '0.5px',
-              }}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
           {/* Headline */}
           <h1 style={{ fontSize: 'clamp(36px,8vw,90px)', fontWeight: 900, lineHeight: 0.95, letterSpacing: '-2px', maxWidth: 820, margin: 0, fontFamily: 'Montserrat,sans-serif' }}>
             {txt.h1}<br/>
@@ -283,6 +269,20 @@ export default function WaitlistPage() {
           <p style={{ fontSize: 'clamp(15px,2vw,19px)', color: '#c8ccd6', maxWidth: 600, lineHeight: 1.65, margin: 0, fontFamily: 'Roboto,sans-serif', fontWeight: 400 }}>
             {txt.sub}
           </p>
+
+          {/* Lang switcher — centered inline with content */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', border: `1px solid ${border}`, borderRadius: 999, padding: 3, gap: 3 }}>
+            {(['en','id'] as Lang[]).map(l => (
+              <button key={l} onClick={() => setLang(l)} style={{
+                border: 'none', background: lang === l ? MAGENTA : 'transparent',
+                color: lang === l ? '#fff' : dim,
+                padding: '6px 18px', borderRadius: 999, fontWeight: 700, fontSize: 11,
+                cursor: 'pointer', fontFamily: 'Montserrat,sans-serif', transition: '0.15s', letterSpacing: '1px',
+              }}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
 
           {/* Floating block decorations */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 }}>
