@@ -36,6 +36,7 @@ const TDP_LINKS = [
 ];
 
 const NAV_LINKS = [
+  { name: 'HOME',         href: '/' },
   { name: 'PRODUCT',      href: '/protocol' },
   { name: 'HOW IT WORKS', href: '/how-to-play' },
   { name: 'PLAY GAME',    href: '/map/1' },

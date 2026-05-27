@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 /* ── BlockBite Brand ── */
 const MAGENTA  = '#b12c84';
@@ -251,6 +252,7 @@ export default function WaitlistPage() {
       <canvas ref={cvs} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, opacity: 0.22 }} />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
+        <Navbar />
 
         {/* Nav */}
         <nav style={{

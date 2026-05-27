@@ -14,6 +14,7 @@
  */
 
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 
 // ─── Design System ────────────────────────────────────────────────────────────
 const C = {
@@ -151,8 +152,12 @@ export default function DemoPage() {
   return (
     <div style={{ minHeight: '100vh', background: C.bg0, color: '#f0ecff', fontFamily: C.sora, paddingBottom: 80 }}>
 
+      {/* ── Standard Navbar ── */}
+      <Navbar />
+
       {/* ── DEMO BANNER ── */}
       <div style={{
+        marginTop: 64,
         background: `linear-gradient(135deg, ${C.gold}22, ${C.ember}18)`,
         border: `2px solid ${C.gold}55`,
         borderRadius: 0,
