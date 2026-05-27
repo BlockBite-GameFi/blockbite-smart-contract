@@ -60,9 +60,9 @@ skills-lock.json
 .agents/
 
 # ─── AI dev tool session data (Claude Code internal) ─────────────────────────
-# CLAUDE.md and AGENTS.md are kept (transparent AI tool disclosure).
-# Only ephemeral session/permission settings are excluded.
-.claude/settings.json
+# CLAUDE.md, AGENTS.md, and .claude/settings.json are committed:
+# settings.json holds pasal-27 project-wide automation hooks.
+# Only personal overrides and ephemeral data are excluded.
 .claude/settings.local.json
 .claude/worktrees/
 

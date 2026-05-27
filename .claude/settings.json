@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".claude/hooks/ts-check.js\"",
+            "async": true,
+            "asyncRewake": true,
+            "statusMessage": "🔍 TypeScript check (pasal-27)…",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "node \".claude/hooks/api-guard.js\"",
+            "asyncRewake": true,
+            "statusMessage": "🔐 API auth guard (pasal-27)…",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".claude/hooks/stop-summary.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
