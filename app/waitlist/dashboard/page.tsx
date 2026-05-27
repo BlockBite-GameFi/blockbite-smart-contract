@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Navbar from '@/components/Navbar';
 
 const BG     = '#0a0a0f';
 const CARD   = '#13131a';
@@ -267,6 +268,8 @@ export default function DashboardPage() {
   // ── Login screen ───────────────────────────────────────────────────────────
   if (!loggedIn) {
     return (
+      <>
+      <Navbar />
       <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 40, width: '100%', maxWidth: 400 }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -287,6 +290,7 @@ export default function DashboardPage() {
           </form>
         </div>
       </div>
+      </>
     );
   }
 
@@ -296,7 +300,8 @@ export default function DashboardPage() {
   const byDay      = totalStats?.byDay ?? [];
 
   return (
-    <div style={{ minHeight: '100vh', background: BG, padding: '24px 16px', fontFamily: 'system-ui, sans-serif', color: TEXT }}>
+    <div style={{ minHeight: '100vh', background: BG, padding: '88px 16px 24px', fontFamily: 'system-ui, sans-serif', color: TEXT }}>
+      <Navbar />
       <div style={{ maxWidth: 1100, margin: '0 auto' }}>
 
         {/* ── Header ── */}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import { getStoredReports, clearReports, ErrorReport, ErrorSeverity } from '@/lib/analytics/errorReporter';
 import { TIER_COLORS } from '@/lib/game/stages';
 
@@ -47,6 +48,7 @@ export default function DevDashboard() {
 
   return (
     <div style={{ background: '#060614', minHeight: '100vh', color: '#CCCCEE', fontFamily: 'monospace', padding: '24px' }}>
+      <Navbar />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
         <div style={{ fontSize: '28px', fontWeight: 900, letterSpacing: '2px', color: '#FF2244' }}>

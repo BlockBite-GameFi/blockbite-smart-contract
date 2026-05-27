@@ -78,24 +78,24 @@ export default function Navbar() {
           {pathname !== '/' && (
             <Link href="/" style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              padding: '5px 13px', borderRadius: 8,
-              border: '1px solid rgba(167,139,255,.22)',
-              background: 'rgba(167,139,255,.07)',
-              color: 'rgba(232,225,248,.55)',
-              fontSize: 11.5, fontWeight: 700,
+              padding: '6px 14px', borderRadius: 8,
+              border: '1px solid rgba(167,139,255,.45)',
+              background: 'rgba(167,139,255,.12)',
+              color: '#c4b5fd',
+              fontSize: 12, fontWeight: 700,
               textDecoration: 'none', letterSpacing: '.04em',
               fontFamily: DS.font, whiteSpace: 'nowrap',
               transition: 'all .15s',
             }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.color = '#a78bff';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.55)';
-                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.14)';
+                (e.currentTarget as HTMLElement).style.color = '#fff';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.8)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.22)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.color = 'rgba(232,225,248,.55)';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.22)';
-                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.07)';
+                (e.currentTarget as HTMLElement).style.color = '#c4b5fd';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.45)';
+                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.12)';
               }}
             >
               ← Landing Page
@@ -176,10 +176,10 @@ export default function Navbar() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 margin: '4px 16px 8px',
-                padding: '10px 16px', borderRadius: 10,
-                border: '1px solid rgba(167,139,255,.22)',
-                background: 'rgba(167,139,255,.07)',
-                color: 'rgba(232,225,248,.65)',
+                padding: '11px 16px', borderRadius: 10,
+                border: '1px solid rgba(167,139,255,.45)',
+                background: 'rgba(167,139,255,.12)',
+                color: '#c4b5fd',
                 fontSize: 13, fontWeight: 700, textDecoration: 'none',
                 fontFamily: DS.font, letterSpacing: '.03em',
               }}
