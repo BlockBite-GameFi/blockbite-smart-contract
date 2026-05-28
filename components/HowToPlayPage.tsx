@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { useApp } from '@/lib/useApp';
 
 /* ── Constants ──────────────────────────────────────────────── */
 const NAV_SECTIONS = [
@@ -107,6 +108,7 @@ const FAQ_ITEMS = [
 
 /* ── Component ──────────────────────────────────────────────── */
 export default function HowToPlayPage() {
+  const { lang } = useApp();
   const [active, setActive] = useState('intro');
   const [openFaq, setOpenFaq] = useState<string | null>(null);
 
@@ -133,9 +135,9 @@ export default function HowToPlayPage() {
 
   /* Shared panel style */
   const panel = (extra?: React.CSSProperties): React.CSSProperties => ({
-    background: 'rgba(18,18,42,0.8)',
+    background: 'var(--ds-surface)',
     backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.07)',
+    border: '1px solid var(--ds-border)',
     borderRadius: 16,
     ...extra,
   });
@@ -150,7 +152,7 @@ export default function HowToPlayPage() {
         fontFamily: "'Orbitron', monospace",
         fontSize: 20,
         fontWeight: 800,
-        color: '#FFFFFF',
+        color: 'var(--ds-text)',
         margin: 0,
         letterSpacing: '0.03em',
       }}>{label}</h2>
@@ -160,7 +162,7 @@ export default function HowToPlayPage() {
   return (
     <>
       <Navbar />
-      <main style={{ paddingTop: 72, minHeight: '100vh', paddingBottom: 100 }}>
+      <main style={{ paddingTop: 72, minHeight: '100vh', paddingBottom: 100, background: 'var(--ds-bg)', color: 'var(--ds-text)' }}>
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '0 24px' }}>
 
           {/* Page title */}
@@ -177,26 +179,28 @@ export default function HowToPlayPage() {
               letterSpacing: '0.1em',
               marginBottom: 14,
             }}>
-              GUIDE
+              {lang === 'id' ? 'PANDUAN' : 'GUIDE'}
             </div>
             <h1 style={{
               fontFamily: "'Orbitron', monospace",
               fontSize: 'clamp(28px, 5vw, 44px)',
               fontWeight: 900,
-              color: '#FFFFFF',
+              color: 'var(--ds-text)',
               margin: '0 0 12px',
             }}>
-              How to Play BlockBite
+              {lang === 'id' ? 'Cara Main BlockBite' : 'How to Play BlockBite'}
             </h1>
             <p style={{
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               fontSize: 16,
-              color: '#8888BB',
+              color: 'var(--ds-text-dim)',
               maxWidth: 540,
               margin: '0 auto',
               lineHeight: 1.6,
             }}>
-              Game mechanics + scoring + how TDP streams vesting prizes directly to your wallet.
+              {lang === 'id'
+                ? 'Mekanik permainan + skor + cara TDP mengalirkan hadiah vesting langsung ke wallet kamu.'
+                : 'Game mechanics + scoring + how TDP streams vesting prizes directly to your wallet.'}
             </p>
           </div>
 
@@ -219,7 +223,7 @@ export default function HowToPlayPage() {
                   <p style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontSize: 15,
-                    color: '#CCCCCC',
+                    color: 'var(--ds-text)',
                     lineHeight: 1.8,
                     margin: '0 0 20px',
                   }}>
@@ -236,7 +240,7 @@ export default function HowToPlayPage() {
                       { v: 'Auto',  l: 'Distribution',  c: '#00F5FF' },
                     ].map(stat => (
                       <div key={stat.l} style={{
-                        background: 'rgba(255,255,255,0.03)',
+                        background: 'var(--ds-surface2)',
                         border: `1px solid ${stat.c}22`,
                         borderRadius: 12,
                         padding: '16px',
@@ -252,7 +256,7 @@ export default function HowToPlayPage() {
                         <div style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 11,
-                          color: '#55557A',
+                          color: 'var(--ds-text-dim)',
                           letterSpacing: '0.08em',
                           textTransform: 'uppercase',
                         }}>{stat.l}</div>
@@ -290,13 +294,13 @@ export default function HowToPlayPage() {
                           fontFamily: "'Orbitron', monospace",
                           fontSize: 14,
                           fontWeight: 700,
-                          color: '#FFFFFF',
+                          color: 'var(--ds-text)',
                           marginBottom: 6,
                         }}>{step.title}</div>
                         <div style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 14,
-                          color: '#8888BB',
+                          color: 'var(--ds-text-dim)',
                           lineHeight: 1.6,
                         }}>{step.desc}</div>
                       </div>
@@ -325,9 +329,9 @@ export default function HowToPlayPage() {
                         alignItems: 'center',
                         gap: 12,
                         padding: '10px 14px',
-                        background: 'rgba(255,255,255,0.03)',
+                        background: 'var(--ds-surface2)',
                         borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,0.04)',
+                        border: '1px solid var(--ds-border)',
                       }}>
                         <kbd style={{
                           fontFamily: "'Orbitron', monospace",
@@ -343,7 +347,7 @@ export default function HowToPlayPage() {
                         <span style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 13,
-                          color: '#8888BB',
+                          color: 'var(--ds-text-dim)',
                         }}>{row.action}</span>
                       </div>
                     ))}
@@ -356,7 +360,7 @@ export default function HowToPlayPage() {
                     borderRadius: 10,
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontSize: 13,
-                    color: '#8888BB',
+                    color: 'var(--ds-text-dim)',
                     lineHeight: 1.6,
                   }}>
                     <span style={{ color: '#00F5FF', fontWeight: 600 }}>Game Over</span> when none of the 3 available pieces can fit anywhere on the board. No more moves = session ends and score is saved.
@@ -374,20 +378,20 @@ export default function HowToPlayPage() {
                     display: 'grid',
                     gridTemplateColumns: '14px 1fr auto auto',
                     padding: '10px 20px',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid var(--ds-border)',
                     gap: 16,
                   }}>
                     <div />
-                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: '#55557A', letterSpacing: '0.1em' }}>TYPE</div>
-                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: '#55557A', letterSpacing: '0.1em' }}>MULTIPLIER</div>
-                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: '#55557A', letterSpacing: '0.1em', textAlign: 'right' }}>BASE PTS</div>
+                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: 'var(--ds-text-dim)', letterSpacing: '0.1em' }}>TYPE</div>
+                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: 'var(--ds-text-dim)', letterSpacing: '0.1em' }}>MULTIPLIER</div>
+                    <div style={{ fontFamily: "'Orbitron', monospace", fontSize: 10, color: 'var(--ds-text-dim)', letterSpacing: '0.1em', textAlign: 'right' }}>BASE PTS</div>
                   </div>
                   {SCORING_TABLE.map((row, i) => (
                     <div key={row.clear} style={{
                       display: 'grid',
                       gridTemplateColumns: '14px 1fr auto auto',
                       padding: '13px 20px',
-                      borderBottom: i < SCORING_TABLE.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      borderBottom: i < SCORING_TABLE.length - 1 ? '1px solid var(--ds-border)' : 'none',
                       alignItems: 'center',
                       gap: 16,
                     }}>
@@ -400,7 +404,7 @@ export default function HowToPlayPage() {
                       <span style={{
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
                         fontSize: 14,
-                        color: '#CCCCCC',
+                        color: 'var(--ds-text)',
                       }}>{row.clear}</span>
                       <span style={{
                         fontFamily: "'Orbitron', monospace",
@@ -412,7 +416,7 @@ export default function HowToPlayPage() {
                       <span style={{
                         fontFamily: "'Orbitron', monospace",
                         fontSize: 12,
-                        color: '#55557A',
+                        color: 'var(--ds-text-dim)',
                         textAlign: 'right',
                       }}>{row.pts}</span>
                     </div>
@@ -458,7 +462,7 @@ export default function HowToPlayPage() {
                         <div style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 11,
-                          color: '#55557A',
+                          color: 'var(--ds-text-dim)',
                           marginTop: 4,
                         }}>
                           {c.n} {c.desc}
@@ -469,7 +473,7 @@ export default function HowToPlayPage() {
                   <p style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontSize: 12,
-                    color: '#55557A',
+                    color: 'var(--ds-text-dim)',
                     margin: '12px 0 0',
                     lineHeight: 1.5,
                   }}>
@@ -505,7 +509,7 @@ export default function HowToPlayPage() {
                       display: 'grid',
                       gridTemplateColumns: '80px 1fr 90px',
                       padding: '12px 20px',
-                      borderBottom: i < PRIZE_TIERS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                      borderBottom: i < PRIZE_TIERS.length - 1 ? '1px solid var(--ds-border)' : 'none',
                       alignItems: 'center',
                       gap: 16,
                     }}>
@@ -528,7 +532,7 @@ export default function HowToPlayPage() {
                         <div style={{
                           height: 8,
                           flex: 1,
-                          background: 'rgba(255,255,255,0.05)',
+                          background: 'var(--ds-surface2)',
                           borderRadius: 4,
                           overflow: 'hidden',
                         }}>
@@ -554,7 +558,7 @@ export default function HowToPlayPage() {
                       <div style={{
                         fontFamily: "'Orbitron', monospace",
                         fontSize: 12,
-                        color: '#55557A',
+                        color: 'var(--ds-text-dim)',
                         textAlign: 'right',
                       }}>
                         ${tier.pct.toFixed(0)}
@@ -567,8 +571,8 @@ export default function HowToPlayPage() {
                     padding: '10px 20px',
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontSize: 11,
-                    color: '#44445A',
-                    borderTop: '1px solid rgba(255,255,255,0.04)',
+                    color: 'var(--ds-text-dim)',
+                    borderTop: '1px solid var(--ds-border)',
                   }}>
                     * Estimate based on a $100 prize pool example. Actual amounts scale with the real pool.
                   </div>
@@ -610,7 +614,7 @@ export default function HowToPlayPage() {
                         <span style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 13,
-                          color: '#8888BB',
+                          color: 'var(--ds-text-dim)',
                           lineHeight: 1.5,
                         }}>{req}</span>
                       </div>
@@ -658,7 +662,7 @@ export default function HowToPlayPage() {
                         <span style={{
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 13,
-                          color: '#8888BB',
+                          color: 'var(--ds-text-dim)',
                           lineHeight: 1.5,
                         }}>{step.t}</span>
                       </div>
@@ -695,7 +699,7 @@ export default function HowToPlayPage() {
                     <div style={{
                       fontFamily: "'Plus Jakarta Sans', sans-serif",
                       fontSize: 13,
-                      color: '#8888BB',
+                      color: 'var(--ds-text-dim)',
                       lineHeight: 1.5,
                     }}>
                       Every distribution transaction is publicly recorded on Solana. After each period, the transaction hash will be posted so anyone can verify payouts on Solana Explorer.
@@ -711,7 +715,7 @@ export default function HowToPlayPage() {
                   <p style={{
                     fontFamily: "'Plus Jakarta Sans', sans-serif",
                     fontSize: 14,
-                    color: '#8888BB',
+                    color: 'var(--ds-text-dim)',
                     marginBottom: 24,
                     lineHeight: 1.6,
                   }}>
@@ -729,13 +733,13 @@ export default function HowToPlayPage() {
                           <span style={{
                             fontFamily: "'Plus Jakarta Sans', sans-serif",
                             fontSize: 14,
-                            color: '#FFFFFF',
+                            color: 'var(--ds-text)',
                             fontWeight: 600,
                           }}>{item.label}</span>
                           <span style={{
                             fontFamily: "'Plus Jakarta Sans', sans-serif",
                             fontSize: 12,
-                            color: '#55557A',
+                            color: 'var(--ds-text-dim)',
                             marginLeft: 8,
                           }}>— {item.sub}</span>
                         </div>
@@ -748,7 +752,7 @@ export default function HowToPlayPage() {
                       </div>
                       <div style={{
                         height: 8,
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'var(--ds-surface2)',
                         borderRadius: 4,
                         overflow: 'hidden',
                       }}>
@@ -777,7 +781,7 @@ export default function HowToPlayPage() {
                         cursor: 'pointer',
                         border: openFaq === faq.q
                           ? '1px solid rgba(255,0,255,0.2)'
-                          : '1px solid rgba(255,255,255,0.06)',
+                          : '1px solid var(--ds-border)',
                         transition: 'border-color 0.2s',
                       })}
                       onClick={() => setOpenFaq(openFaq === faq.q ? null : faq.q)}
@@ -793,7 +797,7 @@ export default function HowToPlayPage() {
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 15,
                           fontWeight: 600,
-                          color: '#FFFFFF',
+                          color: 'var(--ds-text)',
                           userSelect: 'none',
                         }}>{faq.q}</span>
                         <span style={{
@@ -810,9 +814,9 @@ export default function HowToPlayPage() {
                           padding: '0 20px 16px',
                           fontFamily: "'Plus Jakarta Sans', sans-serif",
                           fontSize: 14,
-                          color: '#8888BB',
+                          color: 'var(--ds-text-dim)',
                           lineHeight: 1.7,
-                          borderTop: '1px solid rgba(255,255,255,0.05)',
+                          borderTop: '1px solid var(--ds-border)',
                           paddingTop: 14,
                         }}>
                           {faq.a}
@@ -828,24 +832,24 @@ export default function HowToPlayPage() {
                 textAlign: 'center',
                 padding: '40px 32px',
                 background: 'linear-gradient(135deg, rgba(0,245,255,0.05), rgba(255,0,255,0.05))',
-                border: '1px solid rgba(255,255,255,0.08)',
+                border: '1px solid var(--ds-border)',
                 borderRadius: 24,
               }}>
                 <h3 style={{
                   fontFamily: "'Orbitron', monospace",
                   fontSize: 20,
-                  color: '#FFFFFF',
+                  color: 'var(--ds-text)',
                   marginBottom: 10,
-                }}>Ready to compete?</h3>
+                }}>{lang === 'id' ? 'Siap Bersaing?' : 'Ready to compete?'}</h3>
                 <p style={{
                   fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  color: '#8888BB',
+                  color: 'var(--ds-text-dim)',
                   marginBottom: 24,
                   fontSize: 14,
-                }}>Jump into the map and start playing, or buy tickets to enter the leaderboard.</p>
+                }}>{lang === 'id' ? 'Masuk ke peta dan mulai bermain, atau beli tiket untuk masuk ke papan peringkat.' : 'Jump into the map and start playing, or buy tickets to enter the leaderboard.'}</p>
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <Link href="/map" className="btn btn-primary btn-lg">Play Now →</Link>
-                  <Link href="/shop" className="btn btn-secondary btn-lg">Buy Tickets</Link>
+                  <Link href="/map" className="btn btn-primary btn-lg">{lang === 'id' ? 'Main Sekarang →' : 'Play Now →'}</Link>
+                  <Link href="/shop" className="btn btn-secondary btn-lg">{lang === 'id' ? 'Beli Tiket' : 'Buy Tickets'}</Link>
                 </div>
               </div>
 
@@ -860,7 +864,7 @@ export default function HowToPlayPage() {
               <div style={{
                 fontFamily: "'Orbitron', monospace",
                 fontSize: 10,
-                color: '#44445A',
+                color: 'var(--ds-text-dim)',
                 letterSpacing: '0.12em',
                 marginBottom: 14,
                 paddingLeft: 12,
@@ -880,7 +884,7 @@ export default function HowToPlayPage() {
                         borderRadius: 8,
                         fontFamily: "'Plus Jakarta Sans', sans-serif",
                         fontSize: 13,
-                        color: active === s.id ? '#FFFFFF' : '#55557A',
+                        color: active === s.id ? 'var(--ds-text)' : 'var(--ds-text-dim)',
                         fontWeight: active === s.id ? 700 : 400,
                         borderLeft: `3px solid ${active === s.id ? '#00F5FF' : 'transparent'}`,
                         transition: 'all 0.15s',
@@ -911,26 +915,26 @@ export default function HowToPlayPage() {
                     letterSpacing: '0.05em',
                   }}
                 >
-                  PLAY NOW
+                  {lang === 'id' ? 'MAIN SEKARANG' : 'PLAY NOW'}
                 </Link>
                 <Link
                   href="/shop"
                   style={{
                     display: 'block',
                     textAlign: 'center',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#8888BB',
+                    background: 'var(--ds-surface2)',
+                    color: 'var(--ds-text-dim)',
                     fontFamily: "'Orbitron', monospace",
                     fontSize: 11,
                     fontWeight: 700,
                     padding: '10px 0',
                     borderRadius: 10,
                     textDecoration: 'none',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    border: '1px solid var(--ds-border)',
                     letterSpacing: '0.05em',
                   }}
                 >
-                  BUY TICKETS
+                  {lang === 'id' ? 'BELI TIKET' : 'BUY TICKETS'}
                 </Link>
               </div>
             </nav>{/* end RIGHT */}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useApp } from '@/lib/useApp';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -116,6 +117,7 @@ function humanizeRpcError(e: unknown): string {
 type RawStream = NonNullable<Awaited<ReturnType<typeof fetchStream>>>;
 
 export default function StreamDetailPage() {
+  const { lang } = useApp();
   const params   = useParams();
   const idParam  = params?.id as string | undefined;
 
@@ -284,10 +286,10 @@ export default function StreamDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <Link href="/streams" style={{ color: C.accent, textDecoration: 'none', fontSize: 13 }}>
-            ← All Streams
+            {lang === 'id' ? '← Semua Stream' : '← All Streams'}
           </Link>
           <Link href="/demo#streams" style={{ color: C.muted, textDecoration: 'none', fontSize: 13 }}>
-            View demo data
+            {lang === 'id' ? 'Lihat data demo' : 'View demo data'}
           </Link>
         </div>
       </div>
@@ -400,7 +402,7 @@ export default function StreamDetailPage() {
       }}>
         <div>
           <div style={{ marginBottom: 4 }}>
-            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>← All Streams</Link>
+            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>{lang === 'id' ? '← Semua Stream' : '← All Streams'}</Link>
           </div>
           <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: 'var(--p-text)', margin: 0 }}>
             Stream Detail
@@ -439,9 +441,9 @@ export default function StreamDetailPage() {
                 opacity: claiming ? 0.6 : 1,
               }}
             >
-              {claimStage === 'approving'  ? '◈ Approve in wallet…'
-               : claimStage === 'confirming' ? '▶ Confirming on Solana…'
-               : `Claim ${fmtTokens(claimable)} tokens`}
+              {claimStage === 'approving'  ? (lang === 'id' ? '◈ Setujui di wallet…' : '◈ Approve in wallet…')
+               : claimStage === 'confirming' ? (lang === 'id' ? '▶ Mengonfirmasi di Solana…' : '▶ Confirming on Solana…')
+               : lang === 'id' ? `Klaim ${fmtTokens(claimable)} token` : `Claim ${fmtTokens(claimable)} tokens`}
             </button>
           )}
           {!publicKey && claimable > 0n && (
@@ -468,7 +470,7 @@ export default function StreamDetailPage() {
             >
               {cancelStage === 'approving'  ? '◈ Approve in wallet…'
                : cancelStage === 'confirming' ? '▶ Confirming on Solana…'
-               : 'Cancel Stream'}
+               : lang === 'id' ? 'Batalkan Stream' : 'Cancel Stream'}
             </button>
           )}
         </div>
@@ -487,12 +489,13 @@ export default function StreamDetailPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
             <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: 'var(--p-text)', margin: '0 0 10px' }}>
-              Cancel this stream?
+              {lang === 'id' ? 'Batalkan stream ini?' : 'Cancel this stream?'}
             </h2>
             <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 12px' }}>
-              This action is <strong style={{ color: C.red }}>irreversible</strong>.
-              All unvested tokens will be returned to your wallet.
-              The beneficiary keeps tokens already vested.
+              {lang === 'id'
+                ? <>{`Tindakan ini `}<strong style={{ color: C.red }}>tidak dapat dibatalkan</strong>{`. Semua token yang belum vesting akan dikembalikan ke wallet kamu. Penerima tetap mendapatkan token yang sudah vesting.`}</>
+                : <>{'This action is '}<strong style={{ color: C.red }}>irreversible</strong>{'. All unvested tokens will be returned to your wallet. The beneficiary keeps tokens already vested.'}</>
+              }
             </p>
             {/* Clawback risk disclosure — informs both creator and any observers */}
             <div style={{
@@ -516,7 +519,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                Yes, Cancel Stream
+                {lang === 'id' ? 'Ya, Batalkan Stream' : 'Yes, Cancel Stream'}
               </button>
               <button
                 onClick={() => setConfirmCancel(false)}
@@ -526,7 +529,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                Keep Stream
+                {lang === 'id' ? 'Pertahankan Stream' : 'Keep Stream'}
               </button>
             </div>
           </div>
@@ -551,7 +554,7 @@ export default function StreamDetailPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
                   {s.done ? '✓' : '·'}
                 </div>
-                <span style={{ fontSize: 11, color: s.done ? C.green : i === (claimStage === 'confirming' ? 1 : 0) ? '#e8e1f8' : C.muted,
+                <span style={{ fontSize: 11, color: s.done ? C.green : i === (claimStage === 'confirming' ? 1 : 0) ? 'var(--ds-text)' : C.muted,
                   whiteSpace: 'nowrap' }}>{s.label}</span>
                 {i < 2 && <div style={{ width: 24, height: 1, background: C.border, marginLeft: 4 }} />}
               </div>
@@ -637,7 +640,7 @@ export default function StreamDetailPage() {
         {/* KPI row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,140px),1fr))', gap: 12 }}>
           {[
-            { l: 'Total',       v: fmtTokens(total),                                                  c: '#fff'    },
+            { l: lang === 'id' ? 'Total' : 'Total',       v: fmtTokens(total),                                                  c: 'var(--ds-text)' },
             { l: 'Claimed',     v: fmtTokens(withdrawn),                                              c: C.green   },
             { l: 'Unlocked',    v: fmtTokens(claimable),                                              c: C.gold    },
             { l: 'Still Locked',v: fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n),    c: C.accent  },
@@ -794,10 +797,10 @@ export default function StreamDetailPage() {
                         {done ? '✓' : i + 1}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, color: done ? '#fff' : C.muted, fontWeight: done ? 600 : 400 }}>
-                          Milestone {i + 1}
+                        <div style={{ fontSize: 12, color: done ? 'var(--ds-text)' : C.muted, fontWeight: done ? 600 : 400 }}>
+                          {lang === 'id' ? 'Milestone' : 'Milestone'} {i + 1}
                         </div>
-                        <div style={{ fontSize: 9.5, color: C.muted }}>{pct}% unlock · {done ? 'verified' : 'pending'}</div>
+                        <div style={{ fontSize: 9.5, color: C.muted }}>{pct}% unlock · {done ? (lang === 'id' ? 'terverifikasi' : 'verified') : (lang === 'id' ? 'menunggu' : 'pending')}</div>
                       </div>
                       <div style={{ fontFamily: C.mono, fontSize: 11, color: done ? C.green : C.muted }}>
                         {pct}%

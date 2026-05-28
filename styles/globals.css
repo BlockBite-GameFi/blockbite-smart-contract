@@ -399,6 +399,23 @@ h1, h2, h3 {
   --p3:       #fbbf24;
   --p4:       #f472b6;
   --grad:     var(--ds-grad);
+
+  /* Palette aliases — maps --p-* → --ds-* so components need no code changes */
+  --p-accent:    var(--ds-accent);
+  --p-accent-dk: var(--ds-accent2);
+  --p-gold:      var(--ds-gold);
+  --p-green:     var(--ds-green);
+  --p-blue:      var(--ds-blue);
+  --p-red:       var(--ds-red);
+  --p-ember:     var(--ds-red);
+  --p-border:    var(--ds-border);
+  --p-bg0:       var(--ds-bg);
+  --p-bg1:       var(--ds-bg1);
+  --p-bg2:       var(--ds-bg2);
+  --p-muted:     var(--ds-text-dim);
+  --p-text:      var(--ds-text);
+  --p-cyan:      #00F5FF;
+  --p-grad-alt:  var(--ds-grad);
 }
 
 /* Segmented control (used on onboarding, settings) */

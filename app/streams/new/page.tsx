@@ -2,23 +2,23 @@
 
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { T } from '@/lib/theme';
+import { useApp } from '@/lib/useApp';
 
-// ─── Design tokens (matches _shared palette) ─────────────────────────────────
+// ─── Design tokens — all structural colors use CSS vars ──────────────────────
 const C = {
-  accent:   '#a78bfa',
-  accentDk: '#5e35d4',
-  gold:     '#f5c66a',
-  green:    '#5fd07a',
-  blue:     '#7ad7ff',
-  ember:    '#ff7a3a',
-  purple:   '#c084fc',
-  muted:    'var(--p-muted)',
-  border:   'var(--p-border)',
-  bg0:      'var(--p-bg0)',
-  bg1:      'var(--p-bg1)',
-  bg2:      'var(--p-bg2)',
-  serif:    "'Space Grotesk', system-ui, sans-serif",
-  mono:     "'JetBrains Mono', monospace",
+  accent:  T.accent,
+  gold:    T.gold,
+  green:   T.green,
+  blue:    T.blue,
+  purple:  T.accent,  // secondary accent
+  muted:   T.textDim,
+  border:  T.border,
+  bg0:     T.bg,
+  bg1:     T.bg1,
+  bg2:     T.bg2,
+  serif:   T.serif,
+  mono:    T.mono,
 } as const;
 
 // ─── Stream type definitions ──────────────────────────────────────────────────
@@ -67,14 +67,15 @@ const TYPES = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function NewStreamTypePicker() {
+  const { lang } = useApp();
   return (
-    <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <main style={{ minHeight: '100vh', background: C.bg0, color: T.text, fontFamily: C.serif }}>
       <Navbar />
 
       {/* Header */}
       <div style={{
         padding: '80px 32px 36px',
-        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
+        background: T.header,
         borderBottom: `1px solid ${C.border}`,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
@@ -83,14 +84,15 @@ export default function NewStreamTypePicker() {
             fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 18,
             padding: '4px 10px', borderRadius: 7, border: `1px solid ${C.border}`,
             background: 'rgba(255,255,255,.02)',
-          }}>← Back to Streams</Link>
+          }}>{lang === 'id' ? '← Kembali ke Stream' : '← Back to Streams'}</Link>
 
-          <h1 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 900, margin: '0 0 10px', color: '#fff' }}>
-            Choose Stream Type
+          <h1 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 900, margin: '0 0 10px', color: T.text }}>
+            {lang === 'id' ? 'Pilih Tipe Stream' : 'Choose Stream Type'}
           </h1>
           <p style={{ fontSize: 14, color: C.muted, margin: 0, lineHeight: 1.6, maxWidth: 560 }}>
-            Select a vesting mechanic. Each creates a Solana PDA vault with different unlock conditions.
-            All support the BlockBite Game Gate for level-based recipient requirements.
+            {lang === 'id'
+              ? 'Pilih mekanisme vesting. Setiap stream membuat PDA vault Solana dengan kondisi unlock berbeda. Semua mendukung BlockBite Game Gate.'
+              : 'Select a vesting mechanic. Each creates a Solana PDA vault with different unlock conditions. All support the BlockBite Game Gate for level-based recipient requirements.'}
           </p>
         </div>
       </div>
@@ -133,7 +135,7 @@ export default function NewStreamTypePicker() {
                     fontSize: 24,
                   }}>{t.icon}</div>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-.01em' }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: T.text, letterSpacing: '-.01em' }}>
                       {t.label} Vesting
                     </div>
                     <div style={{ fontSize: 12, color: t.color, fontWeight: 600, marginTop: 2 }}>
@@ -172,7 +174,7 @@ export default function NewStreamTypePicker() {
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   marginTop: 'auto',
                 }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>Create stream →</span>
+                  <span style={{ fontSize: 12, color: C.muted }}>{lang === 'id' ? 'Buat stream →' : 'Create stream →'}</span>
                   <div style={{
                     width: 32, height: 32, borderRadius: 9,
                     background: `${t.color}14`, border: `1px solid ${t.color}44`,
@@ -193,12 +195,13 @@ export default function NewStreamTypePicker() {
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>◈</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e8e1f8', marginBottom: 3 }}>
-              All stream types support BlockBite Game Gate
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 3 }}>
+              {lang === 'id' ? 'Semua tipe stream mendukung BlockBite Game Gate' : 'All stream types support BlockBite Game Gate'}
             </div>
             <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>
-              Any stream can require the recipient to complete BlockBite levels 1–50 before unlocking.
-              Level tier ranges: Beginner (1–10) · Intermediate (11–25) · Advanced (26–40) · Expert (41–50)
+              {lang === 'id'
+                ? 'Stream apa pun dapat mengharuskan penerima menyelesaikan level BlockBite 1–50 sebelum membuka. Tier: Pemula (1–10) · Menengah (11–25) · Lanjutan (26–40) · Ahli (41–50)'
+                : 'Any stream can require the recipient to complete BlockBite levels 1–50 before unlocking. Level tier ranges: Beginner (1–10) · Intermediate (11–25) · Advanced (26–40) · Expert (41–50)'}
             </div>
           </div>
         </div>
