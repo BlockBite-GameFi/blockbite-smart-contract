@@ -93,3 +93,4 @@ desktop.ini
 *-keypair.json
 *.keypair.json
 wallet-*.json
+.superstack/
