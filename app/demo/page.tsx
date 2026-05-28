@@ -18,12 +18,12 @@ import Navbar from '@/components/Navbar';
 
 // ─── Design System ────────────────────────────────────────────────────────────
 const C = {
-  bg0: '#05040d', bg1: '#09071a', bg2: '#0e0c22',
+  bg0: '#08081a', bg1: '#09081e', bg2: '#0e0c22',
   accent: '#a78bff', gold: '#f5c66a', green: '#5fd07a',
   red: '#ff3b6b', blue: '#7ad7ff', purple: '#c084fc', ember: '#ff7a3a',
   muted: 'rgba(232,225,248,.38)', border: 'rgba(167,139,255,.13)',
   card: 'rgba(255,255,255,.042)',
-  sora: "'Sora',system-ui,sans-serif",
+  sora: "'Space Grotesk',system-ui,sans-serif",
   mono: "'JetBrains Mono',monospace",
   sg:   "'Space Grotesk',system-ui,sans-serif",
 };
@@ -150,7 +150,7 @@ function SectionHeader({ id, title, sub }: { id: string; title: string; sub: str
 
 export default function DemoPage() {
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, color: '#f0ecff', fontFamily: C.sora, paddingBottom: 80 }}>
+    <div style={{ minHeight: '100vh', background: C.bg0, color: '#f0ecff', fontFamily: C.sg, paddingBottom: 80 }}>
 
       {/* ── Standard Navbar ── */}
       <Navbar />

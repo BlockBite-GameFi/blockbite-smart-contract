@@ -11,8 +11,8 @@ import { createStream } from '@/lib/anchor/vesting-client';
 
 // ─── Design System V3 ─────────────────────────────────────────────────────────
 const DS = {
-  bg0:      '#05040d',
-  bg1:      '#09071a',
+  bg0:      '#08081a',
+  bg1:      '#09081e',
   bg2:      '#0e0c22',
   accent:   '#a78bff',
   accentDk: '#5e35d4',
@@ -25,7 +25,7 @@ const DS = {
   border:   'rgba(167,139,255,.13)',
   card:     'rgba(255,255,255,.042)',
   cinzel:   "'Space Grotesk', system-ui, sans-serif",
-  sora:     "'Sora', system-ui, sans-serif",
+  sora:     "'Space Grotesk', system-ui, sans-serif",
   mono:     "'JetBrains Mono', monospace",
 };
 
@@ -604,7 +604,7 @@ function NavButtons({
           padding: '12px 22px', borderRadius: 12, border: `1px solid rgba(167,139,255,.13)`,
           background: 'transparent', color: 'rgba(232,225,248,.38)',
           fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          fontFamily: "'Sora', system-ui, sans-serif",
+          fontFamily: "'Space Grotesk', system-ui, sans-serif",
         }}>
           ← Back
         </button>
@@ -617,7 +617,7 @@ function NavButtons({
             : `linear-gradient(135deg,#a78bff,#5e35d4)`,
           color: nextDisabled ? 'rgba(232,225,248,.38)' : '#fff',
           fontSize: 13, fontWeight: 700, cursor: nextDisabled ? 'not-allowed' : 'pointer',
-          letterSpacing: '.02em', fontFamily: "'Sora', system-ui, sans-serif",
+          letterSpacing: '.02em', fontFamily: "'Space Grotesk', system-ui, sans-serif",
           boxShadow: nextDisabled ? 'none' : '0 0 20px rgba(167,139,255,.3)',
           transition: 'all .15s',
         }}>
@@ -632,7 +632,7 @@ function NavButtons({
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '12px 14px', borderRadius: 10, boxSizing: 'border-box',
   background: 'rgba(255,255,255,.03)', border: '1px solid rgba(167,139,255,.13)',
-  color: '#f0ecff', fontSize: 14, fontFamily: "'Sora', system-ui, sans-serif", outline: 'none',
+  color: '#f0ecff', fontSize: 14, fontFamily: "'Space Grotesk', system-ui, sans-serif", outline: 'none',
 };
 const chipsRow: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 8 };
 function chipStyle(active: boolean): React.CSSProperties {
@@ -641,7 +641,7 @@ function chipStyle(active: boolean): React.CSSProperties {
     border: active ? '1px solid #a78bff' : '1px solid rgba(167,139,255,.13)',
     background: active ? 'rgba(167,139,255,.18)' : 'transparent',
     color: active ? '#a78bff' : 'rgba(232,225,248,.38)',
-    fontSize: 12, fontWeight: 700, fontFamily: "'Sora', system-ui, sans-serif",
+    fontSize: 12, fontWeight: 700, fontFamily: "'Space Grotesk', system-ui, sans-serif",
     transition: 'all .12s',
   };
 }

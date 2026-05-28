@@ -17,9 +17,9 @@ export const C = {
   gameDk:   '#16a34a',
   muted:    'rgba(148,163,184,.7)',
   border:   'rgba(167,139,250,.15)',
-  bg0:      '#05040d',
-  bg1:      '#09071a',
-  bg2:      '#0f0d1e',
+  bg0:      '#08081a',
+  bg1:      '#09081e',
+  bg2:      '#0f0d24',
   mono:     "'JetBrains Mono', monospace",
   serif:    "'Space Grotesk', system-ui, sans-serif",
 } as const;
@@ -550,7 +550,7 @@ export function StreamPageShell({
       <div style={{
         padding: '80px 32px 24px',
         borderBottom: `1px solid ${C.border}`,
-        background: 'linear-gradient(180deg,#0a0820 0%,#05040d 100%)',
+        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
       }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Link href="/streams/new" style={{

@@ -5,8 +5,8 @@ import { useApp } from '@/lib/useApp';
 import Link from 'next/link';
 
 const C = {
-  bg0:    '#05040d',
-  bg1:    '#09071a',
+  bg0:    '#08081a',
+  bg1:    '#09081e',
   bg2:    '#0f0d1e',
   accent: '#a78bfa',
   muted:  'rgba(148,163,184,.7)',
@@ -25,16 +25,10 @@ export default function SettingsPage() {
       {/* Header */}
       <div style={{
         padding: '80px 32px 36px',
-        background: 'linear-gradient(180deg,#0a0820 0%,#05040d 100%)',
+        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
         borderBottom: `1px solid ${C.border}`,
       }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <Link href="/" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 16,
-            padding: '4px 10px', borderRadius: 7, border: `1px solid ${C.border}`,
-            background: 'rgba(255,255,255,.02)',
-          }}>← Back to Home</Link>
           <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 6px', color: '#fff' }}>
             Settings
           </h1>

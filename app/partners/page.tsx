@@ -5,8 +5,8 @@ import Navbar from '@/components/Navbar';
 
 // ─── Design System V3 ─────────────────────────────────────────────────────────
 const DS = {
-  bg0:      '#05040d',
-  bg1:      '#09071a',
+  bg0:      '#08081a',
+  bg1:      '#09081e',
   bg2:      '#0e0c22',
   accent:   '#a78bff',
   accentDk: '#5e35d4',
@@ -19,7 +19,7 @@ const DS = {
   border:   'rgba(167,139,255,.13)',
   card:     'rgba(255,255,255,.042)',
   cinzel:   "'Space Grotesk', system-ui, sans-serif",
-  sora:     "'Sora', system-ui, sans-serif",
+  sora:     "'Space Grotesk', system-ui, sans-serif",
   mono:     "'JetBrains Mono', monospace",
 };
 

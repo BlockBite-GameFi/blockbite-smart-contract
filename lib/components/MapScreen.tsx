@@ -8,6 +8,7 @@ import { levelConfig } from '@/lib/game/levelConfig';
 import { getLevelTier } from '@/lib/game/constants';
 import { ART, buildPathD, generateLongNodes } from '@/lib/components/MapArt';
 import { BIOMES } from '@/lib/game/biomes';
+import styles from './MapScreen.module.css';
 
 const CustomWalletButton = dynamic(
   () => import('@/components/CustomWalletButton'),
@@ -255,51 +256,33 @@ function StarShape({ cx, cy, r, color }: { cx: number; cy: number; r: number; co
   return <polygon points={pts} fill={color} />;
 }
 
+const ACT_NUMERALS = ['I','II','III','IV','V','VI','VII','VIII'];
+
 function ActSelector({ biome }: { biome: Biome }) {
   return (
-    <div style={{
-      flexShrink: 0,
-      padding: '0 12px',
-      height: 48,
-      display: 'flex', alignItems: 'center', gap: 6,
-      background: DS.bg, backdropFilter: DS.blur,
-      borderBottom: `1px solid ${DS.border}`,
-      overflowX: 'auto', whiteSpace: 'nowrap',
-      scrollbarWidth: 'none',
-    }}>
+    <div className={styles.actStrip}>
       {BIOMES.map((b) => {
         const active = b.id === biome.id;
         return (
           <Link
             key={b.id}
             href={`/map/${b.act}`}
-            style={{
-              flexShrink: 0,
-              padding: '5px 12px', borderRadius: 999,
-              background: active ? `linear-gradient(135deg, ${b.accent}dd, ${b.glow}cc)` : DS.surface,
-              border: active ? `1px solid ${b.glow}88` : `1px solid ${DS.border}`,
-              color: active ? '#0a0a14' : DS.textDim,
-              fontSize: 11, fontWeight: active ? 800 : 500,
-              letterSpacing: active ? 0.5 : 0,
-              textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              boxShadow: active ? `0 2px 12px ${b.accent}55` : 'none',
-              fontFamily: DS.font,
-              transition: 'all 0.15s',
-            }}
+            className={`${styles.actLink} ${active ? styles.actLinkActive : ''}`}
+            style={active ? {
+              background: `${b.accent}20`,
+              borderColor: `${b.glow}55`,
+              color: b.glow,
+            } : undefined}
           >
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: b.accent,
-              boxShadow: `0 0 5px ${b.glow}`,
-              flexShrink: 0,
-            }} />
-            <span style={{ fontWeight: 800, fontSize: 10, letterSpacing: 0.5 }}>
-              {['I','II','III','IV','V','VI','VII','VIII'][b.act - 1]}
-            </span>
-            <span style={{ opacity: active ? 0.75 : 0.45, fontSize: 10 }}>
-              {b.name}
-            </span>
+            {active && (
+              /* CSS var bridges the dynamic biome color into the module class */
+              <span
+                className={styles.actDot}
+                style={{ '--dot-color': b.glow } as React.CSSProperties}
+              />
+            )}
+            <span className={styles.actNumeral}>{ACT_NUMERALS[b.act - 1]}</span>
+            {active && <span className={styles.actName}>{b.name}</span>}
           </Link>
         );
       })}
@@ -329,26 +312,28 @@ function MobileTabBar({ biome }: { biome: Biome }) {
   return (
     <div style={{
       flexShrink: 0,
-      padding: '10px 16px 16px',
-      background: 'rgba(8,8,22,0.96)', backdropFilter: 'blur(16px)',
-      borderTop: `1px solid ${biome.accent}33`,
+      padding: '8px 16px 14px',
+      background: DS.bg, backdropFilter: DS.blur,
+      borderTop: `1px solid ${DS.border}`,
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+      fontFamily: DS.font,
     }}>
-      {NAV_ITEMS.map((item) => (
-        <Link key={item.href} href={item.href} style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-          padding: '7px 12px', borderRadius: 16,
-          background: item.href === '/game'
-            ? `linear-gradient(135deg, ${biome.accent}, ${biome.glow})`
-            : 'transparent',
-          color: item.href === '/game' ? '#0a0a14' : '#cbd5e1',
-          fontWeight: item.href === '/game' ? 800 : 500,
-          fontSize: 10, textDecoration: 'none',
-          boxShadow: item.href === '/game' ? `0 0 16px ${biome.accent}88` : 'none',
-        }}>
-          {item.label}
-        </Link>
-      ))}
+      {NAV_ITEMS.map((item) => {
+        const active = item.href === '/game';
+        return (
+          <Link key={item.href} href={item.href} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            padding: '7px 16px', borderRadius: 12,
+            background: active ? `linear-gradient(135deg, ${biome.accent}dd, ${biome.glow}cc)` : 'transparent',
+            color: active ? '#0a0a14' : DS.textDim,
+            fontWeight: active ? 800 : 500,
+            fontSize: 11, textDecoration: 'none',
+            boxShadow: active ? `0 2px 14px ${biome.accent}66` : 'none',
+          }}>
+            {item.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }
@@ -361,89 +346,81 @@ function DesktopRail({
 }) {
   const cfg = levelConfig(currentLevel);
   const displayName = walletAddress
-    ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+    ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`
     : username;
 
   return (
     <div style={{
-      width: 200, flexShrink: 0,
-      background: DS.bg, backdropFilter: DS.blur,
+      width: 160, flexShrink: 0,
+      background: 'rgba(8,8,26,0.97)', backdropFilter: DS.blur,
       borderRight: `1px solid ${DS.border}`,
       display: 'flex', flexDirection: 'column',
       height: '100%', position: 'relative', zIndex: 2,
       fontFamily: DS.font,
     }}>
 
-      {/* ── Player identity block ── */}
-      <div style={{
-        padding: '18px 16px 14px',
-        borderBottom: `1px solid ${DS.borderSub}`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* ── Player ── */}
+      <div style={{ padding: '14px 12px 10px', borderBottom: `1px solid ${DS.borderSub}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Avatar biome={biome} small />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ ...DS.kicker, marginBottom: 2 }}>{tier}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 8, letterSpacing: 2, fontWeight: 700, color: DS.accent, textTransform: 'uppercase', marginBottom: 1 }}>
+              {tier}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
               {displayName}
             </div>
-            <div style={{ fontSize: 10, color: DS.textDim, marginTop: 1 }}>
-              {gamesPlayed} games played
+            <div style={{ fontSize: 9, color: DS.textDim, marginTop: 1 }}>
+              {gamesPlayed} played
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Navigation ── */}
-      <div style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {/* ── Nav ── */}
+      <nav style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
         {NAV_ITEMS.map((item) => {
           const active = item.href === '/game';
           return (
             <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 12px', borderRadius: 10,
-              background: active ? 'rgba(167,139,255,0.12)' : 'transparent',
-              border: `1px solid ${active ? 'rgba(167,139,255,0.3)' : 'transparent'}`,
+              display: 'block',
+              padding: '8px 10px',
+              borderRadius: 8,
+              borderLeft: `2px solid ${active ? DS.accent : 'transparent'}`,
+              background: active ? 'rgba(167,139,255,0.07)' : 'transparent',
               color: active ? DS.accentDk : DS.textDim,
-              fontSize: 13, fontWeight: active ? 700 : 500,
+              fontSize: 12, fontWeight: active ? 700 : 400,
               textDecoration: 'none', fontFamily: DS.font,
-              transition: 'all 0.15s',
+              transition: 'color 0.15s, background 0.15s',
+              letterSpacing: active ? 0.2 : 0,
             }}>
               {item.label}
             </Link>
           );
         })}
-      </div>
+      </nav>
 
-      {/* ── Bottom stats + wallet ── */}
+      {/* ── Stats + Wallet — compact single row ── */}
       <div style={{
         marginTop: 'auto',
-        padding: '12px 12px 16px',
+        padding: '10px 10px 12px',
         borderTop: `1px solid ${DS.borderSub}`,
         display: 'flex', flexDirection: 'column', gap: 6,
       }}>
-        {/* Reward chip */}
+        {/* Single-row inline stats */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 7,
-          padding: '7px 11px', borderRadius: 10,
-          background: DS.surface, border: `1px solid ${biome.glow}44`,
-          fontSize: 12, fontWeight: 700, color: '#fff',
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '5px 8px', borderRadius: 8,
+          background: DS.surface, border: `1px solid ${DS.borderSub}`,
+          fontSize: 11, color: '#fff',
         }}>
-          <span style={{ color: biome.glow, fontSize: 13 }}>◆</span>
-          <span>{cfg.reward} / level</span>
+          <span style={{ color: biome.glow, fontSize: 11, lineHeight: 1 }}>◆</span>
+          <span style={{ fontWeight: 600 }}>{cfg.reward}</span>
+          <span style={{ color: DS.borderSub, userSelect: 'none' }}>·</span>
+          <span style={{ fontSize: 8, fontWeight: 800, color: '#fde047', letterSpacing: 0.5 }}>TKT</span>
+          <span style={{ fontWeight: 600 }}>{tickets}</span>
         </div>
-        {/* Ticket chip */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 7,
-          padding: '7px 11px', borderRadius: 10,
-          background: DS.surface, border: '1px solid rgba(253,224,71,0.22)',
-          fontSize: 12, fontWeight: 700, color: '#fff',
-        }}>
-          <span style={{ color: '#fde047', fontWeight: 900, fontSize: 9, letterSpacing: 1 }}>TKT</span>
-          <span>{tickets} ticket{tickets !== 1 ? 's' : ''}</span>
-        </div>
-        <div style={{ marginTop: 4 }}>
-          <CustomWalletButton />
-        </div>
+        <CustomWalletButton />
       </div>
     </div>
   );
@@ -452,20 +429,21 @@ function DesktopRail({
 function TopHeader({ biome, layout, username, tier }: {
   biome: Biome; layout: Layout; username: string; tier: string;
 }) {
-  const pad = layout === 'mobile' ? 14 : 22;
+  const pad = layout === 'mobile' ? 14 : 20;
   return (
     <div style={{
       padding: `${pad}px ${pad}px 10px`,
       display: 'flex', alignItems: 'center', gap: 12,
-      background: 'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%)',
+      background: `linear-gradient(180deg, ${DS.bg} 0%, rgba(8,8,26,0) 100%)`,
       position: 'relative', zIndex: 2, flexShrink: 0,
+      fontFamily: DS.font,
     }}>
       <Avatar biome={biome} />
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, letterSpacing: 2, color: biome.glow, opacity: 0.8 }}>
-          ACT {romanize(biome.act)} · {biome.cohort} · {tier.toUpperCase()}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ ...DS.kicker, marginBottom: 3 }}>
+          Act {romanize(biome.act)} · {biome.cohort} · {tier}
         </div>
-        <div style={{ fontSize: layout === 'mobile' ? 18 : 24, fontWeight: 800, lineHeight: 1.1 }}>
+        <div style={{ fontSize: layout === 'mobile' ? 16 : 22, fontWeight: 800, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {username}
         </div>
       </div>
@@ -480,36 +458,85 @@ function SideCards({
   onEnterLevel: (l: number) => void;
 }) {
   const cfg = levelConfig(level);
+  const statRows = [
+    { label: 'DIFFICULTY', value: cfg.rarity },
+    { label: 'REWARD',     value: `◆ ${cfg.reward}` },
+    { label: 'GOAL',       value: `${cfg.goal} blocks` },
+    { label: 'MOVES',      value: String(cfg.moves) },
+  ];
+
   return (
     <div style={{
-      width: layout === 'desktop' ? 360 : 280, padding: 20,
-      background: 'rgba(8,8,22,0.65)', backdropFilter: 'blur(12px)',
-      borderLeft: `1px solid ${biome.accent}33`,
-      display: 'flex', flexDirection: 'column', gap: 14,
-      overflowY: 'auto',
+      width: layout === 'desktop' ? 260 : 220,
+      flexShrink: 0,
+      background: 'rgba(8,8,26,0.97)', backdropFilter: DS.blur,
+      borderLeft: `1px solid ${DS.border}`,
+      display: 'flex', flexDirection: 'column',
+      overflowY: 'auto', fontFamily: DS.font,
     }}>
-      <div style={{ fontSize: 11, letterSpacing: 2, color: biome.glow }}>ONGOING JOURNEY</div>
-      <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.1 }}>
-        Level {level}:<br />
-        <span style={{ color: biome.glow }}>{cfg.title}</span>
+
+      {/* ── Level header ── */}
+      <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${DS.borderSub}` }}>
+        <div style={{ fontSize: 8, letterSpacing: 2.5, fontWeight: 700, color: DS.accent, textTransform: 'uppercase', marginBottom: 8 }}>
+          Ongoing Journey
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: DS.textDim }}>Level</span>
+          <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{level}</span>
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: biome.glow, lineHeight: 1.2 }}>
+          {cfg.title}
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <Pill label="DIFFICULTY" value={cfg.rarity}          biome={biome} />
-        <Pill label="REWARD"     value={`◆ ${cfg.reward}`}   biome={biome} />
-        <Pill label="GOAL"       value={`${cfg.goal} blocks`} biome={biome} small />
-        <Pill label="MOVES"      value={cfg.moves}            biome={biome} small />
+
+      {/* ── Stats — single table card ── */}
+      <div style={{ padding: '10px 12px' }}>
+        <div style={{
+          background: DS.surface,
+          border: `1px solid ${DS.borderSub}`,
+          borderRadius: 10, overflow: 'hidden',
+        }}>
+          {statRows.map((row, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '7px 12px',
+              borderBottom: i < statRows.length - 1 ? `1px solid ${DS.borderSub}` : 'none',
+            }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: DS.textDim, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                {row.label}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-      <button
-        onClick={() => onEnterLevel(level)}
-        style={{
-          marginTop: 6, padding: '14px 20px', borderRadius: 14,
-          background: `linear-gradient(135deg, ${biome.accent}, ${biome.glow})`,
-          color: '#0a0a14', fontWeight: 900, fontSize: 16, border: 'none',
-          boxShadow: `0 0 24px ${biome.accent}77`, cursor: 'pointer',
-        }}
-      >
-        START EXPEDITION
-      </button>
+
+      {/* ── CTA ── */}
+      <div style={{ padding: '4px 12px 16px', marginTop: 'auto' }}>
+        <button
+          onClick={() => onEnterLevel(level)}
+          style={{
+            width: '100%', padding: '12px', borderRadius: 10,
+            background: `linear-gradient(135deg, ${biome.accent}f0, ${biome.glow}e0)`,
+            color: '#0a0a14', fontWeight: 900, fontSize: 12,
+            border: 'none', fontFamily: DS.font, letterSpacing: 1.5,
+            boxShadow: `0 4px 18px ${biome.accent}44`,
+            cursor: 'pointer', transition: 'transform 0.12s, box-shadow 0.12s',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+            (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 26px ${biome.accent}66`;
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.transform = '';
+            (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 18px ${biome.accent}44`;
+          }}
+        >
+          START EXPEDITION →
+        </button>
+      </div>
     </div>
   );
 }
@@ -523,34 +550,35 @@ function BottomCard({
   const cfg = levelConfig(level);
   return (
     <div style={{
-      padding: '16px 16px 0',
-      background: 'rgba(8,8,22,0.85)', backdropFilter: 'blur(14px)',
-      borderTop: `1px solid ${biome.accent}44`,
-      flexShrink: 0,
+      padding: '14px 14px 0',
+      background: DS.bg, backdropFilter: DS.blur,
+      borderTop: `1px solid ${DS.border}`,
+      flexShrink: 0, fontFamily: DS.font,
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 10, letterSpacing: 2, color: biome.glow }}>ONGOING JOURNEY</div>
-          <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, marginTop: 4 }}>
-            Level {level}: <span style={{ color: biome.glow }}>{cfg.title}</span>
+          <div style={{ ...DS.kicker, marginBottom: 2 }}>Ongoing Journey</div>
+          <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2 }}>
+            Lv.{level} <span style={{ color: biome.glow }}>{cfg.title}</span>
           </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8, margin: '12px 0', alignItems: 'center' }}>
-        <Pill label="DIFFICULTY" value={cfg.rarity}        biome={biome} small />
-        <Pill label="REWARD"     value={`◆ ${cfg.reward}`} biome={biome} small />
-        <Pill label="MOVES"      value={cfg.moves}          biome={biome} small />
         <button
           onClick={() => onEnterLevel(level)}
           style={{
-            marginLeft: 'auto', padding: '10px 20px', borderRadius: 999, flexShrink: 0,
-            background: `linear-gradient(135deg, ${biome.accent}, ${biome.glow})`,
-            color: '#0a0a14', fontWeight: 900, fontSize: 13, border: 'none',
-            boxShadow: `0 0 16px ${biome.accent}88`, cursor: 'pointer',
+            padding: '9px 18px', borderRadius: 10, flexShrink: 0,
+            background: `linear-gradient(135deg, ${biome.accent}dd, ${biome.glow}cc)`,
+            color: '#0a0a14', fontWeight: 900, fontSize: 12,
+            border: 'none', fontFamily: DS.font, letterSpacing: 0.5,
+            boxShadow: `0 2px 14px ${biome.accent}66`, cursor: 'pointer',
           }}
         >
-          PLAY
+          PLAY →
         </button>
+      </div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <Pill label="DIFF"   value={cfg.rarity}        biome={biome} small />
+        <Pill label="REWARD" value={`◆ ${cfg.reward}`} biome={biome} small />
+        <Pill label="MOVES"  value={cfg.moves}          biome={biome} small />
       </div>
     </div>
   );
@@ -954,16 +982,16 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
 
       {isMobile && <MobileTabBar biome={biome} />}
 
-      {/* Deploy verification badge — proves which build is rendered. */}
+      {/* Deploy verification badge */}
       <div style={{
-        position: 'fixed', right: 10, bottom: 10, zIndex: 9999,
-        padding: '6px 10px', borderRadius: 8,
-        background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-        border: `1px solid ${biome.glow}66`,
-        color: biome.glow, fontSize: 10, fontWeight: 700, letterSpacing: 1,
-        fontFamily: 'monospace', pointerEvents: 'none',
+        position: 'fixed', right: 12, bottom: 12, zIndex: 9999,
+        padding: '5px 10px', borderRadius: 8,
+        background: 'rgba(8,8,26,0.88)', backdropFilter: 'blur(12px)',
+        border: `1px solid ${DS.border}`,
+        color: DS.textDim, fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
+        fontFamily: DS.fontMono, pointerEvents: 'none',
       }}>
-        MAP v2 · CANDY · {new Date().toISOString().slice(0,10)}
+        MAP v2 · {new Date().toISOString().slice(0,10)}
       </div>
     </div>
   );

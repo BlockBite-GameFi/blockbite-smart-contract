@@ -47,7 +47,7 @@ export default function DevDashboard() {
   }
 
   return (
-    <div style={{ background: '#060614', minHeight: '100vh', color: '#CCCCEE', fontFamily: 'monospace', padding: '24px' }}>
+    <div style={{ background: '#08081a', minHeight: '100vh', color: '#CCCCEE', fontFamily: 'monospace', padding: '24px' }}>
       <Navbar />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>

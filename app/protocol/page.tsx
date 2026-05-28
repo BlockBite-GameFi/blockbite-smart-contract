@@ -14,9 +14,9 @@ const T = {
   blue:   '#7ad7ff',
   muted:  'rgba(148,163,184,0.7)',
   border: 'rgba(167,139,250,0.15)',
-  bg0:    '#05040d',
-  bg1:    '#09071a',
-  bg2:    '#0f0d20',
+  bg0:    '#08081a',
+  bg1:    '#09081e',
+  bg2:    '#0f0d24',
   mono:   '"JetBrains Mono",monospace',
   serif:  '"Space Grotesk",system-ui,sans-serif',
 };

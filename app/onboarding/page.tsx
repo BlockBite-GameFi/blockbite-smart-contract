@@ -6,8 +6,8 @@ import Navbar from '@/components/Navbar';
 import { useApp } from '@/lib/useApp';
 
 const C = {
-  bg0:    '#05040d',
-  bg1:    '#09071a',
+  bg0:    '#08081a',
+  bg1:    '#09081e',
   accent: '#a78bfa',
   gold:   '#f5c66a',
   green:  '#5fd07a',
@@ -188,14 +188,6 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Skip */}
-        <Link href="/" style={{
-          marginTop: 20, fontSize: 12, color: C.muted, textDecoration: 'none',
-          padding: '6px 12px', borderRadius: 8,
-          border: `1px solid ${C.border}`,
-        }}>
-          ← {lang === 'id' ? 'Kembali ke Beranda' : 'Back to Home'}
-        </Link>
 
       </div>
     </main>

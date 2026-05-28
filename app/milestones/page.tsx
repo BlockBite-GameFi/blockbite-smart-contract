@@ -9,13 +9,13 @@ import { getStreamsByAuthority, StreamInfo } from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
 
 const DS = {
-  bg0: '#05040d', bg1: '#09071a',
+  bg0: '#08081a', bg1: '#09081e',
   accent: '#a78bff', gold: '#f5c66a', green: '#5fd07a',
   red: '#ff3b6b', blue: '#7ad7ff', purple: '#c084fc',
   muted: 'rgba(232,225,248,.38)', border: 'rgba(167,139,255,.13)',
   card: 'rgba(255,255,255,.042)',
   cinzel: "'Space Grotesk', system-ui, sans-serif",
-  sora: "'Sora', system-ui, sans-serif",
+  sora: "'Space Grotesk', system-ui, sans-serif",
   mono: "'JetBrains Mono', monospace",
 };
 

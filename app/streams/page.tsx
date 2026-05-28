@@ -39,7 +39,7 @@ async function fetchAndDedup(
 const C = {
   accent: '#a78bff', gold: '#f5c66a', green: '#5fd07a',
   blue: '#7ad7ff', red: '#ff3b6b', muted: 'rgba(232,225,248,.38)',
-  border: 'rgba(167,139,255,.13)', bg0: '#05040d', bg1: '#09071a',
+  border: 'rgba(167,139,255,.13)', bg0: '#08081a', bg1: '#09081e',
   mono: "'JetBrains Mono',monospace", serif: "'Space Grotesk',system-ui,sans-serif",
 };
 
@@ -182,7 +182,7 @@ export default function StreamsPage() {
       <Navbar />
 
       {/* ── Header ── */}
-      <div style={{ padding: '80px 24px 32px', background: 'linear-gradient(180deg,#0d0820 0%,#05040d 100%)', borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ padding: '80px 24px 32px', background: 'linear-gradient(180deg,#0d0820 0%,#08081a 100%)', borderBottom: `1px solid ${C.border}` }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>TDP Protocol · Devnet</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>

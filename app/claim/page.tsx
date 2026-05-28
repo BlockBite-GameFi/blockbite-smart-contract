@@ -18,11 +18,11 @@ import { BN } from '@coral-xyz/anchor';
 import type { SendTx } from '@/lib/anchor/vesting-client';
 
 const DS = {
-  bg0: '#05040d', bg1: '#09071a', accent: '#a78bff', accentDk: '#5e35d4',
+  bg0: '#08081a', bg1: '#09081e', accent: '#a78bff', accentDk: '#5e35d4',
   gold: '#f5c66a', green: '#5fd07a', red: '#ff3b6b', blue: '#7ad7ff',
   muted: 'rgba(232,225,248,.38)', border: 'rgba(167,139,255,.13)',
   card: 'rgba(255,255,255,.042)', cinzel: "'Space Grotesk', system-ui, sans-serif",
-  sora: "'Sora', system-ui, sans-serif", mono: "'JetBrains Mono', monospace",
+  sora: "'Space Grotesk', system-ui, sans-serif", mono: "'JetBrains Mono', monospace",
 };
 
 function streamType(s: StreamInfo): string {
