@@ -9,17 +9,13 @@ import {
   computeUnlocked,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
-
-const C = {
-  accent: '#a78bfa', gold: '#f5c66a', green: '#5fd07a', blue: '#7ad7ff',
-  red: '#f87171', muted: 'rgba(148,163,184,0.7)', border: 'rgba(167,139,250,0.15)',
-  bg0: '#0b0918', bg1: '#0f0d1e',
-  mono: '"JetBrains Mono",monospace', serif: '"Space Grotesk",system-ui,sans-serif',
-};
+import { T } from '@/lib/theme';
+import { I18N } from '@/lib/i18n';
+import { useApp } from '@/lib/useApp';
 
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px', ...style }}>
+    <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '16px 20px', ...style }}>
       {children}
     </div>
   );
@@ -44,6 +40,9 @@ function streamStatus(s: StreamInfo, nowSec: number): string {
 }
 
 export default function AnalyticsPage() {
+  const { lang } = useApp();
+  const tx = I18N.analytics[lang];
+
   const { connection } = useConnection();
   const [streams,  setStreams]  = useState<StreamInfo[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -81,9 +80,9 @@ export default function AnalyticsPage() {
   }, {} as Record<string, number>);
   const total = streams.length || 1;
   const typeBreakdown = [
-    { type: 'Linear',    pct: Math.round((typeCounts.linear ?? 0) / total * 100),    col: C.accent, n: typeCounts.linear ?? 0 },
-    { type: 'Milestone', pct: Math.round((typeCounts.milestone ?? 0) / total * 100), col: C.blue,   n: typeCounts.milestone ?? 0 },
-    { type: 'Cliff',     pct: Math.round((typeCounts.cliff ?? 0) / total * 100),     col: C.gold,   n: typeCounts.cliff ?? 0 },
+    { type: 'Linear',    pct: Math.round((typeCounts.linear ?? 0) / total * 100),    col: T.accent, n: typeCounts.linear ?? 0 },
+    { type: 'Milestone', pct: Math.round((typeCounts.milestone ?? 0) / total * 100), col: T.blue,   n: typeCounts.milestone ?? 0 },
+    { type: 'Cliff',     pct: Math.round((typeCounts.cliff ?? 0) / total * 100),     col: T.gold,   n: typeCounts.cliff ?? 0 },
     { type: 'Hybrid',    pct: Math.round((typeCounts.hybrid ?? 0) / total * 100),    col: '#c084fc', n: typeCounts.hybrid ?? 0 },
   ];
 
@@ -93,7 +92,7 @@ export default function AnalyticsPage() {
     .slice(0, 6);
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8' }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text }}>
       <Navbar />
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(88px,12vw,108px) clamp(16px,5vw,40px) 80px' }}>
@@ -101,42 +100,42 @@ export default function AnalyticsPage() {
       {/* ── Page header ── */}
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
-            TDP · Protocol Analytics
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            {tx.badge}
           </div>
-          <h1 style={{ fontFamily: C.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: '#fff', margin: 0 }}>
-            Protocol Analytics
+          <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: T.text, margin: 0 }}>
+            {tx.title}
           </h1>
-          <p style={{ fontSize: 12.5, color: C.muted, margin: '6px 0 0' }}>
-            Live on-chain data · Solana devnet · Program DvhxiL5P…XTFf
+          <p style={{ fontSize: 12.5, color: T.textDim, margin: '6px 0 0' }}>
+            {tx.subtitle}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: 2, background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 9, padding: 3 }}>
+          <div style={{ display: 'flex', gap: 2, background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 9, padding: 3 }}>
             {(['7d', '30d', '90d', 'all'] as const).map(p => (
               <button type="button" key={p} onClick={() => setPeriod(p)} style={{
                 padding: '5px 14px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                background: period === p ? C.accent : 'transparent',
-                color: period === p ? '#fff' : C.muted,
-                fontSize: 11, fontWeight: 600, fontFamily: C.serif,
+                background: period === p ? T.accent : 'transparent',
+                color: period === p ? T.text : T.textDim,
+                fontSize: 11, fontWeight: 600, fontFamily: T.serif,
               }}>{p}</button>
             ))}
           </div>
-          <button type="button" onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.accent, cursor: 'pointer', fontSize: 12, fontFamily: C.serif }}>
+          <button type="button" onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.04)', color: T.accent, cursor: 'pointer', fontSize: 12, fontFamily: T.serif }}>
             ↻ Refresh
           </button>
         </div>
       </div>
 
       {error && (
-        <div style={{ margin: '16px 40px', background: '#f871711a', border: '1px solid #f8717144', borderRadius: 10, padding: '12px 16px', fontSize: 12, color: C.red }}>
+        <div style={{ margin: '16px 40px', background: T.redA1, border: `1px solid ${T.red}`, borderRadius: 10, padding: '12px 16px', fontSize: 12, color: T.red }}>
           RPC error: {error} — data may be stale.
         </div>
       )}
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 40px', color: C.muted, fontSize: 13 }}>
-          Loading on-chain data…
+        <div style={{ textAlign: 'center', padding: '60px 40px', color: T.textDim, fontSize: 13 }}>
+          {tx.loading}
         </div>
       )}
 
@@ -146,16 +145,16 @@ export default function AnalyticsPage() {
           {/* ── KPI row — REAL numbers ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12 }}>
             {[
-              { label: 'Total Streams',      val: String(streams.length),                        sub: 'on devnet program',         col: C.accent },
-              { label: 'Active Streams',     val: String(activeStreams.length),                   sub: 'currently unlocking',       col: C.green  },
-              { label: 'Total Locked',       val: totalLocked.toFixed(2),                         sub: 'TOKEN across all streams',  col: C.gold   },
-              { label: 'Total Withdrawn',    val: totalWithdrawn.toFixed(2),                      sub: 'claimed by beneficiaries',  col: C.blue   },
-              { label: 'Currently Claimable',val: totalClaimable.toFixed(2),                      sub: 'TOKEN available now',       col: C.green  },
+              { label: 'Total Streams',      val: String(streams.length),                        sub: 'on devnet program',         col: T.accent },
+              { label: 'Active Streams',     val: String(activeStreams.length),                   sub: 'currently unlocking',       col: T.green  },
+              { label: 'Total Locked',       val: totalLocked.toFixed(2),                         sub: 'TOKEN across all streams',  col: T.gold   },
+              { label: 'Total Withdrawn',    val: totalWithdrawn.toFixed(2),                      sub: 'claimed by beneficiaries',  col: T.blue   },
+              { label: 'Currently Claimable',val: totalClaimable.toFixed(2),                      sub: 'TOKEN available now',       col: T.green  },
             ].map(s => (
               <Card key={s.label} style={{ padding: '14px 16px' }}>
-                <div style={{ fontSize: 9.5, color: C.muted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>{s.label}</div>
-                <div style={{ fontFamily: C.mono, fontSize: s.val.length > 10 ? 16 : 22, fontWeight: 700, color: s.col, lineHeight: 1 }}>{s.val}</div>
-                <div style={{ fontSize: 10, color: C.muted, marginTop: 4 }}>{s.sub}</div>
+                <div style={{ fontSize: 9.5, color: T.textDim, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>{s.label}</div>
+                <div style={{ fontFamily: T.mono, fontSize: s.val.length > 10 ? 16 : 22, fontWeight: 700, color: s.col, lineHeight: 1 }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: T.textDim, marginTop: 4 }}>{s.sub}</div>
               </Card>
             ))}
           </div>
@@ -163,20 +162,20 @@ export default function AnalyticsPage() {
           {/* ── Stream types + secondary stats ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
             <Card>
-              <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14 }}>Stream Types</div>
+              <div style={{ fontFamily: T.serif, fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 14 }}>Stream Types</div>
               {streams.length === 0 ? (
-                <div style={{ fontSize: 12, color: C.muted, padding: '20px 0', textAlign: 'center' }}>No streams on devnet yet</div>
+                <div style={{ fontSize: 12, color: T.textDim, padding: '20px 0', textAlign: 'center' }}>No streams on devnet yet</div>
               ) : (
                 typeBreakdown.map(s => (
                   <div key={s.type} style={{ marginBottom: 14 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.col }} />
-                        <span style={{ fontSize: 12, color: '#fff' }}>{s.type}</span>
+                        <span style={{ fontSize: 12, color: T.text }}>{s.type}</span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontFamily: C.mono, fontSize: 12, color: s.col, fontWeight: 700 }}>{s.pct}%</span>
-                        <span style={{ fontSize: 10, color: C.muted, marginLeft: 5 }}>({s.n})</span>
+                        <span style={{ fontFamily: T.mono, fontSize: 12, color: s.col, fontWeight: 700 }}>{s.pct}%</span>
+                        <span style={{ fontSize: 10, color: T.textDim, marginLeft: 5 }}>({s.n})</span>
                       </div>
                     </div>
                     <div style={{ height: 7, borderRadius: 99, background: 'rgba(255,255,255,.06)', overflow: 'hidden' }}>
@@ -188,19 +187,19 @@ export default function AnalyticsPage() {
             </Card>
 
             <Card>
-              <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14 }}>Status Breakdown</div>
+              <div style={{ fontFamily: T.serif, fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 14 }}>Status Breakdown</div>
               {[
-                { label: 'Active',     col: C.green,  n: activeStreams.length },
-                { label: 'Pending',    col: C.gold,   n: streams.filter(s => streamStatus(s, nowSec) === 'pending').length },
-                { label: 'Completed',  col: C.muted,  n: streams.filter(s => streamStatus(s, nowSec) === 'completed').length },
-                { label: 'Cancelled',  col: C.red,    n: cancelledCount },
+                { label: 'Active',     col: T.green,   n: activeStreams.length },
+                { label: 'Pending',    col: T.gold,    n: streams.filter(s => streamStatus(s, nowSec) === 'pending').length },
+                { label: 'Completed',  col: T.textDim, n: streams.filter(s => streamStatus(s, nowSec) === 'completed').length },
+                { label: 'Cancelled',  col: T.red,     n: cancelledCount },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.col, boxShadow: `0 0 4px ${s.col}` }} />
-                    <span style={{ fontSize: 12, color: '#fff' }}>{s.label}</span>
+                    <span style={{ fontSize: 12, color: T.text }}>{s.label}</span>
                   </div>
-                  <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: s.col }}>{s.n}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: 14, fontWeight: 700, color: s.col }}>{s.n}</span>
                 </div>
               ))}
             </Card>
@@ -208,19 +207,19 @@ export default function AnalyticsPage() {
 
           {/* ── Top streams table ── */}
           <Card style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.border}`, fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff' }}>
+            <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}`, fontFamily: T.serif, fontSize: 13, fontWeight: 700, color: T.text }}>
               {streams.length === 0 ? 'No streams yet' : `Top ${topStreams.length} streams by locked amount`}
             </div>
             {streams.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: C.muted, fontSize: 13 }}>
-                No streams found on devnet. <Link href="/streams/new" style={{ color: C.accent }}>Create the first one →</Link>
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: T.textDim, fontSize: 13 }}>
+                No streams found on devnet. <Link href="/streams/new" style={{ color: T.accent }}>Create the first one →</Link>
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,.03)' }}>
                     {['Stream PDA', 'Type', 'Authority', 'Total Locked', 'Withdrawn', 'Claimable', 'Status'].map(h => (
-                      <th key={h} style={{ padding: '9px 16px', textAlign: 'left', fontSize: 9.5, color: C.muted, letterSpacing: '.06em', fontWeight: 700 }}>{h}</th>
+                      <th key={h} style={{ padding: '9px 16px', textAlign: 'left', fontSize: 9.5, color: T.textDim, letterSpacing: '.06em', fontWeight: 700 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -228,28 +227,28 @@ export default function AnalyticsPage() {
                   {topStreams.map((s, i) => {
                     const type    = streamType(s);
                     const status  = streamStatus(s, nowSec);
-                    const typeCol = ({ linear: C.accent, milestone: C.blue, cliff: C.gold, hybrid: '#c084fc' } as Record<string, string>)[type] ?? C.accent;
-                    const statCol = ({ active: C.green, pending: C.gold, completed: C.muted, cancelled: C.red } as Record<string, string>)[status] ?? C.muted;
+                    const typeCol = ({ linear: T.accent, milestone: T.blue, cliff: T.gold, hybrid: '#c084fc' } as Record<string, string>)[type] ?? T.accent;
+                    const statCol = ({ active: T.green, pending: T.gold, completed: T.textDim, cancelled: T.red } as Record<string, string>)[status] ?? T.textDim;
                     const claimable = Number(computeUnlocked(s, nowSec)) / 1e6;
 
                     return (
-                      <tr key={s.pubkey.toBase58()} style={{ borderTop: `1px solid ${C.border}`, background: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent' }}>
-                        <td style={{ padding: '9px 16px', fontFamily: C.mono, fontSize: 10, color: C.muted }}>{s.pubkey.toBase58().slice(0, 8)}…</td>
+                      <tr key={s.pubkey.toBase58()} style={{ borderTop: `1px solid ${T.border}`, background: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent' }}>
+                        <td style={{ padding: '9px 16px', fontFamily: T.mono, fontSize: 10, color: T.textDim }}>{s.pubkey.toBase58().slice(0, 8)}…</td>
                         <td style={{ padding: '9px 16px' }}>
-                          <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 9.5, fontWeight: 700, background: `${typeCol}18`, border: `1px solid ${typeCol}44`, color: typeCol, fontFamily: C.mono }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 9.5, fontWeight: 700, background: T.accentA2, border: `1px solid ${T.accentA4}`, color: typeCol, fontFamily: T.mono }}>
                             {type.toUpperCase()}
                           </span>
                         </td>
-                        <td style={{ padding: '9px 16px', fontFamily: C.mono, fontSize: 10, color: C.muted }}>
+                        <td style={{ padding: '9px 16px', fontFamily: T.mono, fontSize: 10, color: T.textDim }}>
                           {s.authority.toBase58().slice(0, 6)}…{s.authority.toBase58().slice(-4)}
                         </td>
-                        <td style={{ padding: '9px 16px', fontFamily: C.mono, fontSize: 11, color: '#fff' }}>
+                        <td style={{ padding: '9px 16px', fontFamily: T.mono, fontSize: 11, color: T.text }}>
                           {(Number(s.amountTotal.toString()) / 1e6).toFixed(2)}
                         </td>
-                        <td style={{ padding: '9px 16px', fontFamily: C.mono, fontSize: 11, color: C.accent }}>
+                        <td style={{ padding: '9px 16px', fontFamily: T.mono, fontSize: 11, color: T.accent }}>
                           {(Number(s.amountWithdrawn.toString()) / 1e6).toFixed(2)}
                         </td>
-                        <td style={{ padding: '9px 16px', fontFamily: C.mono, fontSize: 11, color: claimable > 0 ? C.green : C.muted }}>
+                        <td style={{ padding: '9px 16px', fontFamily: T.mono, fontSize: 11, color: claimable > 0 ? T.green : T.textDim }}>
                           {claimable.toFixed(2)}
                         </td>
                         <td style={{ padding: '9px 16px' }}>
@@ -269,14 +268,14 @@ export default function AnalyticsPage() {
           {/* ── No data CTA ── */}
           {streams.length === 0 && (
             <Card style={{ textAlign: 'center', padding: '32px 24px' }}>
-              <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: T.textDim, marginBottom: 12 }}>
                 No streams on devnet yet. Be the first to create one, or explore simulated data.
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                <Link href="/streams/new" style={{ padding: '9px 20px', borderRadius: 10, background: `linear-gradient(135deg,${C.accent},#5e35d4)`, color: '#fff', fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
+                <Link href="/streams/new" style={{ padding: '9px 20px', borderRadius: 10, background: T.grad, color: T.text, fontWeight: 700, fontSize: 12, textDecoration: 'none' }}>
                   Create Stream
                 </Link>
-                <Link href="/demo#analytics" style={{ padding: '9px 20px', borderRadius: 10, background: 'rgba(255,255,255,.06)', color: C.muted, fontWeight: 600, fontSize: 12, textDecoration: 'none', border: `1px solid ${C.border}` }}>
+                <Link href="/demo#analytics" style={{ padding: '9px 20px', borderRadius: 10, background: 'rgba(255,255,255,.06)', color: T.textDim, fontWeight: 600, fontSize: 12, textDecoration: 'none', border: `1px solid ${T.border}` }}>
                   View Demo
                 </Link>
               </div>

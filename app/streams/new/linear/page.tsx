@@ -85,7 +85,7 @@ export default function LinearPage() {
         </p>
         {txSig && (
           <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}33`, fontSize: 12 }}>
+            background: 'color-mix(in srgb, var(--p-green) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-green) 20%, transparent)', fontSize: 12 }}>
             <span style={{ color: C.muted }}>Tx: </span>
             <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
               target="_blank" rel="noreferrer" style={{ color: C.green, wordBreak: 'break-all' }}>
@@ -239,7 +239,7 @@ export default function LinearPage() {
       )}
 
       <div style={{ padding: '11px 15px', borderRadius: 10,
-        background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, fontSize: 12, color: C.gold }}>
+        background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>
         ⚠ Linear streams lock tokens into a PDA vault. Connect your wallet to proceed.
       </div>
     </StreamPageShell>

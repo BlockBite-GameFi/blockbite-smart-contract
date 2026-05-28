@@ -18,10 +18,10 @@ import Navbar from '@/components/Navbar';
 
 // ─── Design System ────────────────────────────────────────────────────────────
 const C = {
-  bg0: '#08081a', bg1: '#09081e', bg2: '#0e0c22',
+  bg0: 'var(--p-bg0)', bg1: 'var(--p-bg1)', bg2: 'var(--p-bg2)',
   accent: '#a78bff', gold: '#f5c66a', green: '#5fd07a',
   red: '#ff3b6b', blue: '#7ad7ff', purple: '#c084fc', ember: '#ff7a3a',
-  muted: 'rgba(232,225,248,.38)', border: 'rgba(167,139,255,.13)',
+  muted: 'var(--p-muted)', border: 'var(--p-border)',
   card: 'rgba(255,255,255,.042)',
   sora: "'Space Grotesk',system-ui,sans-serif",
   mono: "'JetBrains Mono',monospace",

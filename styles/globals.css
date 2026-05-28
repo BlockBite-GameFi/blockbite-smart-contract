@@ -122,6 +122,22 @@
   --ds-ok:        #22c55e;
   --ds-header:    linear-gradient(180deg, #1e1b4b 0%, #08081a 100%);
   --ds-grad:      linear-gradient(135deg, #a78bfa, #5eead4);
+  /* Extended palette tokens */
+  --ds-bg1:          #09081e;
+  --ds-bg2:          #0f0d24;
+  --ds-gold:         #f5c66a;
+  --ds-blue:         #7ad7ff;
+  --ds-green:        #5fd07a;
+  --ds-red:          #ff3b6b;
+  /* Semi-transparent accent helpers */
+  --ds-accent-a1:    rgba(167,139,250,0.06);
+  --ds-accent-a2:    rgba(167,139,250,0.12);
+  --ds-accent-a3:    rgba(167,139,250,0.20);
+  --ds-accent-a4:    rgba(167,139,250,0.27);
+  --ds-gold-a1:      rgba(245,198,106,0.10);
+  --ds-green-a1:     rgba(95,208,122,0.10);
+  --ds-red-a1:       rgba(255,59,107,0.10);
+  --ds-blue-a1:      rgba(122,215,255,0.10);
 }
 
 /* Light theme overrides */
@@ -139,6 +155,22 @@
   --ds-ok:       #15803d;
   --ds-header:   linear-gradient(180deg, #ede9fe 0%, #f7f7fb 100%);
   --ds-grad:     linear-gradient(135deg, #6d28d9, #0d9488);
+  /* Extended palette — light overrides */
+  --ds-bg1:          #eeedf6;
+  --ds-bg2:          #e5e4f0;
+  --ds-gold:         #b45309;
+  --ds-blue:         #0369a1;
+  --ds-green:        #15803d;
+  --ds-red:          #b91c1c;
+  /* Semi-transparent accent helpers — light */
+  --ds-accent-a1:    rgba(109,40,217,0.06);
+  --ds-accent-a2:    rgba(109,40,217,0.12);
+  --ds-accent-a3:    rgba(109,40,217,0.20);
+  --ds-accent-a4:    rgba(109,40,217,0.27);
+  --ds-gold-a1:      rgba(180,83,9,0.10);
+  --ds-green-a1:     rgba(21,128,61,0.10);
+  --ds-red-a1:       rgba(185,28,28,0.10);
+  --ds-blue-a1:      rgba(3,105,161,0.10);
 }
 
 /* Base Reset & Fonts */

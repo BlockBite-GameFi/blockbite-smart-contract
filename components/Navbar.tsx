@@ -13,13 +13,13 @@ const CustomWalletButton = dynamic(
   { ssr: false, loading: () => <div className={styles.walletPlaceholder} /> }
 );
 
-// ─── Design tokens — matches site-wide Space Grotesk theme ───────────────────
+// ─── Design tokens — CSS var refs so dark/light toggle propagates to inline styles
 const DS = {
-  accent:   '#a78bff',
-  accentDk: '#5e35d4',
-  border:   'rgba(167,139,255,.13)',
-  bg1:      '#09071a',
-  muted:    'rgba(232,225,248,.5)',
+  accent:   'var(--p-accent)',
+  accentDk: 'var(--p-accent-dk)',
+  border:   'var(--p-border)',
+  bg1:      'var(--p-bg1)',
+  muted:    'var(--p-muted)',
   font:     "'Space Grotesk', system-ui, sans-serif",
 };
 
@@ -35,18 +35,22 @@ const TDP_LINKS = [
   { name: 'Partners',          href: '/partners',    desc: 'Partnership program & tiers',       icon: '◆' },
 ];
 
-const NAV_LINKS = [
-  { name: 'PRODUCT',      href: '/protocol' },
-  { name: 'HOW IT WORKS', href: '/how-to-play' },
-  { name: 'PLAY GAME',    href: '/map/1' },
-  { name: 'WAITLIST',     href: '/waitlist' },
+// NAV_LINKS hrefs only — labels are derived from translations inside the component
+const NAV_HREFS = [
+  { key: 'nav_product',      href: '/protocol'    },
+  { key: 'nav_how_it_works', href: '/how-to-play' },
+  { key: 'nav_play_game',    href: '/map/1'        },
+  { key: 'nav_waitlist',     href: '/waitlist'     },
 ] as const;
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const { lang, setLang, theme, setTheme } = useApp();
+  const { lang, setLang, theme, setTheme, t } = useApp();
+
+  // Build translated nav links inside the component so they re-render on lang change
+  const NAV_LINKS = NAV_HREFS.map(item => ({ name: t(item.key), href: item.href }));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -74,31 +78,31 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* ← Home — only visible on sub-pages */}
+          {/* ← Home / Beranda — only visible on sub-pages */}
           {pathname !== '/' && (
             <Link href="/" style={{
               display: 'flex', alignItems: 'center', gap: 5,
               padding: '6px 14px', borderRadius: 8,
-              border: '1px solid rgba(167,139,255,.45)',
-              background: 'rgba(167,139,255,.12)',
-              color: '#c4b5fd',
+              border: '1px solid color-mix(in srgb, var(--p-accent) 28%, transparent)',
+              background: 'color-mix(in srgb, var(--p-accent) 7%, transparent)',
+              color: DS.accent,
               fontSize: 12, fontWeight: 700,
               textDecoration: 'none', letterSpacing: '.04em',
               fontFamily: DS.font, whiteSpace: 'nowrap',
               transition: 'all .15s',
             }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.color = '#fff';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.8)';
-                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.22)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--p-text)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'color-mix(in srgb, var(--p-accent) 50%, transparent)';
+                (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--p-accent) 14%, transparent)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.color = '#c4b5fd';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(167,139,255,.45)';
-                (e.currentTarget as HTMLElement).style.background = 'rgba(167,139,255,.12)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--p-accent)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'color-mix(in srgb, var(--p-accent) 28%, transparent)';
+                (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--p-accent) 7%, transparent)';
               }}
             >
-              ← Home
+              {t('nav_back')}
             </Link>
           )}
         </div>
@@ -147,7 +151,7 @@ export default function Navbar() {
               type="button"
               className={styles.iconToggle}
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              title={theme === 'dark' ? t('theme_to_light') : t('theme_to_dark')}
             >
               <span className={styles.themeIcon}>
                 {theme === 'dark' ? '☀' : '🌙'}
@@ -160,26 +164,26 @@ export default function Navbar() {
           {/* Play Game CTA */}
           <Link href="/map/1" style={{
             padding: '8px 18px', borderRadius: 9999,
-            background: 'rgba(0,245,255,0.10)',
-            border: '1px solid rgba(0,245,255,0.35)',
-            color: '#00F5FF', fontWeight: 700, fontSize: 13,
+            background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--p-cyan) 35%, transparent)',
+            color: 'var(--p-cyan)', fontWeight: 700, fontSize: 13,
             textDecoration: 'none', letterSpacing: '.03em',
             fontFamily: DS.font, whiteSpace: 'nowrap',
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            ▶ Play Game
+            {t('cta_play')}
           </Link>
 
-          {/* Launch App primary CTA — rounded-full like Veztra */}
+          {/* Launch App primary CTA */}
           <Link href="/streams/new" style={{
             padding: '8px 20px', borderRadius: 9999,
-            background: `linear-gradient(90deg, #9945FF, #00C2FF)`,
+            background: 'var(--p-grad-alt)',
             color: '#fff', fontWeight: 700, fontSize: 13,
             textDecoration: 'none', letterSpacing: '.03em',
             fontFamily: DS.font, whiteSpace: 'nowrap',
-            boxShadow: '0 0 20px rgba(153,69,255,.35)',
+            boxShadow: '0 0 20px color-mix(in srgb, var(--p-accent) 21%, transparent)',
           }}>
-            Launch App
+            {t('cta_launch')}
           </Link>
 
           <button
@@ -199,7 +203,7 @@ export default function Navbar() {
       {menuOpen && (
         <div className={styles.mobileMenu}>
 
-          {/* ← Home — mobile */}
+          {/* ← Home / Beranda — mobile */}
           {pathname !== '/' && (
             <Link
               href="/"
@@ -208,14 +212,14 @@ export default function Navbar() {
                 display: 'flex', alignItems: 'center', gap: 8,
                 margin: '4px 16px 8px',
                 padding: '11px 16px', borderRadius: 10,
-                border: '1px solid rgba(167,139,255,.45)',
-                background: 'rgba(167,139,255,.12)',
-                color: '#c4b5fd',
+                border: '1px solid color-mix(in srgb, var(--p-accent) 28%, transparent)',
+                background: 'color-mix(in srgb, var(--p-accent) 7%, transparent)',
+                color: DS.accent,
                 fontSize: 13, fontWeight: 700, textDecoration: 'none',
                 fontFamily: DS.font, letterSpacing: '.03em',
               }}
             >
-              ← Home
+              {t('nav_back')}
             </Link>
           )}
 
@@ -264,12 +268,12 @@ export default function Navbar() {
             style={{
               display: 'block', margin: '4px 16px 0',
               padding: '12px 20px', borderRadius: 12, textAlign: 'center',
-              background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.3)',
-              color: '#00F5FF', fontWeight: 700, fontSize: 14, textDecoration: 'none',
+              background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--p-cyan) 30%, transparent)',
+              color: 'var(--p-cyan)', fontWeight: 700, fontSize: 14, textDecoration: 'none',
               fontFamily: DS.font,
             }}
           >
-            ▶ Play Game
+            {t('cta_play')}
           </Link>
 
           <div className={styles.mobileWalletWrap}>

@@ -21,17 +21,17 @@ import {
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const C = {
-  accent: '#a78bfa',
-  gold:   '#f5c66a',
-  green:  '#5fd07a',
-  blue:   '#7ad7ff',
-  ember:  '#ff7a3a',
-  red:    '#f87171',
-  muted:  'rgba(148,163,184,0.7)',
-  border: 'rgba(167,139,250,0.15)',
-  bg0:    '#08081a',
-  bg1:    '#09081e',
-  bg2:    '#0f0d24',
+  accent: 'var(--p-accent)',
+  gold:   'var(--p-gold)',
+  green:  'var(--p-green)',
+  blue:   'var(--p-blue)',
+  ember:  'var(--p-ember)',
+  red:    'var(--p-red)',
+  muted:  'var(--p-muted)',
+  border: 'var(--p-border)',
+  bg0:    'var(--p-bg0)',
+  bg1:    'var(--p-bg1)',
+  bg2:    'var(--p-bg2)',
   mono:   '"JetBrains Mono",monospace',
   serif:  '"Space Grotesk",system-ui,sans-serif',
 };
@@ -50,7 +50,7 @@ function Badge({ label, color }: { label: string; color: string }) {
     <span style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 6,
       fontSize: 9.5, fontWeight: 700, letterSpacing: '.05em',
-      background: `${color}18`, border: `1px solid ${color}44`, color,
+      background: `color-mix(in srgb, ${color} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`, color,
       fontFamily: C.mono,
     }}>
       {label}
@@ -276,7 +276,7 @@ export default function StreamDetailPage() {
         minHeight: '100vh', background: C.bg0,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
       }}>
-        <div style={{ fontFamily: C.serif, fontSize: 22, fontWeight: 800, color: '#fff' }}>
+        <div style={{ fontFamily: C.serif, fontSize: 22, fontWeight: 800, color: 'var(--p-text)' }}>
           Stream not found
         </div>
         <div style={{ color: C.muted, fontSize: 13, maxWidth: 360, textAlign: 'center' }}>
@@ -402,7 +402,7 @@ export default function StreamDetailPage() {
           <div style={{ marginBottom: 4 }}>
             <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>← All Streams</Link>
           </div>
-          <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: '#fff', margin: 0 }}>
+          <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: 'var(--p-text)', margin: 0 }}>
             Stream Detail
           </h1>
           <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0', fontFamily: C.mono, wordBreak: 'break-all' }}>
@@ -434,7 +434,7 @@ export default function StreamDetailPage() {
               style={{
                 padding: '9px 20px', borderRadius: 10, border: 'none',
                 cursor: claiming ? 'default' : 'pointer',
-                background: `linear-gradient(135deg, ${C.gold}cc, ${C.gold})`,
+                background: `linear-gradient(135deg, color-mix(in srgb, var(--p-gold) 80%, transparent), var(--p-gold))`,
                 color: '#0b0918', fontSize: 13, fontWeight: 700, fontFamily: C.serif,
                 opacity: claiming ? 0.6 : 1,
               }}
@@ -446,8 +446,8 @@ export default function StreamDetailPage() {
           )}
           {!publicKey && claimable > 0n && (
             <button onClick={() => setVisible(true)} style={{
-              padding: '9px 20px', borderRadius: 10, border: `1px solid ${C.accent}55`,
-              background: `${C.accent}0f`, color: C.accent,
+              padding: '9px 20px', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--p-accent) 33%, transparent)',
+              background: 'color-mix(in srgb, var(--p-accent) 6%, transparent)', color: C.accent,
               fontSize: 13, fontWeight: 700, fontFamily: C.serif, cursor: 'pointer',
             }}>
               Connect Wallet to Claim
@@ -459,9 +459,9 @@ export default function StreamDetailPage() {
               onClick={() => setConfirmCancel(true)}
               disabled={cancelling}
               style={{
-                padding: '9px 20px', borderRadius: 10, border: `1px solid ${C.red}55`,
+                padding: '9px 20px', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--p-red) 33%, transparent)',
                 cursor: cancelling ? 'default' : 'pointer',
-                background: `${C.red}0f`,
+                background: 'color-mix(in srgb, var(--p-red) 6%, transparent)',
                 color: C.red, fontSize: 13, fontWeight: 700, fontFamily: C.serif,
                 opacity: cancelling ? 0.6 : 1,
               }}
@@ -482,11 +482,11 @@ export default function StreamDetailPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: C.bg1, border: `1px solid ${C.red}44`, borderRadius: 20,
+            background: C.bg1, border: '1px solid color-mix(in srgb, var(--p-red) 27%, transparent)', borderRadius: 20,
             padding: '32px 36px', maxWidth: 400, width: '90%', textAlign: 'center',
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
-            <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 10px' }}>
+            <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: 'var(--p-text)', margin: '0 0 10px' }}>
               Cancel this stream?
             </h2>
             <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 12px' }}>
@@ -497,7 +497,7 @@ export default function StreamDetailPage() {
             {/* Clawback risk disclosure — informs both creator and any observers */}
             <div style={{
               margin: '0 0 20px', padding: '10px 14px', borderRadius: 10,
-              background: `${C.ember}0d`, border: `1px solid ${C.ember}35`,
+              background: 'color-mix(in srgb, var(--p-ember) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--p-ember) 21%, transparent)',
               fontSize: 11.5, color: C.ember, textAlign: 'left', lineHeight: 1.65,
             }}>
               <strong>⚠ SOLO AUTHORITY — No Multisig Protection</strong>
@@ -512,7 +512,7 @@ export default function StreamDetailPage() {
                 onClick={handleCancel}
                 style={{
                   padding: '11px 28px', borderRadius: 11, border: 'none',
-                  background: C.red, color: '#fff', fontWeight: 800, fontSize: 14,
+                  background: C.red, color: 'var(--p-text)', fontWeight: 800, fontSize: 14,
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
@@ -537,8 +537,8 @@ export default function StreamDetailPage() {
 
         {/* 3-stage claim progress */}
         {(claimStage === 'approving' || claimStage === 'confirming') && (
-          <div style={{ padding: '14px 18px', borderRadius: 12, border: `1px solid ${C.accent}33`,
-            background: `${C.accent}06`, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ padding: '14px 18px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--p-accent) 20%, transparent)',
+            background: 'color-mix(in srgb, var(--p-accent) 2%, transparent)', display: 'flex', alignItems: 'center', gap: 14 }}>
             {[
               { label: 'Wallet Approval', done: claimStage === 'confirming' },
               { label: 'Sending to Solana', done: false },
@@ -546,8 +546,8 @@ export default function StreamDetailPage() {
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  background: s.done ? `${C.green}22` : i === (claimStage === 'confirming' ? 1 : 0) ? `${C.accent}22` : 'rgba(255,255,255,.04)',
-                  border: `1px solid ${s.done ? C.green + '66' : i === (claimStage === 'confirming' ? 1 : 0) ? C.accent + '66' : C.border}`,
+                  background: s.done ? 'color-mix(in srgb, var(--p-green) 13%, transparent)' : i === (claimStage === 'confirming' ? 1 : 0) ? 'color-mix(in srgb, var(--p-accent) 13%, transparent)' : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${s.done ? 'color-mix(in srgb, var(--p-green) 40%, transparent)' : i === (claimStage === 'confirming' ? 1 : 0) ? 'color-mix(in srgb, var(--p-accent) 40%, transparent)' : C.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
                   {s.done ? '✓' : '·'}
                 </div>
@@ -560,8 +560,8 @@ export default function StreamDetailPage() {
         )}
         {/* 3-stage cancel progress */}
         {(cancelStage === 'approving' || cancelStage === 'confirming') && (
-          <div style={{ padding: '14px 18px', borderRadius: 12, border: `1px solid ${C.red}33`,
-            background: `${C.red}06`, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ padding: '14px 18px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--p-red) 20%, transparent)',
+            background: 'color-mix(in srgb, var(--p-red) 2%, transparent)', display: 'flex', alignItems: 'center', gap: 14 }}>
             {[
               { label: 'Wallet Approval', done: cancelStage === 'confirming' },
               { label: 'Sending to Solana', done: false },
@@ -569,8 +569,8 @@ export default function StreamDetailPage() {
             ].map((s, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  background: s.done ? `${C.green}22` : i === (cancelStage === 'confirming' ? 1 : 0) ? `${C.red}22` : 'rgba(255,255,255,.04)',
-                  border: `1px solid ${s.done ? C.green + '66' : i === (cancelStage === 'confirming' ? 1 : 0) ? C.red + '66' : C.border}`,
+                  background: s.done ? 'color-mix(in srgb, var(--p-green) 13%, transparent)' : i === (cancelStage === 'confirming' ? 1 : 0) ? 'color-mix(in srgb, var(--p-red) 13%, transparent)' : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${s.done ? 'color-mix(in srgb, var(--p-green) 40%, transparent)' : i === (cancelStage === 'confirming' ? 1 : 0) ? 'color-mix(in srgb, var(--p-red) 40%, transparent)' : C.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
                   {s.done ? '✓' : '·'}
                 </div>
@@ -586,7 +586,7 @@ export default function StreamDetailPage() {
         {claimSig && (
           <div style={{
             padding: '12px 16px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}44`,
+            background: 'color-mix(in srgb, var(--p-green) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-green) 27%, transparent)',
             fontSize: 12, color: C.green,
           }}>
             ✓ Claimed ·{' '}
@@ -602,7 +602,7 @@ export default function StreamDetailPage() {
         {claimErr && (
           <div style={{
             padding: '12px 16px', borderRadius: 10,
-            background: `${C.red}0a`, border: `1px solid ${C.red}44`,
+            background: 'color-mix(in srgb, var(--p-red) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-red) 27%, transparent)',
             fontSize: 12, color: C.red,
           }}>
             ✗ {claimErr}
@@ -611,7 +611,7 @@ export default function StreamDetailPage() {
         {cancelSig && (
           <div style={{
             padding: '12px 16px', borderRadius: 10,
-            background: `${C.red}0a`, border: `1px solid ${C.red}44`,
+            background: 'color-mix(in srgb, var(--p-red) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-red) 27%, transparent)',
             fontSize: 12, color: C.red,
           }}>
             Stream cancelled ·{' '}
@@ -627,7 +627,7 @@ export default function StreamDetailPage() {
         {cancelErr && (
           <div style={{
             padding: '12px 16px', borderRadius: 10,
-            background: `${C.red}0a`, border: `1px solid ${C.red}44`,
+            background: 'color-mix(in srgb, var(--p-red) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-red) 27%, transparent)',
             fontSize: 12, color: C.red,
           }}>
             ✗ {cancelErr}
@@ -670,7 +670,7 @@ export default function StreamDetailPage() {
                 padding: '2px 8px', borderRadius: 6,
                 fontSize: 9.5, fontWeight: 700, letterSpacing: '.05em',
                 fontFamily: C.mono, cursor: 'default',
-                background: clawbackRisk ? `${C.ember}15` : `${C.green}12`,
+                background: clawbackRisk ? 'color-mix(in srgb, var(--p-ember) 8%, transparent)' : 'color-mix(in srgb, var(--p-green) 7%, transparent)',
                 border: `1px solid ${clawbackRisk ? C.ember : C.green}40`,
                 color: clawbackRisk ? C.ember : C.green,
               }}
@@ -680,13 +680,13 @@ export default function StreamDetailPage() {
           )}
 
           <span style={{ fontSize: 11.5, color: C.muted }}>
-            Start: <b style={{ color: '#fff' }}>{fmtDate(startTs)}</b>
+            Start: <b style={{ color: 'var(--p-text)' }}>{fmtDate(startTs)}</b>
           </span>
           <span style={{ fontSize: 11.5, color: C.muted }}>
-            Cliff: <b style={{ color: '#fff' }}>{fmtDate(cliffTs)}</b>
+            Cliff: <b style={{ color: 'var(--p-text)' }}>{fmtDate(cliffTs)}</b>
           </span>
           <span style={{ fontSize: 11.5, color: C.muted }}>
-            End: <b style={{ color: '#fff' }}>{fmtDate(endTs)}</b>
+            End: <b style={{ color: 'var(--p-text)' }}>{fmtDate(endTs)}</b>
           </span>
           <span style={{ fontSize: 11.5, color: C.muted }}>
             Creator: <code style={{ color: C.accent, fontFamily: C.mono, fontSize: 11 }}>{truncatePk(stream.authority)}</code>
@@ -704,7 +704,7 @@ export default function StreamDetailPage() {
 
           {/* Vesting curve SVG */}
           <Card>
-            <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+            <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: 'var(--p-text)', marginBottom: 12 }}>
               Vesting Curve — {type.charAt(0).toUpperCase() + type.slice(1)} Model
             </div>
             <svg width="100%" viewBox={`0 0 ${W} ${H + 28}`} style={{ display: 'block' }}>
@@ -749,12 +749,12 @@ export default function StreamDetailPage() {
                 <div style={{
                   position: 'absolute', left: 0, top: 0, height: '100%',
                   width: `${total > 0n ? Math.round(Number(unlockedTotal) * 100 / Number(total)) : 0}%`,
-                  background: `${typeCol}44`, transition: 'width .5s',
+                  background: `color-mix(in srgb, ${typeCol} 27%, transparent)`, transition: 'width .5s',
                 }} />
                 <div style={{
                   position: 'absolute', left: 0, top: 0, height: '100%',
                   width: `${total > 0n ? Math.round(Number(withdrawn) * 100 / Number(total)) : 0}%`,
-                  background: `linear-gradient(90deg,${typeCol}88,${typeCol})`,
+                  background: `linear-gradient(90deg, color-mix(in srgb, ${typeCol} 53%, transparent), ${typeCol})`,
                   transition: 'width .5s',
                 }} />
               </div>
@@ -768,7 +768,7 @@ export default function StreamDetailPage() {
 
           {/* Milestones or schedule */}
           <Card>
-            <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+            <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: 'var(--p-text)', marginBottom: 12 }}>
               {milestoneCount > 0 ? 'Milestone Gates' : 'Schedule'}
             </div>
 
@@ -781,7 +781,7 @@ export default function StreamDetailPage() {
                     <div key={i} style={{
                       display: 'flex', gap: 10, alignItems: 'center',
                       padding: '9px 12px', borderRadius: 10,
-                      background: done ? `${C.green}0a` : 'rgba(255,255,255,.03)',
+                      background: done ? 'color-mix(in srgb, var(--p-green) 4%, transparent)' : 'rgba(255,255,255,.03)',
                       border: `1px solid ${done ? C.green : C.border}`,
                     }}>
                       <div style={{
@@ -839,7 +839,7 @@ export default function StreamDetailPage() {
 
         {/* Math breakdown */}
         <Card>
-          <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+          <div style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: 'var(--p-text)', marginBottom: 12 }}>
             Mathematical Breakdown — On-Chain Formula
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,160px),1fr))', gap: 12, marginBottom: 14 }}>

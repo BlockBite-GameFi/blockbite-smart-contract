@@ -4,14 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 
-/* ── BlockBite Brand ── */
+/* ── BlockBite Brand — kept as local vars for canvas & decorative elements ── */
 const MAGENTA  = '#b12c84';
 const TEAL     = '#3d7c91';
 const GOLD     = '#e1a438';
 const PURPLE   = '#7c80e8';
 const CORAL    = '#d94553';
-const BG       = '#08080f';
 
 const GRAD_MAIN = `linear-gradient(135deg, ${MAGENTA}, ${PURPLE})`;
 const GRAD_ALT  = `linear-gradient(135deg, ${TEAL}, ${GOLD})`;
@@ -232,12 +232,8 @@ export default function WaitlistPage() {
     setBusy(false);
   }
 
-  const border  = 'rgba(255,255,255,0.08)';
-  const surface = 'rgba(255,255,255,0.04)';
-  const dim     = '#8892a4';
-
   return (
-    <div style={{ minHeight: '100vh', background: BG, color: '#fff', fontFamily: "'Montserrat', 'Roboto', system-ui, sans-serif", overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: "'Montserrat', 'Roboto', system-ui, sans-serif", overflowX: 'hidden' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Roboto:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
         @keyframes bbPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
@@ -267,7 +263,7 @@ export default function WaitlistPage() {
           </h1>
 
           {/* Subheadline */}
-          <p style={{ fontSize: 'clamp(15px,2vw,19px)', color: '#c8ccd6', maxWidth: 600, lineHeight: 1.65, margin: 0, fontFamily: 'Roboto,sans-serif', fontWeight: 400 }}>
+          <p style={{ fontSize: 'clamp(15px,2vw,19px)', color: T.textDim, maxWidth: 600, lineHeight: 1.65, margin: 0, fontFamily: 'Roboto,sans-serif', fontWeight: 400 }}>
             {txt.sub}
           </p>
 
@@ -310,8 +306,8 @@ export default function WaitlistPage() {
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '15px 20px', borderRadius: 12,
-                    background: 'rgba(255,255,255,0.05)', border: `1.5px solid ${err ? CORAL : border}`,
-                    color: '#fff', fontFamily: 'Roboto,sans-serif', fontSize: 15,
+                    background: T.surface, border: `1.5px solid ${err ? CORAL : T.border}`,
+                    color: T.text, fontFamily: 'Roboto,sans-serif', fontSize: 15,
                     transition: '0.15s',
                   }}
                 />
@@ -355,10 +351,10 @@ export default function WaitlistPage() {
           <div style={{ display: 'flex', gap: '40px', marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
             {txt.stats.map((s, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', fontFamily: 'Montserrat,sans-serif', letterSpacing: '-0.5px' }}>
+                <div style={{ fontSize: 26, fontWeight: 900, color: T.text, fontFamily: 'Montserrat,sans-serif', letterSpacing: '-0.5px' }}>
                   {s.dynamic ? count : s.v}
                 </div>
-                <div style={{ fontSize: 10, color: dim, letterSpacing: '2px', marginTop: 2, fontFamily: 'IBM Plex Mono,monospace' }}>{s.l}</div>
+                <div style={{ fontSize: 10, color: T.textDim, letterSpacing: '2px', marginTop: 2, fontFamily: 'IBM Plex Mono,monospace' }}>{s.l}</div>
               </div>
             ))}
           </div>
@@ -375,14 +371,14 @@ export default function WaitlistPage() {
             {txt.features.map((f, i) => (
               <div className="wl-feature" key={i} style={{
                 padding: '28px 24px', borderRadius: 20,
-                background: surface, border: `1.5px solid ${border}`,
+                background: T.surface, border: `1.5px solid ${T.border}`,
                 transition: '0.2s', cursor: 'default',
               }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: `${f.color}22`, border: `1.5px solid ${f.color}44`, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ width: 16, height: 16, borderRadius: 4, background: f.color }}/>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, fontFamily: 'Montserrat,sans-serif', color: '#fff' }}>{f.t}</div>
-                <div style={{ fontSize: 13, color: dim, lineHeight: 1.65, fontFamily: 'Roboto,sans-serif' }}>{f.d}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, fontFamily: 'Montserrat,sans-serif', color: T.text }}>{f.t}</div>
+                <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.65, fontFamily: 'Roboto,sans-serif' }}>{f.d}</div>
               </div>
             ))}
           </div>
@@ -399,7 +395,7 @@ export default function WaitlistPage() {
             {txt.steps.map((s, i) => (
               <div key={i} style={{
                 padding: '24px 20px', borderRadius: 18,
-                background: surface, border: `1.5px solid ${border}`,
+                background: T.surface, border: `1.5px solid ${T.border}`,
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{
@@ -417,8 +413,8 @@ export default function WaitlistPage() {
                 }}>
                   {i + 1}
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, fontFamily: 'Montserrat,sans-serif' }}>{s.t}</div>
-                <div style={{ fontSize: 13, color: dim, lineHeight: 1.6, fontFamily: 'Roboto,sans-serif' }}>{s.d}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 8, fontFamily: 'Montserrat,sans-serif', color: T.text }}>{s.t}</div>
+                <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.6, fontFamily: 'Roboto,sans-serif' }}>{s.d}</div>
               </div>
             ))}
           </div>
@@ -429,12 +425,12 @@ export default function WaitlistPage() {
           <div style={{
             maxWidth: 600, margin: '0 auto',
             padding: '48px 32px', borderRadius: 24,
-            background: 'rgba(177,44,132,0.08)', border: `1.5px solid ${MAGENTA}33`,
+            background: T.accentA2, border: `1.5px solid ${MAGENTA}33`,
           }}>
             <div style={{ fontSize: 'clamp(22px,3vw,32px)', fontWeight: 900, marginBottom: 16, fontFamily: 'Montserrat,sans-serif' }}>
               Ready to secure your token distribution?
             </div>
-            <p style={{ color: dim, fontSize: 15, marginBottom: 28, lineHeight: 1.6, fontFamily: 'Roboto,sans-serif' }}>
+            <p style={{ color: T.textDim, fontSize: 15, marginBottom: 28, lineHeight: 1.6, fontFamily: 'Roboto,sans-serif' }}>
               {lang === 'en'
                 ? 'Join the waitlist and be first to automate trust-minimized vesting on Solana.'
                 : 'Daftar waitlist dan jadilah yang pertama mengotomasi vesting berbasis kepercayaan di Solana.'}
@@ -450,8 +446,8 @@ export default function WaitlistPage() {
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '14px 18px', borderRadius: 12,
-                    background: 'rgba(255,255,255,0.06)', border: `1.5px solid ${border}`,
-                    color: '#fff', fontFamily: 'Roboto,sans-serif', fontSize: 14,
+                    background: T.surface, border: `1.5px solid ${T.border}`,
+                    color: T.text, fontFamily: 'Roboto,sans-serif', fontSize: 14,
                     transition: '0.15s',
                   }}
                 />
@@ -478,9 +474,9 @@ export default function WaitlistPage() {
 
         {/* ── Footer ── */}
         <footer style={{
-          borderTop: `1px solid ${border}`, padding: '28px 32px',
+          borderTop: `1px solid ${T.border}`, padding: '28px 32px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexWrap: 'wrap', gap: 12, fontSize: 12, color: dim,
+          flexWrap: 'wrap', gap: 12, fontSize: 12, color: T.textDim,
           fontFamily: 'IBM Plex Mono,monospace',
         }}>
           <div>{txt.footer}</div>

@@ -21,11 +21,11 @@ function MilestoneRow({ m, i, onChange, color }: {
   color: string;
 }) {
   return (
-    <div style={{ padding: '16px', borderRadius: 12, background: C.bg2, border: `1px solid ${color}33`,
+    <div style={{ padding: '16px', borderRadius: 12, background: C.bg2, border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
       display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: '50%', background: `${color}18`,
-          border: `1px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        <div style={{ width: 24, height: 24, borderRadius: '50%', background: `color-mix(in srgb, ${color} 9%, transparent)`,
+          border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10.5, fontWeight: 800, color, flexShrink: 0 }}>{i + 1}</div>
         <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: C.serif }}>Milestone {i + 1}</span>
       </div>
@@ -125,7 +125,7 @@ export default function MilestonePage() {
         </p>
         {txSig && (
           <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}33`, fontSize: 12 }}>
+            background: 'color-mix(in srgb, var(--p-green) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-green) 20%, transparent)', fontSize: 12 }}>
             <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
               target="_blank" rel="noreferrer" style={{ color: C.green, wordBreak: 'break-all' }}>
               {txSig} ↗
@@ -198,8 +198,8 @@ export default function MilestonePage() {
         {fieldErrors.pct    && <FieldError msg={fieldErrors.pct} />}
         <div style={{
           padding: '9px 13px', borderRadius: 9, fontSize: 12, fontFamily: C.mono,
-          background: msTotal > 100 ? `${C.red}12` : msTotal === 100 ? `${C.green}12` : `${C.gold}12`,
-          border: `1px solid ${msTotal > 100 ? C.red : msTotal === 100 ? C.green : C.gold}44`,
+          background: msTotal > 100 ? 'color-mix(in srgb, var(--p-red) 7%, transparent)' : msTotal === 100 ? 'color-mix(in srgb, var(--p-green) 7%, transparent)' : 'color-mix(in srgb, var(--p-gold) 7%, transparent)',
+          border: `1px solid color-mix(in srgb, ${msTotal > 100 ? C.red : msTotal === 100 ? C.green : C.gold} 27%, transparent)`,
           color: msTotal > 100 ? C.red : msTotal === 100 ? C.green : C.gold,
         }}>
           Milestone total: {msTotal}%
@@ -215,7 +215,7 @@ export default function MilestonePage() {
         <TxProgress status={txStatus} sig={txSig} error={txErr ? humanizeError(txErr) : null} />
       )}
 
-      <div style={{ padding: '11px 15px', borderRadius: 10, background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, fontSize: 12, color: C.gold }}>
+      <div style={{ padding: '11px 15px', borderRadius: 10, background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>
         ⚠ Creating a stream locks tokens into a Solana PDA vault via{' '}
         <code style={{ fontFamily: C.mono }}>create_stream()</code>. Connect your wallet to proceed.
       </div>

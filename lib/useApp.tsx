@@ -24,6 +24,17 @@ const DICT: Record<Lang, Record<string, string>> = {
     join_waitlist: 'Join Waitlist',
     waitlist_note: 'No spam. Unsubscribe anytime.',
     waitlist_success: "You're on the list! We'll notify you when BlockBite launches.",
+    /* ── Navbar links & CTAs ── */
+    nav_product:      'PRODUCT',
+    nav_how_it_works: 'HOW IT WORKS',
+    nav_play_game:    'PLAY GAME',
+    nav_waitlist:     'WAITLIST',
+    nav_back:         '← Home',
+    cta_play:         '▶ Play Game',
+    cta_launch:       'Launch App',
+    /* ── Theme toggle labels ── */
+    theme_to_light: 'Switch to Light Mode',
+    theme_to_dark:  'Switch to Dark Mode',
   },
   id: {
     nav_home: 'Beranda', nav_play: 'Main', nav_map: 'Peta',
@@ -44,6 +55,17 @@ const DICT: Record<Lang, Record<string, string>> = {
     join_waitlist: 'Daftar Waitlist',
     waitlist_note: 'Tanpa spam. Bisa berhenti kapan saja.',
     waitlist_success: 'Kamu sudah terdaftar! Kami akan notifikasi saat BlockBite meluncur.',
+    /* ── Navbar links & CTAs ── */
+    nav_product:      'PRODUK',
+    nav_how_it_works: 'CARA KERJA',
+    nav_play_game:    'MAIN GAME',
+    nav_waitlist:     'DAFTAR',
+    nav_back:         '← Beranda',
+    cta_play:         '▶ Main Game',
+    cta_launch:       'Mulai App',
+    /* ── Theme toggle labels ── */
+    theme_to_light: 'Ganti ke Mode Terang',
+    theme_to_dark:  'Ganti ke Mode Gelap',
   },
 };
 

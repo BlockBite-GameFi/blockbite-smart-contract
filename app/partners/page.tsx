@@ -5,9 +5,9 @@ import Navbar from '@/components/Navbar';
 
 // ─── Design System V3 ─────────────────────────────────────────────────────────
 const DS = {
-  bg0:      '#08081a',
-  bg1:      '#09081e',
-  bg2:      '#0e0c22',
+  bg0:      'var(--p-bg0)',
+  bg1:      'var(--p-bg1)',
+  bg2:      'var(--p-bg2)',
   accent:   '#a78bff',
   accentDk: '#5e35d4',
   gold:     '#f5c66a',
@@ -15,8 +15,8 @@ const DS = {
   red:      '#ff3b6b',
   blue:     '#7ad7ff',
   ember:    '#ff7a3a',
-  muted:    'rgba(232,225,248,.38)',
-  border:   'rgba(167,139,255,.13)',
+  muted:    'var(--p-muted)',
+  border:   'var(--p-border)',
   card:     'rgba(255,255,255,.042)',
   cinzel:   "'Space Grotesk', system-ui, sans-serif",
   sora:     "'Space Grotesk', system-ui, sans-serif",

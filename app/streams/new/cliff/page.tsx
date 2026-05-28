@@ -74,7 +74,7 @@ export default function CliffPage() {
         </p>
         {txSig && (
           <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}33`, fontSize: 12 }}>
+            background: 'color-mix(in srgb, var(--p-green) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-green) 20%, transparent)', fontSize: 12 }}>
             <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
               target="_blank" rel="noreferrer" style={{ color: C.green, wordBreak: 'break-all' }}>
               {txSig} ↗
@@ -153,7 +153,7 @@ export default function CliffPage() {
               { l: 'Lock type',     v: 'Full cliff — instant release', c: C.muted },
               { l: 'Stream type',   v: 'Cliff vesting',                c: COLOR   },
             ].map(r => (
-              <div key={r.l} style={{ padding: '10px 12px', borderRadius: 9, background: `${COLOR}07`, border: `1px solid ${COLOR}22` }}>
+              <div key={r.l} style={{ padding: '10px 12px', borderRadius: 9, background: `color-mix(in srgb, ${COLOR} 3%, transparent)`, border: `1px solid color-mix(in srgb, ${COLOR} 13%, transparent)` }}>
                 <div style={{ fontSize: 10, color: C.muted, marginBottom: 3 }}>{r.l}</div>
                 <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: r.c }}>{r.v}</div>
               </div>
@@ -170,7 +170,7 @@ export default function CliffPage() {
         <TxProgress status={txStatus} sig={txSig} error={txErr ? humanizeError(txErr) : null} />
       )}
 
-      <div style={{ padding: '11px 15px', borderRadius: 10, background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, fontSize: 12, color: C.gold }}>
+      <div style={{ padding: '11px 15px', borderRadius: 10, background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>
         ⚠ Cliff streams lock tokens until the specified date. Connect your wallet to proceed.
       </div>
     </StreamPageShell>

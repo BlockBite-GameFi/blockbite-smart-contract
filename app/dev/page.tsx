@@ -47,7 +47,7 @@ export default function DevDashboard() {
   }
 
   return (
-    <div style={{ background: '#08081a', minHeight: '100vh', color: '#CCCCEE', fontFamily: 'monospace', padding: '24px' }}>
+    <div style={{ background: 'var(--p-bg0)', minHeight: '100vh', color: '#CCCCEE', fontFamily: 'monospace', padding: '24px' }}>
       <Navbar />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
@@ -65,12 +65,12 @@ export default function DevDashboard() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '32px' }}>
         {(['crash','error','warning','info'] as ErrorSeverity[]).map(s => (
-          <div key={s} style={{ background: '#0D0D22', border: `1px solid ${SEV_COLOR[s]}33`, borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+          <div key={s} style={{ background: 'var(--p-bg1)', border: `1px solid ${SEV_COLOR[s]}33`, borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
             <div style={{ fontSize: '28px', fontWeight: 800, color: SEV_COLOR[s] }}>{countBySev(s)}</div>
             <div style={{ fontSize: '11px', color: '#55557A', textTransform: 'uppercase', letterSpacing: '1px' }}>{s}s</div>
           </div>
         ))}
-        <div style={{ background: '#0D0D22', border: '1px solid #33335566', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--p-bg1)', border: '1px solid #33335566', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
           <div style={{ fontSize: '28px', fontWeight: 800, color: '#FFFFFF' }}>{reports.length}</div>
           <div style={{ fontSize: '11px', color: '#55557A', textTransform: 'uppercase', letterSpacing: '1px' }}>TOTAL</div>
         </div>
@@ -78,7 +78,7 @@ export default function DevDashboard() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
         {/* Top-10 stages with errors */}
-        <div style={{ background: '#0D0D22', border: '1px solid #33334488', borderRadius: '12px', padding: '20px' }}>
+        <div style={{ background: 'var(--p-bg1)', border: '1px solid #33334488', borderRadius: '12px', padding: '20px' }}>
           <div style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '2px', color: '#8888BB', marginBottom: '16px' }}>
             TOP STAGES BY ERRORS
           </div>
@@ -93,7 +93,7 @@ export default function DevDashboard() {
                   <span style={{ color }}>{stage}</span>
                   <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{count}</span>
                 </div>
-                <div style={{ background: '#11112A', borderRadius: '4px', height: '6px' }}>
+                <div style={{ background: 'var(--p-bg2)', borderRadius: '4px', height: '6px' }}>
                   <div style={{ background: color, width: `${pct}%`, height: '6px', borderRadius: '4px' }} />
                 </div>
               </div>
@@ -118,7 +118,7 @@ export default function DevDashboard() {
             ))}
           </div>
 
-          <div style={{ background: '#0D0D22', border: '1px solid #33334488', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--p-bg1)', border: '1px solid #33334488', borderRadius: '12px', overflow: 'hidden' }}>
             {visible.length === 0 && (
               <div style={{ padding: '40px', textAlign: 'center', color: '#55557A', fontSize: '14px' }}>
                 No reports match the current filter.

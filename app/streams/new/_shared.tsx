@@ -4,25 +4,27 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── Design tokens — ALL values are CSS custom-property references so that
+//     dark/light theme toggle propagates instantly to every inline style.
+//     Alpha variants use color-mix() instead of hex suffixes (e.g. ${C.accent}18).
 export const C = {
-  accent:   '#a78bfa',
-  accentDk: '#5e35d4',
-  gold:     '#f5c66a',
-  green:    '#5fd07a',
-  blue:     '#7ad7ff',
-  ember:    '#ff7a3a',
-  red:      '#ff3b6b',
-  game:     '#4ade80',
-  gameDk:   '#16a34a',
-  muted:    'rgba(148,163,184,.7)',
-  border:   'rgba(167,139,250,.15)',
-  bg0:      '#08081a',
-  bg1:      '#09081e',
-  bg2:      '#0f0d24',
+  accent:   'var(--p-accent)',
+  accentDk: 'var(--p-accent-dk)',
+  gold:     'var(--p-gold)',
+  green:    'var(--p-green)',
+  blue:     'var(--p-blue)',
+  ember:    'var(--p-ember)',
+  red:      'var(--p-red)',
+  game:     'var(--p-game)',
+  gameDk:   'var(--p-game-dk)',
+  muted:    'var(--p-muted)',
+  border:   'var(--p-border)',
+  bg0:      'var(--p-bg0)',
+  bg1:      'var(--p-bg1)',
+  bg2:      'var(--p-bg2)',
   mono:     "'JetBrains Mono', monospace",
   serif:    "'Space Grotesk', system-ui, sans-serif",
-} as const;
+};
 
 // ─── Atoms ───────────────────────────────────────────────────────────────────
 export function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
@@ -55,7 +57,7 @@ export function SInput({ value, onChange, placeholder, type = 'text', mono = tru
           width: '100%', padding: prefix ? '11px 14px 11px 32px' : '11px 14px',
           boxSizing: 'border-box',
           background: C.bg2, border: `1px solid ${focus ? C.accent : C.border}`,
-          borderRadius: 10, color: '#e8e1f8', fontSize: 13, outline: 'none',
+          borderRadius: 10, color: 'var(--p-text)', fontSize: 13, outline: 'none',
           fontFamily: mono ? C.mono : C.serif, transition: 'border-color .15s',
         }}
       />
@@ -71,7 +73,7 @@ export function SSelect({ value, onChange, options, placeholder }: {
     <select value={value} onChange={e => onChange(e.target.value)} style={{
       width: '100%', padding: '11px 14px', boxSizing: 'border-box',
       background: C.bg2, border: `1px solid ${C.border}`,
-      borderRadius: 10, color: value ? '#e8e1f8' : C.muted,
+      borderRadius: 10, color: value ? 'var(--p-text)' : C.muted,
       fontSize: 13, outline: 'none', fontFamily: C.mono,
       cursor: 'pointer', appearance: 'none',
     }}>
@@ -92,7 +94,7 @@ export function STextarea({ value, onChange, placeholder, rows = 2 }: {
       style={{
         width: '100%', padding: '11px 14px', boxSizing: 'border-box', resize: 'vertical',
         background: C.bg2, border: `1px solid ${focus ? C.accent : C.border}`,
-        borderRadius: 10, color: '#e8e1f8', fontSize: 13, outline: 'none',
+        borderRadius: 10, color: 'var(--p-text)', fontSize: 13, outline: 'none',
         fontFamily: C.serif, lineHeight: 1.6, transition: 'border-color .15s',
       }}
     />
@@ -107,7 +109,7 @@ export function SSlider({ label, value, onChange, min, max, step = 1, unit = '',
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12.5, color: '#e8e1f8', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontSize: 12.5, color: 'var(--p-text)', fontWeight: 500 }}>{label}</span>
         <span style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 800, color }}>
           {value.toLocaleString()}{unit}
         </span>
@@ -117,7 +119,7 @@ export function SSlider({ label, value, onChange, min, max, step = 1, unit = '',
           background: 'rgba(255,255,255,.08)', borderRadius: 99, transform: 'translateY(-50%)' }} />
         <div style={{ position: 'absolute', top: '50%', left: 0, width: `${pct}%`, height: 4,
           background: color, borderRadius: 99, transform: 'translateY(-50%)',
-          boxShadow: `0 0 8px ${color}66` }} />
+          boxShadow: `0 0 8px color-mix(in srgb, ${color} 40%, transparent)` }} />
         <input type="range" min={min} max={max} step={step} value={value}
           onChange={e => onChange(Number(e.target.value))}
           style={{ position: 'relative', zIndex: 2, width: '100%', appearance: 'none',
@@ -138,7 +140,7 @@ export function SToggle({ value, onChange, label, sub }: {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e1f8' }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--p-text)' }}>{label}</div>
         {sub && <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>{sub}</div>}
       </div>
       <button type="button" onClick={() => onChange(!value)} style={{
@@ -161,7 +163,7 @@ export function Section({ title, children }: { title: string; children: React.Re
   return (
     <div style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 16,
       padding: '22px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: '#e8e1f8', fontFamily: C.serif }}>{title}</div>
+      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--p-text)', fontFamily: C.serif }}>{title}</div>
       {children}
     </div>
   );
@@ -203,21 +205,21 @@ export function GameGateCard({ enabled, onChange, level, onLevelChange }: {
   return (
     <div style={{
       borderRadius: 14, padding: '18px 20px',
-      background: enabled ? `${C.game}09` : 'rgba(255,255,255,.02)',
-      border: `1.5px solid ${enabled ? C.game + '55' : C.border}`,
+      background: enabled ? 'color-mix(in srgb, var(--p-game) 4%, transparent)' : 'rgba(255,255,255,.02)',
+      border: `1.5px solid ${enabled ? 'color-mix(in srgb, var(--p-game) 33%, transparent)' : C.border}`,
       transition: 'all .2s',
-      boxShadow: enabled ? `0 0 20px ${C.game}10` : 'none',
+      boxShadow: enabled ? '0 0 20px color-mix(in srgb, var(--p-game) 6%, transparent)' : 'none',
     }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: enabled ? 18 : 0 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 9, flexShrink: 0,
-          background: enabled ? `${C.game}18` : 'rgba(255,255,255,.04)',
-          border: `1px solid ${enabled ? C.game + '44' : C.border}`,
+          background: enabled ? 'color-mix(in srgb, var(--p-game) 9%, transparent)' : 'rgba(255,255,255,.04)',
+          border: `1px solid ${enabled ? 'color-mix(in srgb, var(--p-game) 27%, transparent)' : C.border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
         }}>◈</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: enabled ? C.game : '#e8e1f8' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: enabled ? C.game : 'var(--p-text)' }}>
             BlockBite Game Gate
           </div>
           <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
@@ -242,7 +244,7 @@ export function GameGateCard({ enabled, onChange, level, onLevelChange }: {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Slider */}
           <div style={{ padding: '14px 16px', borderRadius: 11,
-            background: `${C.game}0a`, border: `1px solid ${C.game}22` }}>
+            background: 'color-mix(in srgb, var(--p-game) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-game) 13%, transparent)' }}>
             <SSlider
               label="Required Level" value={level} onChange={onLevelChange}
               min={1} max={50} color={C.game}
@@ -253,8 +255,8 @@ export function GameGateCard({ enabled, onChange, level, onLevelChange }: {
               {tiers.map(t => (
                 <div key={t.label} style={{
                   padding: '3px 9px', borderRadius: 99, fontSize: 10, fontWeight: 700,
-                  background: activeTier.label === t.label ? `${t.color}18` : 'rgba(255,255,255,.04)',
-                  border: `1px solid ${activeTier.label === t.label ? t.color + '55' : C.border}`,
+                  background: activeTier.label === t.label ? `color-mix(in srgb, ${t.color} 9%, transparent)` : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${activeTier.label === t.label ? `color-mix(in srgb, ${t.color} 33%, transparent)` : C.border}`,
                   color: activeTier.label === t.label ? t.color : C.muted,
                   transition: 'all .15s',
                 }}>{t.label} {t.min}–{t.max}</div>
@@ -303,17 +305,17 @@ export function StreamSidebar({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 28, height: 28, borderRadius: 7,
-              background: `${typeColor}18`, border: `1px solid ${typeColor}44`,
+              background: `color-mix(in srgb, ${typeColor} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${typeColor} 27%, transparent)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
               {typeIcon}
             </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#e8e1f8', fontFamily: C.serif }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--p-text)', fontFamily: C.serif }}>
               Solana
             </span>
           </div>
           <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em',
-            color: C.green, background: `${C.green}18`,
-            border: `1px solid ${C.green}33`, padding: '2px 8px', borderRadius: 6 }}>
+            color: C.green, background: 'color-mix(in srgb, var(--p-green) 9%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--p-green) 20%, transparent)', padding: '2px 8px', borderRadius: 6 }}>
             Devnet
           </span>
         </div>
@@ -321,7 +323,7 @@ export function StreamSidebar({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[
             { l: 'Stream Type',       v: typeLabel,                                          c: typeColor  },
-            { l: 'Total Deposit',     v: totalDeposit > 0 ? `${totalDeposit.toLocaleString()} ${token}` : '0 —', c: '#e8e1f8' },
+            { l: 'Total Deposit',     v: totalDeposit > 0 ? `${totalDeposit.toLocaleString()} ${token}` : '0 —', c: 'var(--p-text)' },
             { l: 'Recipients',        v: recipientCount > 0 ? String(recipientCount) : '—',  c: C.blue     },
             { l: 'Network Fee (est.)',v: '~0.000005 SOL',                                    c: C.muted    },
           ].map(r => (
@@ -336,11 +338,11 @@ export function StreamSidebar({
         {gameGate && (
           <div style={{
             marginTop: 12, padding: '8px 12px', borderRadius: 9,
-            background: `${'#4ade80'}0d`, border: `1px solid ${'#4ade80'}33`,
+            background: 'color-mix(in srgb, var(--p-game) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--p-game) 20%, transparent)',
             display: 'flex', alignItems: 'center', gap: 7,
           }}>
             <span style={{ fontSize: 14 }}>◈</span>
-            <span style={{ fontSize: 11.5, color: '#4ade80', fontWeight: 600 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--p-game)', fontWeight: 600 }}>
               Game Gate: Level {gameLevel}
             </span>
           </div>
@@ -350,12 +352,12 @@ export function StreamSidebar({
         <button onClick={onSubmit} disabled={isSubmitting} style={{
           marginTop: 16, width: '100%', padding: '13px 0', borderRadius: 11, border: 'none',
           background: isSubmitting
-            ? 'rgba(167,139,250,.35)'
+            ? 'color-mix(in srgb, var(--p-accent) 35%, transparent)'
             : `linear-gradient(135deg,${typeColor},${C.accentDk})`,
           color: '#fff', fontWeight: 800, fontSize: 14,
           cursor: isSubmitting ? 'default' : 'pointer',
           fontFamily: C.serif, letterSpacing: '.02em',
-          boxShadow: isSubmitting ? 'none' : `0 0 20px ${typeColor}44`,
+          boxShadow: isSubmitting ? 'none' : `0 0 20px color-mix(in srgb, ${typeColor} 27%, transparent)`,
           transition: 'all .15s',
         }}>
           {txStatus === 'approving'  ? '◈ Approve in wallet…'
@@ -433,8 +435,8 @@ export function TxProgress({
 
   return (
     <div style={{
-      borderRadius: 14, border: `1px solid ${status === 'error' ? C.red + '55' : C.accent + '33'}`,
-      background: status === 'error' ? `${C.red}08` : `${C.accent}06`,
+      borderRadius: 14, border: `1px solid ${status === 'error' ? 'color-mix(in srgb, var(--p-red) 33%, transparent)' : 'color-mix(in srgb, var(--p-accent) 20%, transparent)'}`,
+      background: status === 'error' ? 'color-mix(in srgb, var(--p-red) 3%, transparent)' : 'color-mix(in srgb, var(--p-accent) 2%, transparent)',
       padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14,
     }}>
       {/* Stage steps */}
@@ -450,9 +452,9 @@ export function TxProgress({
                   width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 16,
-                  background: isDone ? `${C.green}22` : isActive ? `${C.accent}18` : 'rgba(255,255,255,.04)',
-                  border: `1.5px solid ${isDone ? C.green + '66' : isActive ? C.accent + '66' : C.border}`,
-                  boxShadow: isActive ? `0 0 12px ${C.accent}33` : 'none',
+                  background: isDone ? 'color-mix(in srgb, var(--p-green) 13%, transparent)' : isActive ? 'color-mix(in srgb, var(--p-accent) 9%, transparent)' : 'rgba(255,255,255,.04)',
+                  border: `1.5px solid ${isDone ? 'color-mix(in srgb, var(--p-green) 40%, transparent)' : isActive ? 'color-mix(in srgb, var(--p-accent) 40%, transparent)' : C.border}`,
+                  boxShadow: isActive ? '0 0 12px color-mix(in srgb, var(--p-accent) 20%, transparent)' : 'none',
                   transition: 'all .3s',
                 }}>
                   {isDone ? '✓' : isActive ? (
@@ -461,7 +463,7 @@ export function TxProgress({
                 </div>
                 <span style={{
                   fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
-                  color: isDone ? C.green : isActive ? '#e8e1f8' : C.muted,
+                  color: isDone ? C.green : isActive ? 'var(--p-text)' : C.muted,
                 }}>
                   {stage.label}
                 </span>
@@ -469,7 +471,7 @@ export function TxProgress({
               {i < TX_STAGES.length - 1 && (
                 <div style={{
                   flex: 1, height: 1.5, margin: '0 8px', marginBottom: 22,
-                  background: i < activeIdx || status === 'done' ? C.green + '66' : C.border,
+                  background: i < activeIdx || status === 'done' ? 'color-mix(in srgb, var(--p-green) 40%, transparent)' : C.border,
                   transition: 'background .3s',
                 }} />
               )}
@@ -485,7 +487,7 @@ export function TxProgress({
         </div>
       )}
       {status === 'confirming' && (
-        <div style={{ fontSize: 12.5, color: '#e8e1f8', textAlign: 'center' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--p-text)', textAlign: 'center' }}>
           Transaction sent — waiting for Solana to confirm…
         </div>
       )}
@@ -581,8 +583,8 @@ export function MultisigAuthorityField({
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
-      border: `1px solid ${expanded ? C.ember + '55' : C.border}`,
-      background: expanded ? `${C.ember}06` : 'rgba(255,255,255,.02)',
+      border: `1px solid ${expanded ? 'color-mix(in srgb, var(--p-ember) 33%, transparent)' : C.border}`,
+      background: expanded ? 'color-mix(in srgb, var(--p-ember) 2%, transparent)' : 'rgba(255,255,255,.02)',
       transition: 'all .2s',
     }}>
       {/* Header toggle */}
@@ -599,7 +601,7 @@ export function MultisigAuthorityField({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 16 }}>{value && isValidish ? '🔒' : '⚠'}</span>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: value && isValidish ? C.green : '#e8e1f8' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: value && isValidish ? C.green : 'var(--p-text)' }}>
               {value && isValidish ? 'Multisig Authority Set' : 'Clawback Authority'}
             </div>
             <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
@@ -620,7 +622,7 @@ export function MultisigAuthorityField({
           {/* Risk callout */}
           <div style={{
             padding: '10px 14px', borderRadius: 10,
-            background: `${C.ember}0d`, border: `1px solid ${C.ember}35`,
+            background: 'color-mix(in srgb, var(--p-ember) 5%, transparent)', border: '1px solid color-mix(in srgb, var(--p-ember) 21%, transparent)',
             fontSize: 11.5, color: `rgba(255,165,100,.9)`, lineHeight: 1.65,
           }}>
             <strong>⚠ Default: SOLO AUTHORITY (no multisig protection)</strong>
@@ -645,7 +647,7 @@ export function MultisigAuthorityField({
                   width: '100%', padding: '11px 14px', boxSizing: 'border-box',
                   background: C.bg2,
                   border: `1px solid ${showErr ? C.red : focus ? C.ember : C.border}`,
-                  borderRadius: 10, color: '#e8e1f8', fontSize: 12, outline: 'none',
+                  borderRadius: 10, color: 'var(--p-text)', fontSize: 12, outline: 'none',
                   fontFamily: C.mono, transition: 'border-color .15s',
                 }}
               />
@@ -699,14 +701,14 @@ export function StreamPageShell({
   children: React.ReactNode; sidebar: React.ReactNode;
 }) {
   return (
-    <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <main style={{ minHeight: '100vh', background: C.bg0, color: 'var(--p-text)', fontFamily: C.serif }}>
       {/* eslint-disable-next-line react/no-danger */}
       <style dangerouslySetInnerHTML={{ __html: SHELL_RESPONSIVE_CSS }} />
       <Navbar />
       <div className="sps-header" style={{
         padding: '80px 32px 24px',
         borderBottom: `1px solid ${C.border}`,
-        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
+        background: 'var(--p-grad)',
       }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Link href="/streams/new" style={{
@@ -718,11 +720,11 @@ export function StreamPageShell({
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
               width: 48, height: 48, borderRadius: 13,
-              background: `${typeColor}18`, border: `1.5px solid ${typeColor}44`,
+              background: `color-mix(in srgb, ${typeColor} 9%, transparent)`, border: `1.5px solid color-mix(in srgb, ${typeColor} 27%, transparent)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0,
             }}>{typeIcon}</div>
             <div>
-              <h1 style={{ fontSize: 'clamp(22px,3.5vw,32px)', fontWeight: 900, margin: 0, color: '#fff' }}>
+              <h1 style={{ fontSize: 'clamp(22px,3.5vw,32px)', fontWeight: 900, margin: 0, color: 'var(--p-text)' }}>
                 {typeLabel} Vesting
               </h1>
               <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0' }}>{subtitle}</p>

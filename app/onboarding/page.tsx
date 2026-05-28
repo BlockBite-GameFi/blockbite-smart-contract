@@ -6,14 +6,14 @@ import Navbar from '@/components/Navbar';
 import { useApp } from '@/lib/useApp';
 
 const C = {
-  bg0:    '#08081a',
-  bg1:    '#09081e',
+  bg0:    'var(--p-bg0)',
+  bg1:    'var(--p-bg1)',
   accent: '#a78bfa',
   gold:   '#f5c66a',
   green:  '#5fd07a',
   blue:   '#7ad7ff',
-  muted:  'rgba(148,163,184,.7)',
-  border: 'rgba(167,139,250,.15)',
+  muted:  'var(--p-muted)',
+  border: 'var(--p-border)',
   serif:  "'Space Grotesk', system-ui, sans-serif",
   mono:   "'JetBrains Mono', monospace",
 };

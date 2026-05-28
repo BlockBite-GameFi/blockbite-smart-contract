@@ -85,7 +85,7 @@ export default function HybridPage() {
         </p>
         {txSig && (
           <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 10,
-            background: `${C.green}0a`, border: `1px solid ${C.green}33`, fontSize: 12 }}>
+            background: 'color-mix(in srgb, var(--p-green) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-green) 20%, transparent)', fontSize: 12 }}>
             <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`}
               target="_blank" rel="noreferrer" style={{ color: C.green, wordBreak: 'break-all' }}>
               {txSig} ↗
@@ -168,9 +168,9 @@ export default function HybridPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {Array.from({ length: msCount }, (_, i) => (
             <div key={i} style={{ padding: '14px 16px', borderRadius: 11, background: C.bg2,
-              border: `1px solid ${COLOR}33`, display: 'flex', alignItems: 'center', gap: 12 }}>
+              border: `1px solid color-mix(in srgb, ${COLOR} 20%, transparent)`, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                background: `${COLOR}18`, border: `1px solid ${COLOR}44`,
+                background: `color-mix(in srgb, ${COLOR} 9%, transparent)`, border: `1px solid color-mix(in srgb, ${COLOR} 27%, transparent)`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 11, fontWeight: 800, color: COLOR }}>{i + 1}</div>
               <div style={{ flex: 1 }}>
@@ -212,7 +212,7 @@ export default function HybridPage() {
         <TxProgress status={txStatus} sig={txSig} error={txErr ? humanizeError(txErr) : null} />
       )}
 
-      <div style={{ padding: '11px 15px', borderRadius: 10, background: `${C.gold}0a`, border: `1px solid ${C.gold}33`, fontSize: 12, color: C.gold }}>
+      <div style={{ padding: '11px 15px', borderRadius: 10, background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>
         ⚠ Hybrid streams combine cliff, milestone, and linear mechanics in one PDA vault. Connect your wallet to proceed.
       </div>
     </StreamPageShell>

@@ -326,7 +326,13 @@
 @media (max-width: 768px) {
   .links { display: none; }
   .prizeChip { display: none; }
+  /* langThemeControls moves into the mobile drawer — keep hidden in top bar only */
   .langThemeControls { display: none; }
   .menuToggle { display: flex; }
   .mobileMenu { display: flex; }
+}
+
+/* Mobile drawer lang+theme row — always visible in drawer */
+@media (max-width: 768px) {
+  .mobileLangThemeRow { display: flex; }
 }

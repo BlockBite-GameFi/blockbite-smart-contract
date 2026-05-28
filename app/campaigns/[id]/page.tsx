@@ -19,17 +19,9 @@ import { useParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-
-// ─── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
-  bg0: '#08081a', bg1: '#09081e', bg2: '#0f0d24',
-  accent: '#a78bfa', gold: '#f5c66a', green: '#5fd07a',
-  blue: '#7ad7ff', red: '#ff3b6b', game: '#4ade80',
-  muted: 'rgba(148,163,184,.7)', border: 'rgba(167,139,250,.15)',
-  card: 'rgba(255,255,255,.035)',
-  mono: "'JetBrains Mono', monospace",
-  serif: "'Space Grotesk', system-ui, sans-serif",
-};
+import { T } from '@/lib/theme';
+import { I18N } from '@/lib/i18n';
+import { useApp } from '@/lib/useApp';
 
 // ─── Mock campaign lookup ──────────────────────────────────────────────────────
 // In production this would be fetched from the on-chain program via stream PDA.
@@ -61,12 +53,12 @@ const MOCK_CAMPAIGNS: Record<string, Campaign> = {
 };
 
 // ─── Step indicator ────────────────────────────────────────────────────────────
-function Steps({ current }: { current: number }) {
+function Steps({ current, lang }: { current: number; lang: 'en' | 'id' }) {
   const steps = [
-    { n: 1, label: 'Connect Wallet' },
-    { n: 2, label: 'Connect Stream'  },
-    { n: 3, label: 'Verify'          },
-    { n: 4, label: 'Claim'           },
+    { n: 1, label: lang === 'en' ? 'Connect Wallet' : 'Hubungkan Wallet' },
+    { n: 2, label: lang === 'en' ? 'Connect Stream'  : 'Hubungkan Stream' },
+    { n: 3, label: lang === 'en' ? 'Verify'          : 'Verifikasi' },
+    { n: 4, label: lang === 'en' ? 'Claim'           : 'Klaim' },
   ];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 32 }}>
@@ -78,24 +70,24 @@ function Steps({ current }: { current: number }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 12, fontWeight: 700,
               background: current > s.n
-                ? C.green
+                ? T.green
                 : current === s.n
-                ? `linear-gradient(135deg,${C.accent},#5e35d4)`
+                ? T.grad
                 : 'rgba(255,255,255,.06)',
-              border: `1.5px solid ${current > s.n ? C.green : current === s.n ? C.accent : C.border}`,
-              color: current >= s.n ? '#fff' : C.muted,
-              boxShadow: current === s.n ? `0 0 10px ${C.accent}55` : 'none',
+              border: `1.5px solid ${current > s.n ? T.green : current === s.n ? T.accent : T.border}`,
+              color: current >= s.n ? '#fff' : T.textDim,
+              boxShadow: current === s.n ? `0 0 10px ${T.accentA4}` : 'none',
             }}>
               {current > s.n ? '✓' : s.n}
             </div>
             <span style={{
               fontSize: 11.5, fontWeight: current === s.n ? 700 : 400,
-              color: current === s.n ? '#e8e1f8' : current > s.n ? C.green : C.muted,
+              color: current === s.n ? T.text : current > s.n ? T.green : T.textDim,
               whiteSpace: 'nowrap',
             }}>{s.label}</span>
           </div>
           {i < steps.length - 1 && (
-            <div style={{ flex: 1, height: 1, margin: '0 8px', background: current > s.n + 1 ? `${C.green}55` : C.border }} />
+            <div style={{ flex: 1, height: 1, margin: '0 8px', background: current > s.n + 1 ? T.greenA1 : T.border }} />
           )}
         </div>
       ))}
@@ -103,11 +95,11 @@ function Steps({ current }: { current: number }) {
   );
 }
 
-function InfoRow({ label, value, color = '#e8e1f8' }: { label: string; value: string; color?: string }) {
+function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: 12, color: C.muted }}>{label}</span>
-      <span style={{ fontFamily: C.mono, fontSize: 12, color, fontWeight: 600 }}>{value}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
+      <span style={{ fontSize: 12, color: T.textDim }}>{label}</span>
+      <span style={{ fontFamily: T.mono, fontSize: 12, color: color ?? T.text, fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
@@ -117,6 +109,7 @@ export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
+  const { lang } = useApp();
 
   const campaign = MOCK_CAMPAIGNS[id ?? ''] ?? null;
 
@@ -139,12 +132,16 @@ export default function CampaignDetailPage() {
   // Campaign not found
   if (!campaign) {
     return (
-      <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+      <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
         <Navbar />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 32, opacity: .3 }}>◈</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.muted }}>Campaign not found</div>
-          <Link href="/campaigns" style={{ color: C.accent, fontSize: 13, textDecoration: 'none' }}>← My Campaigns</Link>
+          <div style={{ fontSize: 20, fontWeight: 700, color: T.textDim }}>
+            {lang === 'en' ? 'Campaign not found' : 'Kampanye tidak ditemukan'}
+          </div>
+          <Link href="/campaigns" style={{ color: T.accent, fontSize: 13, textDecoration: 'none' }}>
+            {lang === 'en' ? '← My Campaigns' : '← Kampanye Saya'}
+          </Link>
         </div>
       </div>
     );
@@ -153,25 +150,31 @@ export default function CampaignDetailPage() {
   // Claim success screen
   if (claimed) {
     return (
-      <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+      <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
         <Navbar />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '85vh', padding: 24 }}>
           <div style={{ textAlign: 'center', maxWidth: 440 }}>
             <div style={{
               width: 72, height: 72, borderRadius: '50%', margin: '0 auto 24px',
-              background: `${C.green}18`, border: `2px solid ${C.green}44`,
+              background: T.greenA1, border: `2px solid ${T.green}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32,
             }}>🎉</div>
-            <h2 style={{ fontSize: 28, fontWeight: 900, color: C.gold, marginBottom: 8 }}>Tokens Claimed!</h2>
-            <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, marginBottom: 24 }}>
-              <strong style={{ color: '#e8e1f8' }}>{campaign.allocated.toLocaleString()} {campaign.token}</strong> has been sent to your wallet.
-              Remaining tokens will unlock according to the vesting schedule.
+            <h2 style={{ fontSize: 28, fontWeight: 900, color: T.gold, marginBottom: 8 }}>
+              {lang === 'en' ? 'Tokens Claimed!' : 'Token Diklaim!'}
+            </h2>
+            <p style={{ fontSize: 14, color: T.textDim, lineHeight: 1.7, marginBottom: 24 }}>
+              <strong style={{ color: T.text }}>{campaign.allocated.toLocaleString()} {campaign.token}</strong>{' '}
+              {lang === 'en'
+                ? 'has been sent to your wallet. Remaining tokens will unlock according to the vesting schedule.'
+                : 'telah dikirim ke wallet kamu. Token yang tersisa akan terbuka sesuai jadwal vesting.'}
             </p>
             <Link href="/campaigns" style={{
               padding: '11px 28px', borderRadius: 11,
-              background: `linear-gradient(135deg,${C.accent},#5e35d4)`,
+              background: T.grad,
               color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 13,
-            }}>← Back to My Campaigns</Link>
+            }}>
+              {lang === 'en' ? '← Back to My Campaigns' : '← Kembali ke Kampanye Saya'}
+            </Link>
           </div>
         </div>
       </div>
@@ -181,57 +184,63 @@ export default function CampaignDetailPage() {
   const isVerifiedOrNoGate = verified || !campaign.gameGate;
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
 
       {/* ── Page header ── */}
       <div style={{
         padding: '80px 32px 28px',
-        borderBottom: `1px solid ${C.border}`,
-        background: 'linear-gradient(180deg, #0a0820 0%, #08081a 100%)',
+        borderBottom: `1px solid ${T.border}`,
+        background: T.header,
       }}>
         <div style={{ maxWidth: 760, margin: '0 auto' }}>
           <Link href="/campaigns" style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
-            fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 14,
-            padding: '4px 10px', borderRadius: 7, border: `1px solid ${C.border}`,
-          }}>← My Campaigns</Link>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 6, textTransform: 'uppercase' }}>
-            Campaign · Recipient View
+            fontSize: 12, color: T.textDim, textDecoration: 'none', marginBottom: 14,
+            padding: '4px 10px', borderRadius: 7, border: `1px solid ${T.border}`,
+          }}>
+            {lang === 'en' ? '← My Campaigns' : '← Kampanye Saya'}
+          </Link>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 6, textTransform: 'uppercase' }}>
+            {lang === 'en' ? 'Campaign · Recipient View' : 'Kampanye · Tampilan Penerima'}
           </div>
           <h1 style={{ fontSize: 'clamp(22px,4vw,32px)', fontWeight: 900, margin: '0 0 6px' }}>
             {campaign.name}
           </h1>
-          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>{campaign.description}</p>
+          <p style={{ fontSize: 13, color: T.textDim, margin: 0 }}>{campaign.description}</p>
         </div>
       </div>
 
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '36px 32px 100px' }}>
 
         {/* Step indicator */}
-        <Steps current={step} />
+        <Steps current={step} lang={lang} />
 
         {/* ── Step 1: Connect Wallet ── */}
         {!connected && (
           <div style={{
             padding: '32px', borderRadius: 18, textAlign: 'center',
-            background: C.bg1, border: `1px solid ${C.border}`,
+            background: T.bg1, border: `1px solid ${T.border}`,
           }}>
             <div style={{ fontSize: 32, marginBottom: 16, opacity: .5 }}>◈</div>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Connect Your Wallet</div>
-            <p style={{ fontSize: 13, color: C.muted, maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.7 }}>
-              Connect your Solana wallet to verify you are an eligible recipient of this campaign.
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>
+              {lang === 'en' ? 'Connect Your Wallet' : 'Hubungkan Wallet Kamu'}
+            </div>
+            <p style={{ fontSize: 13, color: T.textDim, maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.7 }}>
+              {lang === 'en'
+                ? 'Connect your Solana wallet to verify you are an eligible recipient of this campaign.'
+                : 'Hubungkan wallet Solana kamu untuk memverifikasi bahwa kamu adalah penerima yang memenuhi syarat untuk kampanye ini.'}
             </p>
             <button
               onClick={() => setVisible(true)}
               style={{
                 padding: '13px 32px', borderRadius: 11, border: 'none', cursor: 'pointer',
-                background: `linear-gradient(135deg,${C.accent},#5e35d4)`,
-                color: '#fff', fontWeight: 800, fontSize: 14, fontFamily: C.serif,
-                boxShadow: `0 0 20px ${C.accent}44`,
+                background: T.grad,
+                color: '#fff', fontWeight: 800, fontSize: 14, fontFamily: T.serif,
+                boxShadow: `0 0 20px ${T.accentA4}`,
               }}
             >
-              Connect Wallet →
+              {lang === 'en' ? 'Connect Wallet →' : 'Hubungkan Wallet →'}
             </button>
           </div>
         )}
@@ -242,40 +251,50 @@ export default function CampaignDetailPage() {
             {/* Wallet confirmed */}
             <div style={{
               padding: '14px 18px', borderRadius: 12,
-              background: `${C.green}08`, border: `1px solid ${C.green}33`,
+              background: T.greenA1, border: `1px solid ${T.green}`,
               display: 'flex', alignItems: 'center', gap: 12,
             }}>
-              <span style={{ color: C.green, fontSize: 18 }}>✓</span>
+              <span style={{ color: T.green, fontSize: 18 }}>✓</span>
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Wallet connected</div>
-                <div style={{ fontFamily: C.mono, fontSize: 11, color: C.muted, marginTop: 2 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.green }}>
+                  {lang === 'en' ? 'Wallet connected' : 'Wallet terhubung'}
+                </div>
+                <div style={{ fontFamily: T.mono, fontSize: 11, color: T.textDim, marginTop: 2 }}>
                   {publicKey?.toBase58().slice(0, 8)}…{publicKey?.toBase58().slice(-6)}
                 </div>
               </div>
             </div>
 
             {/* Connect stream */}
-            <div style={{ padding: '28px 26px', borderRadius: 18, background: C.bg1, border: `1.5px solid ${C.accent}33` }}>
-              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Connect to Stream</div>
-              <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 20 }}>
-                Accept the campaign invitation. This links your wallet to the on-chain PDA vault
-                and registers you as an eligible recipient.
+            <div style={{ padding: '28px 26px', borderRadius: 18, background: T.bg1, border: `1.5px solid ${T.accentA2}` }}>
+              <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+                {lang === 'en' ? 'Connect to Stream' : 'Hubungkan ke Stream'}
+              </div>
+              <p style={{ fontSize: 13, color: T.textDim, lineHeight: 1.7, marginBottom: 20 }}>
+                {lang === 'en'
+                  ? 'Accept the campaign invitation. This links your wallet to the on-chain PDA vault and registers you as an eligible recipient.'
+                  : 'Terima undangan kampanye. Ini menghubungkan wallet kamu ke PDA vault on-chain dan mendaftarkan kamu sebagai penerima yang memenuhi syarat.'}
               </p>
 
               {/* Campaign info preview */}
               <div style={{
                 padding: '14px 16px', borderRadius: 12, marginBottom: 20,
-                background: C.bg2, border: `1px solid ${C.border}`,
+                background: T.bg2, border: `1px solid ${T.border}`,
               }}>
                 <InfoRow label="Stream PDA"   value={campaign.streamPda} />
-                <InfoRow label="Token"        value={campaign.token}     color={C.gold} />
-                <InfoRow label="Your Share"   value={`${campaign.allocated.toLocaleString()} ${campaign.token}`} color={C.green} />
-                <InfoRow label="Stream Type"  value={campaign.streamType} color={C.accent} />
-                <InfoRow label="Cliff"        value={`${campaign.cliffDays} days`} />
+                <InfoRow label="Token"        value={campaign.token}     color={T.gold} />
+                <InfoRow label={lang === 'en' ? 'Your Share' : 'Bagian Kamu'}
+                         value={`${campaign.allocated.toLocaleString()} ${campaign.token}`} color={T.green} />
+                <InfoRow label={lang === 'en' ? 'Stream Type' : 'Tipe Stream'}
+                         value={campaign.streamType} color={T.accent} />
+                <InfoRow label={lang === 'en' ? 'Cliff' : 'Cliff'}
+                         value={`${campaign.cliffDays} ${lang === 'en' ? 'days' : 'hari'}`} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0' }}>
-                  <span style={{ fontSize: 12, color: C.muted }}>Vesting</span>
-                  <span style={{ fontFamily: C.mono, fontSize: 12, color: '#e8e1f8', fontWeight: 600 }}>
-                    {campaign.vestDays} days
+                  <span style={{ fontSize: 12, color: T.textDim }}>
+                    {lang === 'en' ? 'Vesting' : 'Vesting'}
+                  </span>
+                  <span style={{ fontFamily: T.mono, fontSize: 12, color: T.text, fontWeight: 600 }}>
+                    {campaign.vestDays} {lang === 'en' ? 'days' : 'hari'}
                   </span>
                 </div>
               </div>
@@ -283,11 +302,16 @@ export default function CampaignDetailPage() {
               {campaign.gameGate && (
                 <div style={{
                   padding: '12px 14px', borderRadius: 10, marginBottom: 20,
-                  background: `${C.game}0a`, border: `1px solid ${C.game}33`,
-                  fontSize: 12.5, color: C.game, lineHeight: 1.7,
+                  background: T.accentA1, border: `1px solid ${T.accentA2}`,
+                  fontSize: 12.5, color: T.green, lineHeight: 1.7,
                 }}>
-                  ◈ This campaign requires <strong>BlockBite Game verification</strong> — you must complete{' '}
-                  <strong>Level {campaign.gameLevel}</strong> to unlock your tokens.
+                  ◈{' '}
+                  {lang === 'en'
+                    ? <>This campaign requires <strong>BlockBite Game verification</strong> — you must complete{' '}
+                        <strong>Level {campaign.gameLevel}</strong> to unlock your tokens.</>
+                    : <>Kampanye ini memerlukan <strong>verifikasi Game BlockBite</strong> — kamu harus menyelesaikan{' '}
+                        <strong>Level {campaign.gameLevel}</strong> untuk membuka token kamu.</>
+                  }
                 </div>
               )}
 
@@ -295,12 +319,12 @@ export default function CampaignDetailPage() {
                 onClick={() => setStreamConnected(true)}
                 style={{
                   width: '100%', padding: '13px', borderRadius: 11, border: 'none', cursor: 'pointer',
-                  background: `linear-gradient(135deg,${C.accent},#5e35d4)`,
-                  color: '#fff', fontWeight: 800, fontSize: 14, fontFamily: C.serif,
-                  boxShadow: `0 0 18px ${C.accent}44`,
+                  background: T.grad,
+                  color: '#fff', fontWeight: 800, fontSize: 14, fontFamily: T.serif,
+                  boxShadow: `0 0 18px ${T.accentA4}`,
                 }}
               >
-                Accept &amp; Connect Stream →
+                {lang === 'en' ? 'Accept & Connect Stream →' : 'Terima & Hubungkan Stream →'}
               </button>
             </div>
           </div>
@@ -311,21 +335,28 @@ export default function CampaignDetailPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* ── Campaign summary card ── */}
-            <div style={{ padding: '20px 22px', borderRadius: 16, background: C.bg1, border: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: C.muted, marginBottom: 14 }}>
-                Your Campaign
+            <div style={{ padding: '20px 22px', borderRadius: 16, background: T.bg1, border: `1px solid ${T.border}` }}>
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: T.textDim, marginBottom: 14 }}>
+                {lang === 'en' ? 'Your Campaign' : 'Kampanye Kamu'}
               </div>
-              <InfoRow label="Campaign"    value={campaign.name}                                    color="#e8e1f8" />
-              <InfoRow label="Token"       value={campaign.token}                                    color={C.gold} />
-              <InfoRow label="Your Share"  value={`${campaign.allocated.toLocaleString()} ${campaign.token}`} color={C.green} />
-              <InfoRow label="Stream Type" value={campaign.streamType}                               color={C.accent} />
-              <InfoRow label="Cliff"       value={`${campaign.cliffDays} days`} />
-              <InfoRow label="Vesting"     value={`${campaign.vestDays} days`} />
+              <InfoRow label={lang === 'en' ? 'Campaign' : 'Kampanye'}
+                       value={campaign.name} />
+              <InfoRow label="Token"       value={campaign.token}  color={T.gold} />
+              <InfoRow label={lang === 'en' ? 'Your Allocation' : 'Alokasi Kamu'}
+                       value={`${campaign.allocated.toLocaleString()} ${campaign.token}`} color={T.green} />
+              <InfoRow label={lang === 'en' ? 'Stream Type' : 'Tipe Stream'}
+                       value={campaign.streamType} color={T.accent} />
+              <InfoRow label={lang === 'en' ? 'Cliff' : 'Cliff'}
+                       value={`${campaign.cliffDays} ${lang === 'en' ? 'days' : 'hari'}`} />
+              <InfoRow label={lang === 'en' ? 'Vesting' : 'Vesting'}
+                       value={`${campaign.vestDays} ${lang === 'en' ? 'days' : 'hari'}`} />
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0' }}>
-                <span style={{ fontSize: 12, color: C.muted }}>Verification</span>
+                <span style={{ fontSize: 12, color: T.textDim }}>
+                  {lang === 'en' ? 'Verification' : 'Verifikasi'}
+                </span>
                 <span style={{
-                  fontFamily: C.mono, fontSize: 11, fontWeight: 700,
-                  color: campaign.gameGate ? C.game : C.muted,
+                  fontFamily: T.mono, fontSize: 11, fontWeight: 700,
+                  color: campaign.gameGate ? T.green : T.textDim,
                 }}>
                   {campaign.gameGate ? `◈ BlockBite Level ${campaign.gameLevel}` : campaign.gateType}
                 </span>
@@ -336,19 +367,25 @@ export default function CampaignDetailPage() {
             {campaign.gameGate && !verified && (
               <div style={{
                 padding: '24px 22px', borderRadius: 16,
-                background: `${C.game}07`, border: `1.5px solid ${C.game}33`,
+                background: T.accentA1, border: `1.5px solid ${T.accentA2}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                   <span style={{ fontSize: 22 }}>◈</span>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: C.game }}>
-                    Game Verification Required
+                  <div style={{ fontSize: 15, fontWeight: 800, color: T.green }}>
+                    {lang === 'en' ? 'Game Verification Required' : 'Verifikasi Game Diperlukan'}
                   </div>
                 </div>
-                <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, marginBottom: 20 }}>
-                  The campaign builder requires you to complete <strong style={{ color: C.game }}>
-                    Level {campaign.gameLevel}
-                  </strong> in the BlockBite puzzle game. Play the game, complete the levels,
-                  then click the Verify button to unlock your tokens.
+                <p style={{ fontSize: 13, color: T.textDim, lineHeight: 1.7, marginBottom: 20 }}>
+                  {lang === 'en'
+                    ? <>The campaign builder requires you to complete <strong style={{ color: T.green }}>
+                        Level {campaign.gameLevel}
+                      </strong> in the BlockBite puzzle game. Play the game, complete the levels,
+                      then click the Verify button to unlock your tokens.</>
+                    : <>Pembuat kampanye mengharuskan kamu menyelesaikan <strong style={{ color: T.green }}>
+                        Level {campaign.gameLevel}
+                      </strong> dalam game puzzle BlockBite. Mainkan game, selesaikan level-levelnya,
+                      lalu klik tombol Verifikasi untuk membuka token kamu.</>
+                  }
                 </p>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -358,13 +395,13 @@ export default function CampaignDetailPage() {
                     style={{
                       flex: 1, minWidth: 160,
                       padding: '12px 20px', borderRadius: 10, textAlign: 'center',
-                      background: `linear-gradient(135deg, ${C.game}cc, #16a34acc)`,
+                      background: `linear-gradient(135deg, ${T.green}cc, #16a34acc)`,
                       color: '#0a0a14', fontWeight: 800, fontSize: 13,
                       textDecoration: 'none',
-                      boxShadow: `0 0 18px ${C.game}33`,
+                      boxShadow: `0 0 18px ${T.greenA1}`,
                     }}
                   >
-                    ▶ Play BlockBite
+                    {lang === 'en' ? '▶ Play BlockBite' : '▶ Main BlockBite'}
                   </Link>
 
                   {/* Verify button — active only after game is done */}
@@ -378,18 +415,20 @@ export default function CampaignDetailPage() {
                     style={{
                       flex: 1, minWidth: 160,
                       padding: '12px 20px', borderRadius: 10,
-                      border: `1px solid ${C.game}44`,
-                      background: `${C.game}12`,
-                      color: C.game, fontWeight: 700, fontSize: 13,
-                      cursor: 'pointer', fontFamily: C.serif,
+                      border: `1px solid ${T.accentA4}`,
+                      background: T.accentA2,
+                      color: T.green, fontWeight: 700, fontSize: 13,
+                      cursor: 'pointer', fontFamily: T.serif,
                     }}
                   >
-                    ✦ Submit Verification
+                    {lang === 'en' ? '✦ Submit Verification' : '✦ Kirim Verifikasi'}
                   </button>
                 </div>
 
-                <div style={{ marginTop: 14, fontSize: 11, color: C.muted }}>
-                  Complete all {campaign.gameLevel} levels in BlockBite, then click Submit Verification above.
+                <div style={{ marginTop: 14, fontSize: 11, color: T.textDim }}>
+                  {lang === 'en'
+                    ? `Complete all ${campaign.gameLevel} levels in BlockBite, then click Submit Verification above.`
+                    : `Selesaikan semua ${campaign.gameLevel} level di BlockBite, lalu klik Kirim Verifikasi di atas.`}
                 </div>
               </div>
             )}
@@ -398,16 +437,22 @@ export default function CampaignDetailPage() {
             {(verified || !campaign.gameGate) && (
               <div style={{
                 padding: '14px 18px', borderRadius: 12,
-                background: `${C.green}08`, border: `1px solid ${C.green}33`,
+                background: T.greenA1, border: `1px solid ${T.green}`,
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                <span style={{ fontSize: 22, color: C.green }}>✦</span>
+                <span style={{ fontSize: 22, color: T.green }}>✦</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>Verification complete</div>
-                  <div style={{ fontSize: 11.5, color: C.muted, marginTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.green }}>
+                    {lang === 'en' ? 'Verification complete' : 'Verifikasi selesai'}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: T.textDim, marginTop: 2 }}>
                     {campaign.gameGate
-                      ? `BlockBite Level ${campaign.gameLevel} cleared — tokens are unlocked`
-                      : 'No game verification required — tokens are ready'}
+                      ? (lang === 'en'
+                          ? `BlockBite Level ${campaign.gameLevel} cleared — tokens are unlocked`
+                          : `BlockBite Level ${campaign.gameLevel} selesai — token terbuka`)
+                      : (lang === 'en'
+                          ? 'No game verification required — tokens are ready'
+                          : 'Tidak ada verifikasi game — token siap diklaim')}
                   </div>
                 </div>
               </div>
@@ -416,20 +461,22 @@ export default function CampaignDetailPage() {
             {/* ── Claim / Withdraw button ── */}
             <div style={{
               padding: '24px 22px', borderRadius: 16,
-              background: isVerifiedOrNoGate ? `${C.gold}07` : C.bg1,
-              border: `1.5px solid ${isVerifiedOrNoGate ? C.gold + '44' : C.border}`,
+              background: isVerifiedOrNoGate ? T.goldA1 : T.bg1,
+              border: `1.5px solid ${isVerifiedOrNoGate ? T.gold : T.border}`,
               transition: 'all .3s',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: isVerifiedOrNoGate ? C.gold : C.muted, marginBottom: 4 }}>
-                    {isVerifiedOrNoGate ? 'Ready to Claim' : 'Locked — Verification Required'}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: isVerifiedOrNoGate ? T.gold : T.textDim, marginBottom: 4 }}>
+                    {isVerifiedOrNoGate
+                      ? (lang === 'en' ? 'Ready to Claim' : 'Siap Diklaim')
+                      : (lang === 'en' ? 'Locked — Verification Required' : 'Terkunci — Verifikasi Diperlukan')}
                   </div>
-                  <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 800, color: isVerifiedOrNoGate ? C.green : C.muted }}>
+                  <div style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 800, color: isVerifiedOrNoGate ? T.green : T.textDim }}>
                     {campaign.allocated.toLocaleString()} {campaign.token}
                   </div>
-                  <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
-                    vested amount available to withdraw
+                  <div style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>
+                    {lang === 'en' ? 'vested amount available to withdraw' : 'jumlah vesting yang tersedia untuk ditarik'}
                   </div>
                 </div>
 
@@ -446,16 +493,20 @@ export default function CampaignDetailPage() {
                   style={{
                     padding: '14px 32px', borderRadius: 12, border: 'none',
                     background: isVerifiedOrNoGate
-                      ? `linear-gradient(135deg,${C.gold}cc,#a36a17)`
-                      : 'rgba(255,255,255,.05)',
-                    color: isVerifiedOrNoGate ? '#0b0a14' : C.muted,
+                      ? `linear-gradient(135deg,${T.gold}cc,#a36a17)`
+                      : T.surface,
+                    color: isVerifiedOrNoGate ? '#0b0a14' : T.textDim,
                     fontWeight: 900, fontSize: 15, cursor: isVerifiedOrNoGate ? 'pointer' : 'not-allowed',
-                    fontFamily: C.serif, letterSpacing: '.02em',
-                    boxShadow: isVerifiedOrNoGate ? `0 0 20px ${C.gold}44` : 'none',
+                    fontFamily: T.serif, letterSpacing: '.02em',
+                    boxShadow: isVerifiedOrNoGate ? `0 0 20px ${T.goldA1}` : 'none',
                     transition: 'all .2s',
                   }}
                 >
-                  {claiming ? 'Withdrawing…' : isVerifiedOrNoGate ? '↓ Withdraw Tokens' : '🔒 Locked'}
+                  {claiming
+                    ? (lang === 'en' ? 'Withdrawing…' : 'Menarik…')
+                    : isVerifiedOrNoGate
+                      ? (lang === 'en' ? '↓ Withdraw Tokens' : '↓ Tarik Token')
+                      : '🔒 Locked'}
                 </button>
               </div>
             </div>

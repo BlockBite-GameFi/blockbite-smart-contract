@@ -13,10 +13,10 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
 const C = {
-  bg0: '#05040d', bg1: '#09071a', bg2: '#0e0c22',
+  bg0: 'var(--p-bg0)', bg1: 'var(--p-bg1)', bg2: 'var(--p-bg2)',
   accent: '#a78bff', gold: '#f5c66a', green: '#5fd07a',
-  red: '#ff3b6b', blue: '#7ad7ff', muted: 'rgba(232,225,248,.38)',
-  border: 'rgba(167,139,255,.13)', card: 'rgba(255,255,255,.042)',
+  red: '#ff3b6b', blue: '#7ad7ff', muted: 'var(--p-muted)',
+  border: 'var(--p-border)', card: 'rgba(255,255,255,.042)',
   sora: "'Sora',system-ui,sans-serif",
   mono: "'JetBrains Mono',monospace",
   sg: "'Space Grotesk',system-ui,sans-serif",

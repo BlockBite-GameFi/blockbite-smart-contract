@@ -160,18 +160,24 @@ const COPY = {
 
 export default function Home() {
   const { connection } = useConnection();
-  const { lang, palette } = useApp();
+  const { lang, palette, theme } = useApp();
   const T = COPY[lang];
 
-  // ── Dynamic DS that responds to theme ──────────────────────────────────────
+  // ── Dynamic DS that responds to theme ────────────────────────────────────────
+  // Use `theme` directly — avoids fragile palette.surface2 string comparison.
+  const isLight = theme === 'light';
   const D = {
     ...DS,
-    bg0:   palette.bg,
-    bg1:   palette.surface2 === 'rgba(255,255,255,0.9)' ? '#f0eeff' : DS.bg1,
-    bg2:   palette.surface2 === 'rgba(255,255,255,0.9)' ? '#e8e4f8' : DS.bg2,
-    muted: palette.textDim,
+    bg0:    palette.bg,
+    bg1:    isLight ? '#eeedf8' : DS.bg1,
+    bg2:    isLight ? '#e4e2f5' : DS.bg2,
+    text:   palette.text,          // responsive text color (was missing)
+    muted:  palette.textDim,
     border: palette.border,
     accent: palette.accent,
+    green:  isLight ? '#15803d' : DS.green,
+    blue:   isLight ? '#0d9488' : DS.blue,
+    gold:   isLight ? '#b45309' : DS.gold,
   };
 
   const cvs = useRef<HTMLCanvasElement>(null);
@@ -237,7 +243,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: D.bg0, color: D.bg0 === '#03000A' ? '#F8F6FF' : '#0a0a14', fontFamily: DS.sora, overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: D.bg0, color: D.text, fontFamily: DS.sora, overflowX: 'hidden' }}>
       {/* Warp-speed canvas particles */}
       <canvas ref={cvs} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, opacity: 0.55 }} />
 

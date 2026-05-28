@@ -12,11 +12,11 @@ const C = {
   blue:     '#7ad7ff',
   ember:    '#ff7a3a',
   purple:   '#c084fc',
-  muted:    'rgba(148,163,184,.7)',
-  border:   'rgba(167,139,250,.15)',
-  bg0:      '#08081a',
-  bg1:      '#09081e',
-  bg2:      '#0f0d24',
+  muted:    'var(--p-muted)',
+  border:   'var(--p-border)',
+  bg0:      'var(--p-bg0)',
+  bg1:      'var(--p-bg1)',
+  bg2:      'var(--p-bg2)',
   serif:    "'Space Grotesk', system-ui, sans-serif",
   mono:     "'JetBrains Mono', monospace",
 } as const;
@@ -188,7 +188,7 @@ export default function NewStreamTypePicker() {
         {/* Bottom note */}
         <div style={{
           marginTop: 36, padding: '14px 18px', borderRadius: 12,
-          background: `${C.accent}08`, border: `1px solid ${C.accent}22`,
+          background: 'color-mix(in srgb, var(--p-accent) 3%, transparent)', border: '1px solid color-mix(in srgb, var(--p-accent) 13%, transparent)',
           display: 'flex', alignItems: 'flex-start', gap: 12,
         }}>
           <span style={{ fontSize: 18, flexShrink: 0 }}>◈</span>

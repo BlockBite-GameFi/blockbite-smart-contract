@@ -6,26 +6,22 @@ import Navbar from '@/components/Navbar';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { VESTING_PROGRAM_ID } from '@/lib/anchor/vesting-client';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
-
-const C = {
-  accent: '#a78bfa', gold: '#f5c66a', green: '#5fd07a', blue: '#7ad7ff',
-  red: '#f87171', muted: 'rgba(148,163,184,0.7)', border: 'rgba(167,139,250,0.15)',
-  bg0: '#0b0918', bg1: '#0f0d1e',
-  mono: '"JetBrains Mono",monospace', serif: '"Space Grotesk",system-ui,sans-serif',
-};
+import { T } from '@/lib/theme';
+import { I18N } from '@/lib/i18n';
+import { useApp } from '@/lib/useApp';
 
 // Map Anchor instruction discriminator prefix (8 bytes) to human name.
 // These are the sha256("global:<ix_name>") discriminators from the IDL.
 // We detect them by matching the base64-encoded first 8 bytes of each
 // instruction's data field in the parsed transaction logs.
 const IX_LABELS: Record<string, { label: string; color: string; icon: string }> = {
-  create_stream:       { label: 'create_stream',       color: C.accent, icon: '＋' },
-  withdraw:            { label: 'withdraw',             color: C.green,  icon: '↓'  },
-  cancel:              { label: 'cancel',               color: C.red,    icon: '✗'  },
-  configure_milestones:{ label: 'configure_milestones', color: C.blue,   icon: '◉'  },
-  verify_milestone:    { label: 'verify_milestone',     color: C.gold,   icon: '✓'  },
+  create_stream:       { label: 'create_stream',       color: T.accent,  icon: '＋' },
+  withdraw:            { label: 'withdraw',             color: T.green,   icon: '↓'  },
+  cancel:              { label: 'cancel',               color: T.red,     icon: '✗'  },
+  configure_milestones:{ label: 'configure_milestones', color: T.blue,    icon: '◉'  },
+  verify_milestone:    { label: 'verify_milestone',     color: T.gold,    icon: '✓'  },
   fund_vault:          { label: 'fund_vault',           color: '#c084fc', icon: '↑'  },
-  update_proof:        { label: 'update_proof',         color: C.blue,   icon: '◈'  },
+  update_proof:        { label: 'update_proof',         color: T.blue,    icon: '◈'  },
 };
 
 function formatTs(blockTime: number | null | undefined): string {
@@ -34,7 +30,7 @@ function formatTs(blockTime: number | null | undefined): string {
 }
 
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 16, padding: '16px 20px', ...style }}>{children}</div>;
+  return <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '16px 20px', ...style }}>{children}</div>;
 }
 
 interface TxRow {
@@ -47,6 +43,9 @@ interface TxRow {
 }
 
 export default function AuditPage() {
+  const { lang } = useApp();
+  const tx = I18N.audit[lang];
+
   const { connection } = useConnection();
   const [txRows,   setTxRows]   = useState<TxRow[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -74,7 +73,7 @@ export default function AuditPage() {
 
       const rows: TxRow[] = sigs.map((s, i) => {
         let label = 'program_ix';
-        let color = C.muted;
+        let color: string = T.textDim;
         let icon  = '◦';
 
         // Try to identify from logs
@@ -91,7 +90,7 @@ export default function AuditPage() {
                   const snake = match[1].replace(/([A-Z])/g, '_$1').replace(/^_/, '').toLowerCase();
                   const known = IX_LABELS[snake];
                   if (known) { label = known.label; color = known.color; icon = known.icon; }
-                  else        { label = snake; color = C.muted; icon = '◦'; }
+                  else        { label = snake; color = T.textDim; icon = '◦'; }
                   break;
                 }
               }
@@ -119,7 +118,7 @@ export default function AuditPage() {
   const actionTypes = [...new Set(txRows.map(r => r.label))];
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8' }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text }}>
       <Navbar />
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: 'clamp(88px,12vw,108px) clamp(16px,5vw,40px) 80px' }}>
@@ -127,23 +126,23 @@ export default function AuditPage() {
       {/* ── Page header ── */}
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
-            TDP · Audit Trail
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            {tx.badge}
           </div>
-          <h1 style={{ fontFamily: C.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: '#fff', margin: 0 }}>
-            On-Chain Audit Trail
+          <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: T.text, margin: 0 }}>
+            {tx.title}
           </h1>
-          <p style={{ fontSize: 12.5, color: C.muted, margin: '6px 0 0' }}>
-            Real on-chain transactions · Program {VESTING_PROGRAM_ID.toBase58().slice(0, 8)}…{VESTING_PROGRAM_ID.toBase58().slice(-4)} · Solana devnet
+          <p style={{ fontSize: 12.5, color: T.textDim, margin: '6px 0 0' }}>
+            {tx.subtitle}
           </p>
         </div>
-        <button onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.04)', color: C.accent, cursor: 'pointer', fontSize: 12, fontFamily: C.serif, alignSelf: 'flex-start' }}>
+        <button onClick={load} style={{ padding: '9px 18px', borderRadius: 10, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.04)', color: T.accent, cursor: 'pointer', fontSize: 12, fontFamily: T.serif, alignSelf: 'flex-start' }}>
           ↻ Refresh
         </button>
       </div>
 
       {error && (
-        <div style={{ margin: '16px 40px', background: '#f871711a', border: '1px solid #f8717144', borderRadius: 10, padding: '12px 16px', fontSize: 12, color: C.red }}>
+        <div style={{ margin: '16px 40px', background: T.redA1, border: `1px solid ${T.red}`, borderRadius: 10, padding: '12px 16px', fontSize: 12, color: T.red }}>
           RPC error: {error}
         </div>
       )}
@@ -153,25 +152,25 @@ export default function AuditPage() {
         {/* ── Summary KPIs ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
           {[
-            { label: 'Transactions Fetched', val: String(txRows.length),                                    col: C.accent },
-            { label: 'Successful',           val: String(txRows.filter(r => !r.err).length),                col: C.green  },
-            { label: 'Failed / Reverted',    val: String(txRows.filter(r => r.err).length),                 col: C.red    },
-            { label: 'Unique Instruction',   val: String(actionTypes.length),                               col: C.blue   },
+            { label: 'Transactions Fetched', val: String(txRows.length),                                    col: T.accent },
+            { label: 'Successful',           val: String(txRows.filter(r => !r.err).length),                col: T.green  },
+            { label: 'Failed / Reverted',    val: String(txRows.filter(r => r.err).length),                 col: T.red    },
+            { label: 'Unique Instruction',   val: String(actionTypes.length),                               col: T.blue   },
           ].map(s => (
             <Card key={s.label} style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 9.5, color: C.muted, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>{s.label}</div>
-              <div style={{ fontFamily: C.mono, fontSize: 22, fontWeight: 700, color: s.col, lineHeight: 1 }}>{loading ? '…' : s.val}</div>
+              <div style={{ fontSize: 9.5, color: T.textDim, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 5 }}>{s.label}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 22, fontWeight: 700, color: s.col, lineHeight: 1 }}>{loading ? '…' : s.val}</div>
             </Card>
           ))}
         </div>
 
         {/* ── Filter tabs ── */}
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <button onClick={() => setFilter('all')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, background: filter === 'all' ? C.accent : 'rgba(255,255,255,.06)', color: filter === 'all' ? '#fff' : C.muted }}>All</button>
+          <button onClick={() => setFilter('all')} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, background: filter === 'all' ? T.accent : 'rgba(255,255,255,.06)', color: filter === 'all' ? T.text : T.textDim }}>All</button>
           {actionTypes.map(t => {
             const meta = IX_LABELS[t];
             return (
-              <button key={t} onClick={() => setFilter(t)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, background: filter === t ? (meta?.color ?? C.accent) : 'rgba(255,255,255,.06)', color: filter === t ? '#fff' : C.muted }}>
+              <button key={t} onClick={() => setFilter(t)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, background: filter === t ? (meta?.color ?? T.accent) : 'rgba(255,255,255,.06)', color: filter === t ? T.text : T.textDim }}>
                 {meta?.icon ?? '◦'} {t}
               </button>
             );
@@ -180,26 +179,26 @@ export default function AuditPage() {
 
         {/* ── Transaction log ── */}
         <Card style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: C.serif, fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {loading ? 'Loading…' : `${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}`}
+          <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontFamily: T.serif, fontSize: 13, fontWeight: 700, color: T.text }}>
+              {loading ? tx.loading : `${filtered.length} transaction${filtered.length !== 1 ? 's' : ''}`}
             </span>
-            <span style={{ fontSize: 10, color: C.muted }}>Most recent first</span>
+            <span style={{ fontSize: 10, color: T.textDim }}>Most recent first</span>
           </div>
 
           {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 160px 100px', padding: '8px 20px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 160px 100px', padding: '8px 20px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${T.border}` }}>
             {['', 'SIGNATURE', 'INSTRUCTION', 'TIMESTAMP (UTC)', 'STATUS'].map(h => (
-              <div key={h} style={{ fontSize: 9.5, color: C.muted, fontWeight: 700, letterSpacing: '.06em' }}>{h}</div>
+              <div key={h} style={{ fontSize: 9.5, color: T.textDim, fontWeight: 700, letterSpacing: '.06em' }}>{h}</div>
             ))}
           </div>
 
-          {loading && <div style={{ padding: '40px 20px', textAlign: 'center', color: C.muted, fontSize: 13 }}>Fetching from Solana devnet…</div>}
+          {loading && <div style={{ padding: '40px 20px', textAlign: 'center', color: T.textDim, fontSize: 13 }}>Fetching from Solana devnet…</div>}
 
           {!loading && filtered.length === 0 && (
-            <div style={{ padding: '48px 20px', textAlign: 'center', color: C.muted, fontSize: 13 }}>
+            <div style={{ padding: '48px 20px', textAlign: 'center', color: T.textDim, fontSize: 13 }}>
               {txRows.length === 0
-                ? <>No transactions found for this program yet. <Link href="/streams/new" style={{ color: C.accent }}>Create a stream</Link> to populate this log.</>
+                ? <>{tx.noEvents} <Link href="/streams/new" style={{ color: T.accent }}>Create a stream</Link> to populate this log.</>
                 : 'No transactions match this filter.'
               }
             </div>
@@ -208,8 +207,8 @@ export default function AuditPage() {
           {filtered.map((row, i) => (
             <div key={row.sig} style={{
               display: 'grid', gridTemplateColumns: '28px 1fr 140px 160px 100px',
-              padding: '11px 20px', borderTop: i === 0 ? 'none' : `1px solid ${C.border}`,
-              background: row.err ? '#f871710a' : (i % 2 ? 'rgba(255,255,255,.01)' : 'transparent'),
+              padding: '11px 20px', borderTop: i === 0 ? 'none' : `1px solid ${T.border}`,
+              background: row.err ? T.redA1 : (i % 2 ? 'rgba(255,255,255,.01)' : 'transparent'),
               alignItems: 'center',
             }}>
               {/* Icon */}
@@ -219,22 +218,22 @@ export default function AuditPage() {
                 <a
                   href={`https://explorer.solana.com/tx/${row.sig}?cluster=devnet`}
                   target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: C.mono, fontSize: 10, color: C.accent, textDecoration: 'none' }}
+                  style={{ fontFamily: T.mono, fontSize: 10, color: T.accent, textDecoration: 'none' }}
                 >
                   {row.sig.slice(0, 16)}…{row.sig.slice(-8)}
                 </a>
               </div>
               {/* Instruction */}
               <div>
-                <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 9.5, fontWeight: 700, background: `${row.color}18`, border: `1px solid ${row.color}44`, color: row.color, fontFamily: C.mono }}>
+                <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 9.5, fontWeight: 700, background: T.accentA2, border: `1px solid ${T.accentA4}`, color: row.color, fontFamily: T.mono }}>
                   {row.label}
                 </span>
               </div>
               {/* Timestamp */}
-              <div style={{ fontFamily: C.mono, fontSize: 10, color: C.muted }}>{formatTs(row.blockTime)}</div>
+              <div style={{ fontFamily: T.mono, fontSize: 10, color: T.textDim }}>{formatTs(row.blockTime)}</div>
               {/* Status */}
               <div>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: row.err ? C.red : C.green }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: row.err ? T.red : T.green }}>
                   {row.err ? '✗ FAILED' : '✓ OK'}
                 </span>
               </div>
@@ -242,13 +241,13 @@ export default function AuditPage() {
           ))}
         </Card>
 
-        <div style={{ fontSize: 11, color: C.muted, textAlign: 'center' }}>
+        <div style={{ fontSize: 11, color: T.textDim, textAlign: 'center' }}>
           Showing last 50 transactions · Full history on{' '}
-          <a href={`https://explorer.solana.com/address/${VESTING_PROGRAM_ID.toBase58()}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ color: C.accent }}>
+          <a href={`https://explorer.solana.com/address/${VESTING_PROGRAM_ID.toBase58()}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ color: T.accent }}>
             Solana Explorer ↗
           </a>
           {' '}·{' '}
-          <Link href="/demo#audit" style={{ color: C.muted }}>View demo log</Link>
+          <Link href="/demo#audit" style={{ color: T.textDim }}>View demo log</Link>
         </div>
       </div>
       </div>

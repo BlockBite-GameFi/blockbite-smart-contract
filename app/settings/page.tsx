@@ -5,12 +5,12 @@ import { useApp } from '@/lib/useApp';
 import Link from 'next/link';
 
 const C = {
-  bg0:    '#08081a',
-  bg1:    '#09081e',
-  bg2:    '#0f0d1e',
+  bg0:    'var(--p-bg0)',
+  bg1:    'var(--p-bg1)',
+  bg2:    'var(--p-bg2)',
   accent: '#a78bfa',
-  muted:  'rgba(148,163,184,.7)',
-  border: 'rgba(167,139,250,.15)',
+  muted:  'var(--p-muted)',
+  border: 'var(--p-border)',
   serif:  "'Space Grotesk', system-ui, sans-serif",
   mono:   "'JetBrains Mono', monospace",
 };
