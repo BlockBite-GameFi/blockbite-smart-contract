@@ -213,7 +213,7 @@ export default function ProtocolPage() {
               Comparative feature data between BlockBite TDP and other protocols
               is available in the demo section to maintain factual accuracy on production pages.
             </div>
-            <Link href="/demo#comparison" style={{
+            <Link href="/demo/comparison" style={{
               display: 'inline-block', padding: '8px 18px', borderRadius: 8,
               border: `1px solid ${T.border}`, color: T.accent,
               fontSize: 12, fontWeight: 600, textDecoration: 'none',

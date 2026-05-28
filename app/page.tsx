@@ -530,7 +530,7 @@ export default function Home() {
             ))}
           </div>
 
-          {/* ── Comparison — moved to /demo for Pasal 207 compliance ── */}
+          {/* ── Comparison — standalone page under /demo for Pasal 207 compliance ── */}
           <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 40, textAlign: 'center' }}>
             <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 10 }}>
               WHY BLOCKBITE
@@ -538,13 +538,13 @@ export default function Home() {
             <p style={{ color: DS.muted, fontSize: 13, marginBottom: 14 }}>
               Feature comparison with other protocols is available in the demo section.
             </p>
-            <a href="/demo#comparison" style={{
+            <Link href="/demo/comparison" style={{
               display: 'inline-block', padding: '9px 22px', borderRadius: 10,
               border: `1px solid ${DS.border}`, color: DS.accent,
               fontSize: 13, fontWeight: 600, textDecoration: 'none',
             }}>
               View comparison →
-            </a>
+            </Link>
           </div>
         </div>
       </section>

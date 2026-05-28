@@ -28,30 +28,6 @@ const C = {
   sg:   "'Space Grotesk',system-ui,sans-serif",
 };
 
-// ─── Competitor Comparison (unverified claims — demo only) ───────────────────
-// Source: public documentation of each protocol as of 2026-05-26.
-// BlockBite makes NO legal warranty these assessments are current or complete.
-const DEMO_COMPARISON_FULL = [
-  { feature: 'Milestone Unlock',      bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Fully Automated',       bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Game Verification',     bb: true,  sablier: false, superfluid: false, streamflow: false },
-  { feature: 'Oracle Data Feed',      bb: true,  sablier: false, superfluid: false, streamflow: true  },
-  { feature: 'Cliff + Linear',        bb: true,  sablier: true,  superfluid: false, streamflow: true  },
-  { feature: 'On-chain Enforcement',  bb: true,  sablier: true,  superfluid: true,  streamflow: true  },
-  { feature: 'Anti-dump by Default',  bb: true,  sablier: false, superfluid: false, streamflow: false },
-];
-const DEMO_COMPARISON_PROTOCOL = [
-  { feat: 'Linear Vesting',   bb: true, sab: true,  sf: true  },
-  { feat: 'Cliff Schedule',   bb: true, sab: true,  sf: false },
-  { feat: 'Milestone Unlock', bb: true, sab: false, sf: false },
-  { feat: 'Hybrid Model',     bb: true, sab: false, sf: false },
-  { feat: 'In-game Rewards',  bb: true, sab: false, sf: false },
-  { feat: 'NFT Stream Proof', bb: true, sab: true,  sf: false },
-  { feat: 'Multi-token',      bb: true, sab: false, sf: true  },
-  { feat: 'Cancel & Modify',  bb: true, sab: true,  sf: true  },
-  { feat: 'Dashboard UI',     bb: true, sab: true,  sf: true  },
-];
-
 // ─── Simulated Streams ────────────────────────────────────────────────────────
 const DEMO_STREAMS = [
   { id: 'stm-001', name: 'Team Allocation — Core Dev', token: 'BBT', total: 500_000, withdrawn: 62_500,  cliff: '2025-03-01', end: '2027-03-01', status: 'active',    type: 'linear',    beneficiary: '35z7X5…NxFzr' },
@@ -196,19 +172,19 @@ export default function DemoPage() {
         {/* Jump links */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
           {[
-            { href: '#streams',    label: 'Streams'    },
-            { href: '#analytics',  label: 'Analytics'  },
-            { href: '#audit',      label: 'Audit Log'  },
-            { href: '#claim',      label: 'Claim'      },
-            { href: '#milestones', label: 'Milestones' },
-            { href: '#leaderboard',label: 'Leaderboard'},
-            { href: '#comparison', label: 'Comparison' },
+            { href: '#streams',         label: 'Streams'      },
+            { href: '#analytics',       label: 'Analytics'    },
+            { href: '#audit',           label: 'Audit Log'    },
+            { href: '#claim',           label: 'Claim'        },
+            { href: '#milestones',      label: 'Milestones'   },
+            { href: '#leaderboard',     label: 'Leaderboard'  },
+            { href: '/demo/comparison', label: 'Comparison ↗' },
           ].map(l => (
-            <a key={l.href} href={l.href} style={{
+            <Link key={l.href} href={l.href} style={{
               padding: '7px 16px', borderRadius: 9,
               background: `${C.accent}18`, border: `1px solid ${C.accent}33`,
               color: C.accent, fontSize: 12, fontWeight: 600, textDecoration: 'none',
-            }}>{l.label}</a>
+            }}>{l.label}</Link>
           ))}
         </div>
       </div>
@@ -414,104 +390,35 @@ export default function DemoPage() {
           <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>↑ Simulated · Real leaderboard populates after mainnet. Play now at <Link href="/game" style={{ color: C.accent }}>/game</Link></div>
         </section>
 
-        {/* ═══════════════ COMPARISON ═══════════════ */}
+        {/* ═══════════════ COMPARISON (standalone page) ═══════════════ */}
         <section>
           <SectionHeader
             id="comparison"
             title="Protocol Comparison"
-            sub="Unverified comparative claims. BlockBite makes no legal warranty these assessments are current or complete. Source: public documentation as of 2026-05-26."
+            sub="Unverified comparative claims. Moved to a dedicated page for clarity."
           />
-
-          {/* Warning banner */}
           <div style={{
-            padding: '12px 18px', borderRadius: 10, marginBottom: 20,
-            background: `${C.gold}0f`, border: `1px solid ${C.gold}44`,
-            fontSize: 12, color: C.gold, lineHeight: 1.7,
+            padding: '28px 32px', borderRadius: 16,
+            background: `${C.gold}0a`, border: `1px solid ${C.gold}33`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: 16,
           }}>
-            ⚠ <b>Disclaimer:</b> Claims about Sablier v2, Superfluid, and Streamflow are based on
-            publicly available documentation and have not been independently verified.
-            These comparisons are provided for internal reference only and must not be
-            used in marketing materials or public statements without current verification.
-            Competitor features may have changed.
-          </div>
-
-          {/* Full comparison (from landing page) */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, color: C.muted, letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
-              Landing Page Version — 4 Protocols
-            </div>
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', padding: '12px 18px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${C.border}` }}>
-                {['Feature', 'BlockBite TDP', 'Sablier v2', 'Superfluid', 'Streamflow'].map((h, i) => (
-                  <div key={i} style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase',
-                    color: i === 1 ? C.accent : C.muted,
-                    textAlign: i === 0 ? 'left' : 'center', fontFamily: C.mono,
-                  }}>{h}</div>
-                ))}
+            <div>
+              <div style={{ fontFamily: C.sg, fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+                Comparison has its own page
               </div>
-              {DEMO_COMPARISON_FULL.map((row, i) => (
-                <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr',
-                  padding: '11px 18px',
-                  background: i % 2 === 0 ? C.card : 'transparent',
-                  borderBottom: i < DEMO_COMPARISON_FULL.length - 1 ? `1px solid ${C.border}` : 'none',
-                  alignItems: 'center',
-                }}>
-                  <div style={{ fontSize: 13, color: '#f0ecff', fontWeight: 500 }}>{row.feature}</div>
-                  {[row.bb, row.sablier, row.superfluid, row.streamflow].map((val, j) => (
-                    <div key={j} style={{ textAlign: 'center' }}>
-                      {val
-                        ? <span style={{ color: j === 0 ? C.green : 'rgba(95,208,122,.45)', fontSize: 16 }}>✓</span>
-                        : <span style={{ color: 'rgba(255,59,107,.35)', fontSize: 16 }}>✗</span>}
-                    </div>
-                  ))}
-                </div>
-              ))}
+              <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 460, lineHeight: 1.7 }}>
+                Feature comparison with Sablier, Superfluid, and Streamflow lives at
+                a dedicated route to comply with Pasal 207 (unverified claims clearly isolated).
+              </p>
             </div>
-          </div>
-
-          {/* Protocol-page version (BlockBite vs Sablier vs Superfluid) */}
-          <div>
-            <div style={{ fontSize: 11, color: C.muted, letterSpacing: '1.5px', textTransform: 'uppercase', fontWeight: 700, marginBottom: 12 }}>
-              Protocol Page Version — 3 Protocols
-            </div>
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '12px 18px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${C.border}` }}>
-                {['Feature', 'BlockBite TDP', 'Sablier v2', 'Superfluid'].map((h, i) => (
-                  <div key={i} style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: '1.2px', textTransform: 'uppercase',
-                    color: i === 1 ? C.accent : C.muted,
-                    textAlign: i === 0 ? 'left' : 'center', fontFamily: C.mono,
-                  }}>{h}</div>
-                ))}
-              </div>
-              {DEMO_COMPARISON_PROTOCOL.map((row, i) => (
-                <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                  padding: '11px 18px',
-                  background: i % 2 === 0 ? C.card : 'transparent',
-                  borderBottom: i < DEMO_COMPARISON_PROTOCOL.length - 1 ? `1px solid ${C.border}` : 'none',
-                  alignItems: 'center',
-                }}>
-                  <div style={{ fontSize: 13, color: '#f0ecff', fontWeight: 500 }}>{row.feat}</div>
-                  {[row.bb, row.sab, row.sf].map((val, j) => (
-                    <div key={j} style={{ textAlign: 'center' }}>
-                      <span style={{
-                        fontSize: 16,
-                        color: val ? (j === 0 ? C.green : C.muted) : 'rgba(255,255,255,.12)',
-                      }}>
-                        {val ? '✓' : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginTop: 14, fontSize: 11, color: C.muted }}>
-            ↑ Unverified comparative claims · Not for marketing use · Source docs as of 2026-05-26
+            <Link href="/demo/comparison" style={{
+              padding: '11px 24px', borderRadius: 10, whiteSpace: 'nowrap',
+              background: `${C.accent}20`, border: `1px solid ${C.accent}44`,
+              color: C.accent, fontSize: 13, fontWeight: 700, textDecoration: 'none',
+            }}>
+              View Comparison →
+            </Link>
           </div>
         </section>
 
