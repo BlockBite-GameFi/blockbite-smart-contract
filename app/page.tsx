@@ -45,22 +45,6 @@ const VERIFY_METHODS = [
     desc: 'The defense against automated bots. Users must complete and pass a specific level or reach a target milestone in the game to unlock their tokens.',
     badge: 'Sybil-Resistant',
   },
-  {
-    icon: '⬡',
-    color: DS.accent,
-    title: 'Oracle',
-    sub: 'On-Chain Data',
-    desc: 'Connect any on-chain data feed. KPI thresholds — user count, revenue, TVL — trigger milestone unlock automatically.',
-    badge: 'Data-Driven',
-  },
-  {
-    icon: '✦',
-    color: DS.green,
-    title: 'Manual',
-    sub: 'Creator Signs',
-    desc: 'Stream creator verifies milestone completion with a signed transaction. Simple, transparent, and fully permissioned.',
-    badge: 'Permissioned',
-  },
 ];
 
 const VESTING_MODELS = [
@@ -102,7 +86,7 @@ const HOW_IT_WORKS = [
     num: '03',
     color: '#c084fc',
     title: 'Set Verification Layer',
-    desc: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.',
+    desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.',
   },
   {
     num: '04',
@@ -549,68 +533,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── WHO USES IT ───────────────────────────────────────────────────────── */}
-      <section className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(44px,7vw,80px) clamp(16px,4vw,24px)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
-              USE CASES
-            </div>
-            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-              Who uses{' '}
-              <span style={{
-                fontStyle: 'italic',
-                background: 'linear-gradient(90deg, #9945FF, #14F195)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}>BlockBite TDP.</span>
-            </h2>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 24 }}>
-            {([
-              {
-                audience: 'TEAMS',
-                headline: 'Enforce vesting on-chain,\nnot in spreadsheets.',
-                body: 'Give co-founders and employees their tokens over time. Standard 4-year vesting with 1-year cliff — enforce agreements on-chain.',
-                example: '4-year linear · 1-year cliff',
-              },
-              {
-                audience: 'INVESTORS',
-                headline: 'Deliver the unlock schedule\nyou committed to.',
-                body: 'Investors claim on their own — no manual transfers, no trust required. Fully transparent on-chain.',
-                example: '2-year linear · 3-month cliff',
-              },
-              {
-                audience: 'COMMUNITY',
-                headline: 'Reward contributors\nfairly and transparently.',
-                body: 'Reward contributors, airdrop participants, or ecosystem grants. Each recipient sees only their own allocation.',
-                example: 'Custom schedule per recipient',
-              },
-            ] as const).map((uc, i) => (
-              <div key={i} style={{
-                borderRadius: 18, padding: 1,
-                background: 'linear-gradient(135deg, rgba(153,69,255,0.25), rgba(20,241,149,0.12))',
-              }}>
-                <div style={{
-                  borderRadius: 17, background: DS.bg1,
-                  padding: '28px 28px 24px',
-                  height: '100%', boxSizing: 'border-box',
-                  display: 'flex', flexDirection: 'column', gap: 16,
-                }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: DS.accent, letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>{uc.audience}</p>
-                  <h3 style={{ fontFamily: DS.cinzel, fontSize: 20, fontWeight: 700, color: '#F8F6FF', whiteSpace: 'pre-line', lineHeight: 1.3, margin: 0 }}>{uc.headline}</h3>
-                  <p style={{ fontFamily: DS.sora, fontSize: 13.5, color: DS.muted, lineHeight: 1.72, margin: 0, flex: 1 }}>{uc.body}</p>
-                  <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 14 }}>
-                    <p style={{ fontFamily: DS.mono, fontSize: 11, color: DS.muted, margin: 0 }}>{uc.example}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ─── FAQ ───────────────────────────────────────────────────────────────── */}
       <section id="faq" className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(44px,7vw,80px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -633,15 +555,15 @@ export default function Home() {
             {([
               {
                 q: 'What is BlockBite TDP?',
-                a: 'BlockBite TDP is a token distribution protocol on Solana. It lets project teams create vesting streams for team members, investors, and contributors — directly on-chain, with no intermediary.',
+                a: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.',
               },
               {
                 q: 'Who controls the locked tokens?',
-                a: 'Tokens are secured in audited, non-custodial smart contracts on Solana. Neither BlockBite nor outside parties can touch them. As the builder, you retain exclusive emergency control via our clawback feature to reclaim unvested tokens if conditions change.',
+                a: 'Tokens are secured in audited, non custodial smart contracts on Solana. Neither BlockBite nor outside parties can touch them. As the builder, you retain exclusive emergency control via our clawback feature to reclaim unvested tokens if conditions change.',
               },
               {
                 q: 'What vesting schedules are supported?',
-                a: 'We support highly adaptive tokenomics logic. You can use linear streaming for second-by-second unlocks, cliff schedules for timed lockups, or milestone-based unlocks that release tokens only when project goals are achieved.',
+                a: 'We support highly adaptive tokenomics logic. You can use linear streaming for second by second unlocks, cliff schedules for timed lockups, or milestone based unlocks that release tokens only when project goals are achieved.',
               },
               {
                 q: 'What is the gamified verification layer?',

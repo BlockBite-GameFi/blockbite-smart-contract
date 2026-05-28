@@ -46,7 +46,7 @@ const I18N = {
     steps: [
       { t: 'Connect & Import Data', d: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
       { t: 'Define Tokenomics', d: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
-      { t: 'Set Verification Layer', d: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.' },
+      { t: 'Set Verification Layer', d: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
       { t: 'Lock, Launch & Manage', d: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
     ],
     footer: '© 2026 BlockBite · Built on Solana',
@@ -79,7 +79,7 @@ const I18N = {
     steps: [
       { t: 'Hubungkan & Impor Data', d: 'Hubungkan walletmu dan upload daftar penerima via CSV atau input manual dalam hitungan detik.' },
       { t: 'Tentukan Tokenomics', d: 'Sesuaikan strategi perilisan menggunakan linear vesting, periode cliff, atau distribusi berbasis milestone.' },
-      { t: 'Atur Lapisan Verifikasi', d: 'BlockBite adalah mesin terintegrasi untuk logistik token otomatis. Kami menghilangkan kerumitan dan risiko manajemen manual dengan sistem otomatis yang menangani vesting, streaming, dan distribusi dengan lapisan keamanan fleksibel, memastikan treasury Anda terlindungi dan token Anda terkirim dengan presisi tinggi.' },
+      { t: 'Atur Lapisan Verifikasi', d: 'Pilih antara klaim langsung yang sederhana untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
       { t: 'Kunci, Luncurkan & Kelola', d: 'Kunci aset untuk mengotomasi klaim pengguna. Monitor distribusi secara real-time dengan kontrol Clawback penuh.' },
     ],
     footer: '© 2026 BlockBite · Dibangun di Solana',
