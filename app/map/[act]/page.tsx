@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import Navbar from '@/components/Navbar';
 import { MapScreen, type Layout } from '@/lib/components/MapScreen';
@@ -43,6 +43,13 @@ export default function MapActPage() {
   const router = useRouter();
   const layout = useLayout();
   const { publicKey } = useWallet();
+  const searchParams = useSearchParams();
+
+  // Campaign-mode params (set by /campaigns/[id] when gameGate is on)
+  const maxLevelParam  = searchParams.get('maxLevel');
+  const campaignId     = searchParams.get('campaignId') ?? undefined;
+  const maxLevel       = maxLevelParam ? Math.max(1, Math.min(50, parseInt(maxLevelParam, 10))) : undefined;
+
   const actNum = Math.max(1, Math.min(8, parseInt(act ?? '1', 10)));
   const biome = BIOMES[actNum - 1];
   const [currentLevel, setCurrentLevel] = useState(biome.range[0]);
@@ -50,10 +57,11 @@ export default function MapActPage() {
   useEffect(() => {
     const walletAddr = publicKey?.toBase58() ?? '';
     getPlayerProgress(walletAddr).then(p => {
-      const clamped = Math.max(biome.range[0], Math.min(biome.range[1], p.currentLevel));
+      const capEnd = maxLevel != null ? biome.range[0] + maxLevel - 1 : biome.range[1];
+      const clamped = Math.max(biome.range[0], Math.min(capEnd, p.currentLevel));
       setCurrentLevel(clamped);
     });
-  }, [biome, publicKey]);
+  }, [biome, publicKey, maxLevel]);
 
   return (
     <>
@@ -65,6 +73,8 @@ export default function MapActPage() {
         onEnterLevel={(lvl) => router.push(`/play/${lvl}`)}
         walletAddress={publicKey?.toBase58()}
         topOffset={64}
+        maxLevel={maxLevel}
+        campaignId={campaignId}
       />
     </>
   );

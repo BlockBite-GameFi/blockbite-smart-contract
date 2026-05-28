@@ -61,6 +61,12 @@ interface Props {
   onEnterLevel: (lvl: number) => void;
   walletAddress?: string;
   topOffset?: number;
+  /** Campaign-mode: cap the map at this many levels (1-based from range[0]).
+   *  When all levels are completed the map replaces itself with a verification
+   *  success screen. Omit for free-play (full 5000-level act). */
+  maxLevel?: number;
+  /** Campaign ID shown on the success screen's claim button */
+  campaignId?: string;
 }
 
 // One SVG node per level. 5000 levels per act → 5000 nodes.
@@ -87,22 +93,17 @@ function romanize(n: number) {
 
 function usePlayerData(currentLevel: number) {
   const [username, setUsername]       = useState('Explorer');
-  const [tickets, setTickets]         = useState(0);
   const [gamesPlayed, setGamesPlayed] = useState(0);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const u      = localStorage.getItem('bb_username') || 'Explorer';
-    const wallet = localStorage.getItem('bb_wallet') || '';
-    const raw    = wallet ? localStorage.getItem(`tickets_${wallet}`) : null;
-    const t      = parseInt(raw ?? '0');
-    const g      = parseInt(localStorage.getItem('bb_games_played') ?? '0');
+    const u = localStorage.getItem('bb_username') || 'Explorer';
+    const g = parseInt(localStorage.getItem('bb_games_played') ?? '0');
     setUsername(u || 'Explorer');
-    setTickets(isNaN(t) ? 0 : t);
     setGamesPlayed(isNaN(g) ? 0 : g);
   }, [currentLevel]);
 
-  return { username, tickets, gamesPlayed, tier: getLevelTier(currentLevel) };
+  return { username, gamesPlayed, tier: getLevelTier(currentLevel) };
 }
 
 
@@ -303,9 +304,8 @@ function FinishFlag({ x, y, biome }: { x: number; y: number; biome: Biome }) {
 }
 
 const NAV_ITEMS = [
-  { href: '/game',        label: 'Play' },
-  { href: '/shop',        label: 'Shop' },
-  { href: '/how-to-play', label: 'Guide' },
+  { href: '/map', label: 'Play'         },
+  { href: '/',    label: 'How It Works' },
 ];
 
 function MobileTabBar({ biome }: { biome: Biome }) {
@@ -339,9 +339,9 @@ function MobileTabBar({ biome }: { biome: Biome }) {
 }
 
 function DesktopRail({
-  biome, username, tickets, gamesPlayed, tier, currentLevel, walletAddress,
+  biome, username, gamesPlayed, tier, currentLevel, walletAddress,
 }: {
-  biome: Biome; username: string; tickets: number;
+  biome: Biome; username: string;
   gamesPlayed: number; tier: string; currentLevel: number; walletAddress?: string;
 }) {
   const cfg = levelConfig(currentLevel);
@@ -407,7 +407,7 @@ function DesktopRail({
         borderTop: `1px solid ${DS.borderSub}`,
         display: 'flex', flexDirection: 'column', gap: 6,
       }}>
-        {/* Single-row inline stats */}
+        {/* Single-row reward stat */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '5px 8px', borderRadius: 8,
@@ -416,9 +416,7 @@ function DesktopRail({
         }}>
           <span style={{ color: biome.glow, fontSize: 11, lineHeight: 1 }}>◆</span>
           <span style={{ fontWeight: 600 }}>{cfg.reward}</span>
-          <span style={{ color: DS.borderSub, userSelect: 'none' }}>·</span>
-          <span style={{ fontSize: 8, fontWeight: 800, color: '#fde047', letterSpacing: 0.5 }}>TKT</span>
-          <span style={{ fontWeight: 600 }}>{tickets}</span>
+          <span style={{ color: DS.textDim, fontSize: 9 }}>reward</span>
         </div>
         <CustomWalletButton />
       </div>
@@ -584,21 +582,30 @@ function BottomCard({
   );
 }
 
-export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress, topOffset = 0 }: Props) {
+export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress, topOffset = 0, maxLevel, campaignId }: Props) {
   const player    = usePlayerData(currentLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const Art       = ART[biome.id];
 
-  // One node per level. 5000 levels → 5000 nodes (virtualized at render time).
-  const totalLevels = biome.range[1] - biome.range[0] + 1;
+  // In campaign mode, cap the range at maxLevel levels from range[0].
+  // Free-play: full 5000-level act.
+  const effectiveEnd = maxLevel != null
+    ? biome.range[0] + maxLevel - 1
+    : biome.range[1];
+
+  // Show verification success screen when all campaign levels are done.
+  const allLevelsDone = maxLevel != null && currentLevel > effectiveEnd;
+
+  // One node per level. Virtualized at render time.
+  const totalLevels = effectiveEnd - biome.range[0] + 1;
   const SVG_H = totalLevels * NODE_DY + SVG_MARGIN * 2;
 
   const allNodes = React.useMemo(
-    () => generateLongNodes(biome.range[0], biome.range[1], NODE_DY, SVG_W, SVG_MARGIN, SVG_H),
-    [biome.range[0], biome.range[1], SVG_H],
+    () => generateLongNodes(biome.range[0], effectiveEnd, NODE_DY, SVG_W, SVG_MARGIN, SVG_H),
+    [biome.range[0], effectiveEnd, SVG_H],
   );
 
-  const clampedLevel = Math.max(biome.range[0], Math.min(biome.range[1], currentLevel));
+  const clampedLevel = Math.max(biome.range[0], Math.min(effectiveEnd, currentLevel));
   const activeIdx = clampedLevel - biome.range[0];
   // Locked nodes within REVEAL_AHEAD of active are visible but greyed; beyond that they're dimmed.
   const revealCutoff = activeIdx + REVEAL_AHEAD;
@@ -690,12 +697,91 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : player.username;
 
-  // Active level expressed as 0–1 within this act, fed to the 3D scene so
-  // the camera and player marker track the player's progress along the path.
+  // Active level expressed as 0–1 within this act (or campaign range).
   const progress = Math.max(
     0,
-    Math.min(1, (currentLevel - biome.range[0]) / Math.max(1, biome.range[1] - biome.range[0])),
+    Math.min(1, (currentLevel - biome.range[0]) / Math.max(1, effectiveEnd - biome.range[0])),
   );
+
+  // ── Verification success screen (campaign mode only) ──────────────────────
+  if (allLevelsDone) {
+    return (
+      <div style={{
+        width: '100%', height: `calc(100vh - ${topOffset}px)`,
+        marginTop: topOffset,
+        background: biome.sky,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: '"Space Grotesk", system-ui, sans-serif',
+      }}>
+        <div style={{
+          maxWidth: 480, width: '100%', margin: '0 20px',
+          padding: '48px 36px', borderRadius: 24, textAlign: 'center',
+          background: 'rgba(8,8,26,0.96)',
+          border: `1.5px solid ${biome.glow}55`,
+          boxShadow: `0 0 60px ${biome.accent}18`,
+        }}>
+          {/* Celebration icon */}
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%', margin: '0 auto 24px',
+            background: `radial-gradient(circle at 35% 35%, ${biome.glow}, ${biome.accent})`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 36, boxShadow: `0 0 40px ${biome.accent}55`,
+          }}>✦</div>
+
+          <div style={{
+            fontSize: 10, letterSpacing: '3px', fontWeight: 800,
+            color: biome.glow, textTransform: 'uppercase', marginBottom: 12,
+          }}>
+            Game Verification
+          </div>
+          <h2 style={{
+            fontSize: 28, fontWeight: 900, color: '#fff',
+            margin: '0 0 8px', lineHeight: 1.2,
+          }}>
+            Verification Success!
+          </h2>
+          <p style={{
+            fontSize: 15, color: biome.glow, fontWeight: 700,
+            margin: '0 0 16px',
+          }}>
+            Thanks, human! 🎉
+          </p>
+          <p style={{
+            fontSize: 13, color: '#94a3b8', lineHeight: 1.7,
+            margin: '0 0 32px',
+          }}>
+            You cleared all <strong style={{ color: '#fff' }}>
+              {maxLevel} level{maxLevel !== 1 ? 's' : ''}
+            </strong> of the BlockBite game. Your completion has been recorded —
+            the campaign tokens are now ready to claim.
+          </p>
+
+          {/* Claim button */}
+          <Link
+            href={campaignId ? `/campaigns/${campaignId}` : '/campaigns'}
+            style={{
+              display: 'inline-block', padding: '14px 36px', borderRadius: 12,
+              background: `linear-gradient(135deg, ${biome.accent}, ${biome.glow})`,
+              color: '#0a0a14', fontWeight: 900, fontSize: 15,
+              textDecoration: 'none',
+              boxShadow: `0 0 28px ${biome.accent}55`,
+              letterSpacing: '0.02em',
+            }}
+          >
+            Claim Tokens →
+          </Link>
+
+          <div style={{ marginTop: 20 }}>
+            <Link href="/map" style={{
+              fontSize: 12, color: '#475569', textDecoration: 'none',
+            }}>
+              ← Back to Map
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -726,7 +812,6 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
         <DesktopRail
           biome={biome}
           username={player.username}
-          tickets={player.tickets}
           gamesPlayed={player.gamesPlayed}
           tier={player.tier}
           currentLevel={currentLevel}
@@ -864,13 +949,16 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
               <rect width={SVG_W} height={SVG_H} fill="url(#bb-fog-depth)" />
               <rect width={SVG_W} height={SVG_H} fill="url(#bb-spotlight)" />
 
-              {/* TOP label = end-of-act gateway (level endLevel sits up here) */}
+              {/* TOP label — campaign mode shows "FINAL LEVEL", free-play shows act gateway */}
               <text
                 x={SVG_W / 2} y={70}
                 textAnchor="middle" fontSize="22" fontWeight="900"
                 fill={biome.glow} opacity="0.7" letterSpacing="5"
               >
-                ACT {romanize(biome.act)} GATEWAY · LVL {biome.range[1].toLocaleString()}
+                {maxLevel != null
+                  ? `FINAL LEVEL · LVL ${effectiveEnd.toLocaleString()}`
+                  : `ACT ${romanize(biome.act)} GATEWAY · LVL ${biome.range[1].toLocaleString()}`
+                }
               </text>
               <text
                 x={SVG_W / 2} y={96}
