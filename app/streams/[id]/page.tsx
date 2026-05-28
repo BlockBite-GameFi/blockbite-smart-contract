@@ -255,12 +255,15 @@ export default function StreamDetailPage() {
   // ── Loading state ────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh', background: C.bg0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{ color: C.muted, fontFamily: C.mono, fontSize: 14 }}>
-          Fetching stream from chain…
+      <div style={{ minHeight: '100vh', background: C.bg0 }}>
+        <Navbar />
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: 'calc(100vh - 64px)',
+        }}>
+          <div style={{ color: C.muted, fontFamily: C.mono, fontSize: 14 }}>
+            Fetching stream from chain…
+          </div>
         </div>
       </div>
     );

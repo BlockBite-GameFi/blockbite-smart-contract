@@ -119,6 +119,8 @@ export default function LinearPage() {
           gameGate={gameGate} gameLevel={gameLevel}
           onSubmit={handleCreate}
           isSubmitting={isSubmitting}
+          txStatus={txStatus}
+          txErr={txErr ? humanizeError(txErr) : null}
         />
       }
     >

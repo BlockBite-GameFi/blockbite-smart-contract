@@ -99,7 +99,9 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
   const [vaultPda]  = deriveVaultPDA(p.authority, streamIdBn);
   const authorityAta = await getAssociatedTokenAddress(p.mint, p.authority);
 
-  // Build the instruction with Anchor
+  // Build the instruction with Anchor.
+  // create_stream IDL args: stream_id, amount, start_ts, cliff_ts, end_ts (5 total).
+  // requiredTier is a UI-only concept; the IDL does not expose it as an instruction arg.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ix = await (program.methods as any)
     .createStream(
@@ -108,7 +110,6 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
       new BN(p.startTs),
       new BN(p.cliffTs),
       new BN(p.endTs),
-      p.requiredTier ?? 0,
     )
     .accounts({
       authority:     p.authority,
@@ -190,17 +191,18 @@ export interface CancelParams {
 
 export async function cancelStream(p: CancelParams): Promise<string> {
   const program = readonlyProgram(p.connection);
+  // IDL cancel accounts: authority, stream, vault, authority_ata, token_program.
+  // beneficiary / beneficiaryAta are NOT in the cancel instruction — tokens already
+  // vested remain with the beneficiary; only unvested tokens return to authority_ata.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ix = await (program.methods as any)
     .cancel()
     .accounts({
-      authority:      p.authority,
-      beneficiary:    p.beneficiary,
-      stream:         p.stream,
-      vault:          p.vault,
-      authorityAta:   p.authorityAta,
-      beneficiaryAta: p.beneficiaryAta,
-      tokenProgram:   TOKEN_PROGRAM_ID,
+      authority:    p.authority,
+      stream:       p.stream,
+      vault:        p.vault,
+      authorityAta: p.authorityAta,
+      tokenProgram: TOKEN_PROGRAM_ID,
     })
     .instruction();
 

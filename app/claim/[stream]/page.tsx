@@ -102,10 +102,14 @@ export default function ClaimPage() {
     const startTs  = stream.startTs.toNumber();
     const cliffTs  = stream.cliffTs.toNumber();
     const endTs    = stream.endTs.toNumber();
+    // Mirror on-chain unlocked_amount(): vesting starts at cliffTs, not startTs.
     let vestedFrac = 0;
-    if (now < cliffTs)       vestedFrac = 0;
-    else if (now >= endTs)   vestedFrac = 1;
-    else if (now > startTs)  vestedFrac = (now - startTs) / (endTs - startTs);
+    if (now < cliffTs)     vestedFrac = 0;
+    else if (now >= endTs) vestedFrac = 1;
+    else {
+      const duration = endTs > cliffTs ? endTs - cliffTs : 1;
+      vestedFrac = (now - cliffTs) / duration;
+    }
     const vested      = total * vestedFrac;
     const claimable   = Math.max(0, vested - taken);
     const cliffActive = now < cliffTs;
@@ -127,18 +131,11 @@ export default function ClaimPage() {
       const [vault] = deriveVaultPDA(stream.authority, stream.streamId);
       const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, publicKey);
 
-      // If the recipient's ATA doesn't exist yet, prepend a create instruction.
+      // If the recipient's ATA doesn't exist yet, create it in a separate tx first.
+      // The withdraw() helper in vesting-client also does this internally, but we
+      // handle it here so the user sees two wallet prompts with clear intent.
       const createIx = await ensureAtaIx(connection, publicKey, publicKey, stream.mint);
 
-      if (createIx) {
-        // Bundle ATA create + withdraw into a single tx so the user signs once.
-        const { Transaction: _Tx } = await import('@solana/web3.js');
-        const _ = _Tx; // satisfy import lint
-      }
-
-      // For Phase 0 we send two separate transactions if ATA missing —
-      // simpler than re-implementing the anchor-built ix as a Transaction
-      // with an additional instruction. The wallet adapter handles each.
       if (createIx) {
         const tx = new Transaction().add(createIx);
         tx.feePayer = publicKey;
