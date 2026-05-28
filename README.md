@@ -8,11 +8,12 @@ BlockBite is the treasury shield for Solana builders — replacing high-risk man
 
 | Item | Value |
 |---|---|
-| **Program ID (Devnet)** | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
-| **Framework** | Anchor 0.32.1 |
+| **Program ID (Devnet)** | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
+| **Framework** | Anchor 1.0.0 |
 | **Network** | Solana Devnet |
 | **Tests** | 41 total (28 integration + 13 Rust unit) — all green ✅ |
-| **Explorer** | [View on Solana Explorer](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
+| **Frontend** | [blockbite-tdp.vercel.app](https://blockbite-tdp.vercel.app) |
+| **Explorer** | [View on Solana Explorer](https://explorer.solana.com/address/9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX?cluster=devnet) |
 
 ## Features
 
