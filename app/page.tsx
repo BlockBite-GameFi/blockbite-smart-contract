@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { getAllStreams } from '@/lib/anchor/vesting-client';
 import Navbar from '@/components/Navbar';
+import { useApp } from '@/lib/useApp';
 
 // ─── Design System V4 — Vestra/Solana standard ────────────────────────────────
 const DS = {
@@ -101,8 +102,78 @@ const HOW_IT_WORKS = [
 
 interface LiveStats { streams: number; active: number; locked: string; distributed: string; }
 
+// ─── Bilingual content ────────────────────────────────────────────────────────
+const COPY = {
+  en: {
+    badge: 'POWERED BY SOLANA',
+    kicker: 'THE UNIFIED TOKEN DISTRIBUTION PROTOCOL',
+    h1a: 'Stop Distributing',
+    h1b: 'Tokens Blindly.',
+    sub: 'The unified engine for automated token logistics. Effortlessly manage your entire lifecycle from secure vesting to real-time streaming with built-in validation layers.',
+    cta1: 'Secure Your Spot Now!',
+    cta2: 'Launch App →',
+    featKicker: 'PROTOCOL FEATURES',
+    featTitle: 'Everything a token campaign needs.',
+    featItalic: "Nothing it doesn't.",
+    featSub: 'From modular verification to automated clawbacks — all the tools a token distribution needs, built into one trustless protocol.',
+    howKicker: 'HOW IT WORKS',
+    howTitle: 'Four moves.',
+    howItalic: 'From CSV to claim.',
+    howSub: 'Upload recipients, choose how tokens unlock, and let each wallet claim on schedule.',
+    verifyKicker: 'CHOOSE YOUR VERIFICATION LAYER',
+    faqKicker: 'FAQ',
+    faqTitle: 'Questions,',
+    faqItalic: 'answered.',
+    ctaFinalTitle: 'Ready to distribute tokens responsibly?',
+    ctaFinalSub: 'Join the projects already streaming tokens with cliff, linear, and milestone vesting on Solana.',
+    ctaFinal1: 'Launch App →',
+    ctaFinal2: 'View Streams',
+    footer: '© 2026 BlockBite · Token Distribution Protocol on Solana',
+  },
+  id: {
+    badge: 'DIDUKUNG SOLANA',
+    kicker: 'PROTOKOL DISTRIBUSI TOKEN TERPADU',
+    h1a: 'Hentikan Distribusi',
+    h1b: 'Token Sembarangan.',
+    sub: 'Mesin terpadu untuk logistik token otomatis. Kelola seluruh siklus dari vesting aman hingga streaming real-time dengan lapisan validasi bawaan.',
+    cta1: 'Amankan Tempatmu!',
+    cta2: 'Buka Aplikasi →',
+    featKicker: 'FITUR PROTOKOL',
+    featTitle: 'Semua yang dibutuhkan distribusi token.',
+    featItalic: 'Tidak lebih.',
+    featSub: 'Dari verifikasi modular hingga clawback otomatis — semua dalam satu protokol tanpa kepercayaan pihak ketiga.',
+    howKicker: 'CARA KERJA',
+    howTitle: 'Empat langkah.',
+    howItalic: 'Dari CSV ke klaim.',
+    howSub: 'Upload penerima, pilih cara token unlock, dan biarkan setiap wallet klaim sesuai jadwal.',
+    verifyKicker: 'PILIH LAPISAN VERIFIKASI',
+    faqKicker: 'FAQ',
+    faqTitle: 'Pertanyaan,',
+    faqItalic: 'terjawab.',
+    ctaFinalTitle: 'Siap mendistribusikan token secara bertanggung jawab?',
+    ctaFinalSub: 'Bergabung dengan proyek yang sudah streaming token dengan cliff, linear, dan milestone vesting di Solana.',
+    ctaFinal1: 'Buka Aplikasi →',
+    ctaFinal2: 'Lihat Stream',
+    footer: '© 2026 BlockBite · Protokol Distribusi Token di Solana',
+  },
+} as const;
+
 export default function Home() {
   const { connection } = useConnection();
+  const { lang, palette } = useApp();
+  const T = COPY[lang];
+
+  // ── Dynamic DS that responds to theme ──────────────────────────────────────
+  const D = {
+    ...DS,
+    bg0:   palette.bg,
+    bg1:   palette.surface2 === 'rgba(255,255,255,0.9)' ? '#f0eeff' : DS.bg1,
+    bg2:   palette.surface2 === 'rgba(255,255,255,0.9)' ? '#e8e4f8' : DS.bg2,
+    muted: palette.textDim,
+    border: palette.border,
+    accent: palette.accent,
+  };
+
   const cvs = useRef<HTMLCanvasElement>(null);
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
   const [faqOpen, setFaqOpen] = useState<boolean[]>(Array(6).fill(false));
@@ -166,7 +237,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: DS.bg0, color: '#F8F6FF', fontFamily: DS.sora, overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: D.bg0, color: D.bg0 === '#03000A' ? '#F8F6FF' : '#0a0a14', fontFamily: DS.sora, overflowX: 'hidden' }}>
       {/* Warp-speed canvas particles */}
       <canvas ref={cvs} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, opacity: 0.55 }} />
 
@@ -205,7 +276,7 @@ export default function Home() {
           boxShadow: '0 0 20px rgba(20,241,149,.15)',
         }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: DS.green, display: 'inline-block', animation: 'pulse 2s infinite', boxShadow: '0 0 8px rgba(20,241,149,.8)' }} />
-          POWERED BY SOLANA
+          {T.badge}
         </div>
 
         {/* Logo */}
@@ -226,7 +297,7 @@ export default function Home() {
           textTransform: 'uppercase',
           margin: 0,
         }}>
-          THE UNIFIED TOKEN DISTRIBUTION PROTOCOL
+          {T.kicker}
         </p>
 
         {/* Headline */}
@@ -242,14 +313,14 @@ export default function Home() {
           color: '#F8F6FF',
           textShadow: '0 0 80px rgba(153,69,255,0.25)',
         }}>
-          Stop Distributing{' '}
+          {T.h1a}{' '}
           <span style={{
             background: 'linear-gradient(90deg, #9945FF 0%, #00C2FF 50%, #14F195 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             filter: 'drop-shadow(0 0 24px rgba(153,69,255,0.5))',
-          }}>Tokens Blindly.</span>
+          }}>{T.h1b}</span>
         </h1>
 
         {/* Sub-headline */}
@@ -282,7 +353,7 @@ export default function Home() {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 60px rgba(153,69,255,.70), 0 4px 24px rgba(0,0,0,.4)'; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 40px rgba(153,69,255,.55), 0 4px 24px rgba(0,0,0,.4)'; }}
           >
-            Secure Your Spot Now!
+            {T.cta1}
           </Link>
           <Link href="/streams/new" className="m-cta-btn" style={{
             padding: '15px 28px', borderRadius: 9999,
@@ -294,7 +365,7 @@ export default function Home() {
             backdropFilter: 'blur(12px)',
             display: 'inline-block', textAlign: 'center',
           }}>
-            Launch App →
+            {T.cta2}
           </Link>
         </div>
 
@@ -332,18 +403,18 @@ export default function Home() {
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
-              PROTOCOL FEATURES
+              {T.featKicker}
             </p>
             <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-              Everything a token campaign needs.{' '}
+              {T.featTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
                 background: 'linear-gradient(90deg, #9945FF, #14F195)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              }}>Nothing it doesn&apos;t.</span>
+              }}>{T.featItalic}</span>
             </h2>
             <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
-              From modular verification to automated clawbacks — all the tools a token distribution needs, built into one trustless protocol.
+              {T.featSub}
             </p>
           </div>
 
@@ -433,18 +504,18 @@ export default function Home() {
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
-              HOW IT WORKS
+              {T.howKicker}
             </p>
             <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: '0 0 16px' }}>
-              Four moves.{' '}
+              {T.howTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
                 background: 'linear-gradient(90deg, #9945FF, #14F195)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              }}>From CSV to claim.</span>
+              }}>{T.howItalic}</span>
             </h2>
             <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
-              Upload recipients, choose how tokens unlock, and let each wallet claim on schedule.
+              {T.howSub}
             </p>
           </div>
 
@@ -489,7 +560,7 @@ export default function Home() {
           {/* Verification layer — 4-column to match step grid */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <p style={{ fontSize: 10, fontWeight: 700, color: DS.muted, letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>
-              CHOOSE YOUR VERIFICATION LAYER
+              {T.verifyKicker}
             </p>
           </div>
           <div className="m-verify-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,200px),1fr))', gap: 16, marginBottom: 64 }}>
@@ -538,17 +609,17 @@ export default function Home() {
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
-              FAQ
+              {T.faqKicker}
             </div>
             <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
-              Questions,{' '}
+              {T.faqTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
                 background: 'linear-gradient(90deg, #9945FF, #14F195)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-              }}>answered.</span>
+              }}>{T.faqItalic}</span>
             </h2>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -624,10 +695,10 @@ export default function Home() {
           fontSize: 'clamp(26px,4vw,44px)', fontWeight: 800,
           marginBottom: 16, color: '#F8F6FF',
         }}>
-          Ready to distribute tokens responsibly?
+          {T.ctaFinalTitle}
         </h2>
         <p style={{ fontSize: 15, color: DS.muted, maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.7 }}>
-          Join the projects already streaming tokens with cliff, linear, and milestone vesting on Solana.
+          {T.ctaFinalSub}
         </p>
         <div className="m-cta-wrap" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 400, margin: '0 auto' }}>
           <Link href="/streams/new" className="m-cta-btn" style={{
@@ -637,7 +708,7 @@ export default function Home() {
             boxShadow: '0 0 40px rgba(153,69,255,.40)',
             textAlign: 'center', display: 'inline-block',
           }}>
-            Launch App →
+            {T.ctaFinal1}
           </Link>
           <Link href="/streams" className="m-cta-btn" style={{
             padding: '15px 36px', borderRadius: 9999,
@@ -646,7 +717,7 @@ export default function Home() {
             color: '#F8F6FF', fontWeight: 600, fontSize: 15, textDecoration: 'none',
             textAlign: 'center', display: 'inline-block',
           }}>
-            View Streams
+            {T.ctaFinal2}
           </Link>
         </div>
       </section>
@@ -662,7 +733,7 @@ export default function Home() {
         background: DS.bg1,
         fontFamily: DS.sora,
       }}>
-        <div>© 2026 BlockBite · Token Distribution Protocol on Solana</div>
+        <div>{T.footer}</div>
         <div className="m-footer-links" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Twitter / X</a>
           <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Discord</a>
