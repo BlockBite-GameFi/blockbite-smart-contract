@@ -367,7 +367,7 @@ export function StreamSidebar({
         {txErr && (
           <div style={{
             marginTop: 8, padding: '9px 12px', borderRadius: 9, fontSize: 11.5,
-            background: `${C.red}0f`, border: `1px solid ${C.red}44`, color: C.red,
+            background: 'color-mix(in srgb, var(--p-red) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--p-red) 27%, transparent)', color: C.red,
           }}>
             ✗ {txErr}
           </div>

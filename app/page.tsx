@@ -316,7 +316,7 @@ export default function Home() {
           letterSpacing: '-2px',
           margin: 0,
           maxWidth: 860,
-          color: '#F8F6FF',
+          color: D.text,
           textShadow: '0 0 80px rgba(153,69,255,0.25)',
         }}>
           {T.h1a}{' '}
@@ -334,14 +334,13 @@ export default function Home() {
           position: 'relative', zIndex: 1,
           fontFamily: DS.sora,
           fontSize: 'clamp(15px,1.6vw,18px)',
-          color: 'rgba(160,154,191,.85)',
+          color: D.muted,
           maxWidth: 600,
           lineHeight: 1.80,
           margin: 0,
           fontWeight: 400,
         }}>
-          The unified engine for automated token logistics. Effortlessly manage your entire
-          lifecycle from secure vesting to real-time streaming with built-in validation layers.
+          {T.sub}
         </p>
 
         {/* CTAs */}

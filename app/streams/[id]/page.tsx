@@ -674,7 +674,7 @@ export default function StreamDetailPage() {
                 fontSize: 9.5, fontWeight: 700, letterSpacing: '.05em',
                 fontFamily: C.mono, cursor: 'default',
                 background: clawbackRisk ? 'color-mix(in srgb, var(--p-ember) 8%, transparent)' : 'color-mix(in srgb, var(--p-green) 7%, transparent)',
-                border: `1px solid ${clawbackRisk ? C.ember : C.green}40`,
+                border: `1px solid color-mix(in srgb, ${clawbackRisk ? C.ember : C.green} 25%, transparent)`,
                 color: clawbackRisk ? C.ember : C.green,
               }}
             >

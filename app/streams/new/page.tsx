@@ -113,10 +113,10 @@ export default function NewStreamTypePicker() {
               }}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLDivElement;
-                el.style.border = `1.5px solid ${t.color}66`;
+                el.style.border = `1.5px solid color-mix(in srgb, ${t.color} 40%, transparent)`;
                 el.style.background = `color-mix(in srgb, ${C.bg1}, ${t.color} 3%)`;
                 el.style.transform = 'translateY(-3px)';
-                el.style.boxShadow = `0 8px 32px ${t.color}18`;
+                el.style.boxShadow = `0 8px 32px color-mix(in srgb, ${t.color} 9%, transparent)`;
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLDivElement;
@@ -130,7 +130,7 @@ export default function NewStreamTypePicker() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                    background: `${t.color}14`, border: `1.5px solid ${t.color}44`,
+                    background: `color-mix(in srgb, ${t.color} 8%, transparent)`, border: `1.5px solid color-mix(in srgb, ${t.color} 27%, transparent)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 24,
                   }}>{t.icon}</div>
@@ -154,7 +154,7 @@ export default function NewStreamTypePicker() {
                   {t.traits.map(trait => (
                     <div key={trait} style={{
                       padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600,
-                      background: `${t.color}0f`, border: `1px solid ${t.color}33`, color: t.color,
+                      background: `color-mix(in srgb, ${t.color} 6%, transparent)`, border: `1px solid color-mix(in srgb, ${t.color} 20%, transparent)`, color: t.color,
                     }}>{trait}</div>
                   ))}
                 </div>
@@ -162,7 +162,7 @@ export default function NewStreamTypePicker() {
                 {/* Use case */}
                 <div style={{
                   padding: '10px 12px', borderRadius: 10,
-                  background: `${t.color}08`, border: `1px solid ${t.color}1a`,
+                  background: `color-mix(in srgb, ${t.color} 3%, transparent)`, border: `1px solid color-mix(in srgb, ${t.color} 10%, transparent)`,
                   fontSize: 11.5, color: C.muted, lineHeight: 1.5,
                 }}>
                   <span style={{ color: t.color, fontWeight: 700 }}>Use case: </span>
@@ -177,7 +177,7 @@ export default function NewStreamTypePicker() {
                   <span style={{ fontSize: 12, color: C.muted }}>{lang === 'id' ? 'Buat stream →' : 'Create stream →'}</span>
                   <div style={{
                     width: 32, height: 32, borderRadius: 9,
-                    background: `${t.color}14`, border: `1px solid ${t.color}44`,
+                    background: `color-mix(in srgb, ${t.color} 8%, transparent)`, border: `1px solid color-mix(in srgb, ${t.color} 27%, transparent)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 16,
                   }}>→</div>

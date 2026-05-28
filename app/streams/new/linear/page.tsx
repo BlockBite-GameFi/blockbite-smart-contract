@@ -212,7 +212,7 @@ export default function LinearPage() {
               { l: 'Per second',    v: `${perSec} T/s`,               c: C.blue   },
             ].map(r => (
               <div key={r.l} style={{ padding: '10px 12px', borderRadius: 9,
-                background: `${r.c}07`, border: `1px solid ${r.c}22` }}>
+                background: `color-mix(in srgb, ${r.c} 3%, transparent)`, border: `1px solid color-mix(in srgb, ${r.c} 13%, transparent)` }}>
                 <div style={{ fontSize: 10, color: C.muted, marginBottom: 3 }}>{r.l}</div>
                 <div style={{ fontFamily: C.mono, fontSize: 12, fontWeight: 700, color: r.c }}>{r.v}</div>
               </div>

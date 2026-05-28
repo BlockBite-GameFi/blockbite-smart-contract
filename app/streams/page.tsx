@@ -427,7 +427,7 @@ export default function StreamsPage() {
                 background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)',
                 borderRadius: 10, textDecoration: 'none', flex: '1 1 180px',
               }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = a.col + '44'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `color-mix(in srgb, ${a.col} 27%, transparent)`; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,.06)'; }}
               >
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: a.col, flexShrink: 0 }} />
