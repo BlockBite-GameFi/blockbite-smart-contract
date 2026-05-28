@@ -10,6 +10,7 @@ import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
+  MultisigAuthorityField,
 } from '../_shared';
 
 export default function LinearPage() {
@@ -24,10 +25,11 @@ export default function LinearPage() {
   const [startDate,  setStartDate]  = useState('');
   const [cliffDays,  setCliffDays]  = useState(30);
   const [vestDays,   setVestDays]   = useState(365);
-  const [cancelable, setCancelable] = useState(false);
-  const [gameGate,   setGameGate]   = useState(false);
-  const [gameLevel,  setGameLevel]  = useState(10);
-  const [fieldErrors,setFieldErrors]= useState<Record<string, string>>({});
+  const [cancelable,       setCancelable]       = useState(false);
+  const [gameGate,         setGameGate]         = useState(false);
+  const [gameLevel,        setGameLevel]        = useState(10);
+  const [multisigAuthority,setMultisigAuthority]= useState('');
+  const [fieldErrors,      setFieldErrors]      = useState<Record<string, string>>({});
 
   const COLOR   = C.accent;
   const deposit = Number(amount) || 0;
@@ -117,6 +119,7 @@ export default function LinearPage() {
           totalDeposit={deposit} token={token || 'TOKEN'}
           recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel}
+          multisigAuthority={multisigAuthority}
           onSubmit={handleCreate}
           isSubmitting={isSubmitting}
           txStatus={txStatus}
@@ -221,6 +224,13 @@ export default function LinearPage() {
       <Section title="Unlock Requirements">
         <GameGateCard enabled={gameGate} onChange={setGameGate}
           level={gameLevel} onLevelChange={setGameLevel} />
+      </Section>
+
+      <Section title="Clawback &amp; Authority">
+        <MultisigAuthorityField
+          value={multisigAuthority}
+          onChange={setMultisigAuthority}
+        />
       </Section>
 
       {/* 3-stage TX progress */}

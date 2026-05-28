@@ -29,9 +29,9 @@ const C = {
   red:    '#f87171',
   muted:  'rgba(148,163,184,0.7)',
   border: 'rgba(167,139,250,0.15)',
-  bg0:    '#0b0918',
-  bg1:    '#0f0d1e',
-  bg2:    '#140f2a',
+  bg0:    '#08081a',
+  bg1:    '#09081e',
+  bg2:    '#0f0d24',
   mono:   '"JetBrains Mono",monospace',
   serif:  '"Space Grotesk",system-ui,sans-serif',
 };
@@ -320,6 +320,28 @@ export default function StreamDetailPage() {
     : statusLabel === 'COMPLETED'  ? C.muted
     : C.green;
 
+  /**
+   * Clawback-Multisig protection heuristic.
+   *
+   * The on-chain Stream struct stores a single `authority` pubkey — the Anchor
+   * program validates only that signer against cancelStream().  There is no
+   * embedded multisig threshold in the account data, so we cannot tell from
+   * chain data alone whether that key is a personal wallet or a Squads vault.
+   *
+   * Architectural implication (see memory: arch-clawback-multisig):
+   *   • If authority === connected wallet  → solo key, unilateral cancel possible.
+   *   • If authority !== connected wallet  → could be multisig vault OR just a
+   *     different personal key; either way THIS client can't fire cancel.
+   *
+   * We conservatively surface the risk to recipients any time the stream is
+   * not yet cancelled, so they understand their exposure.
+   */
+  const authorityIsSolo = !!(
+    publicKey && stream && publicKey.equals(stream.authority)
+  );
+  // True when the connected wallet IS the creator (most dangerous case for recipient)
+  const clawbackRisk = !stream.cancelled && authorityIsSolo;
+
   const unlockedTotal = withdrawn + claimable;
   const nowPct = total > 0n ? Math.min(1, Number(unlockedTotal) / Number(total)) : 0;
 
@@ -456,7 +478,7 @@ export default function StreamDetailPage() {
       {confirmCancel && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 50,
-          background: 'rgba(5,4,13,.85)', backdropFilter: 'blur(6px)',
+          background: 'rgba(8,8,26,.88)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
@@ -467,11 +489,24 @@ export default function StreamDetailPage() {
             <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 10px' }}>
               Cancel this stream?
             </h2>
-            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 24px' }}>
+            <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 12px' }}>
               This action is <strong style={{ color: C.red }}>irreversible</strong>.
               All unvested tokens will be returned to your wallet.
               The beneficiary keeps tokens already vested.
             </p>
+            {/* Clawback risk disclosure — informs both creator and any observers */}
+            <div style={{
+              margin: '0 0 20px', padding: '10px 14px', borderRadius: 10,
+              background: `${C.ember}0d`, border: `1px solid ${C.ember}35`,
+              fontSize: 11.5, color: C.ember, textAlign: 'left', lineHeight: 1.65,
+            }}>
+              <strong>⚠ SOLO AUTHORITY — No Multisig Protection</strong>
+              <br />
+              Your wallet is the sole cancel key. This clawback requires only{' '}
+              <strong>your single signature</strong> — no co-signers or time-lock.
+              To enforce M-of-N governance, create future streams with a Squads
+              multisig vault as the authority address.
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button
                 onClick={handleCancel}
@@ -623,6 +658,27 @@ export default function StreamDetailPage() {
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <Badge label={type.toUpperCase()} color={typeCol} />
           <Badge label={statusLabel}        color={statusColor} />
+
+          {/* Clawback-Multisig protection indicator */}
+          {!stream.cancelled && (
+            <span
+              title={clawbackRisk
+                ? 'This wallet is the sole cancel authority — unilateral clawback is possible. Multisig protection would require M-of-N signers.'
+                : 'Cancel authority is held by a different address. This connected wallet cannot trigger a clawback.'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '2px 8px', borderRadius: 6,
+                fontSize: 9.5, fontWeight: 700, letterSpacing: '.05em',
+                fontFamily: C.mono, cursor: 'default',
+                background: clawbackRisk ? `${C.ember}15` : `${C.green}12`,
+                border: `1px solid ${clawbackRisk ? C.ember : C.green}40`,
+                color: clawbackRisk ? C.ember : C.green,
+              }}
+            >
+              {clawbackRisk ? '⚠ SOLO AUTHORITY' : '🔒 RESTRICTED'}
+            </span>
+          )}
+
           <span style={{ fontSize: 11.5, color: C.muted }}>
             Start: <b style={{ color: '#fff' }}>{fmtDate(startTs)}</b>
           </span>

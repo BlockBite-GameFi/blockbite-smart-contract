@@ -314,7 +314,23 @@ export default function ClaimPage() {
               )}
             </section>
 
-            <div style={{ marginTop: 24, fontSize: 11, color: 'var(--ds-text-dim)', textAlign: 'center' }}>
+            {/* Clawback-Multisig disclosure for recipients */}
+            {!stream.cancelled && (
+              <div style={{
+                marginTop: 16, padding: '10px 14px', borderRadius: 10,
+                background: 'rgba(255,122,58,0.07)', border: '1px solid rgba(255,122,58,0.28)',
+                fontSize: 11.5, color: 'rgba(255,165,100,0.9)', lineHeight: 1.6,
+              }}>
+                <strong style={{ display: 'block', marginBottom: 2 }}>⚠ Clawback Risk</strong>
+                The creator holds a single-key cancel authority — they can freeze this
+                stream unilaterally at any time.
+                Unvested tokens would be returned to them, and no further claims would be possible.
+                Streams protected by a Squads multisig vault require M-of-N co-signers before
+                any cancellation takes effect.
+              </div>
+            )}
+
+            <div style={{ marginTop: 16, fontSize: 11, color: 'var(--ds-text-dim)', textAlign: 'center' }}>
               From {shortPk(stream.authority)} · Mint {shortPk(stream.mint)}
               <br/>
               <Link href="/distribute" style={{ color: 'var(--ds-accent)', textDecoration: 'none' }}>

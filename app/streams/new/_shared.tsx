@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 
@@ -279,6 +279,7 @@ export function StreamSidebar({
   typeLabel, typeColor, typeIcon,
   totalDeposit, token, recipientCount,
   gameGate, gameLevel,
+  multisigAuthority,
   onSubmit,
   txStatus = 'idle',
   txErr = null,
@@ -287,6 +288,8 @@ export function StreamSidebar({
   typeLabel: string; typeColor: string; typeIcon: string;
   totalDeposit: number; token: string; recipientCount: number;
   gameGate: boolean; gameLevel: number;
+  /** Squads vault address when the creator opts into multisig cancel protection */
+  multisigAuthority?: string;
   onSubmit: () => void;
   txStatus?: 'idle' | 'approving' | 'confirming' | 'done' | 'error';
   txErr?: string | null;
@@ -377,7 +380,17 @@ export function StreamSidebar({
           <div>✓ Smart contract enforced vesting</div>
           <div>✓ PDA vault — tokens leave only via program</div>
           <div>✓ Anchor IDL-typed instructions</div>
-          {gameGate && <div style={{ color: '#4ade80' }}>✓ BlockBite game level gate active</div>}
+          {gameGate && <div style={{ color: C.game }}>✓ BlockBite game level gate active</div>}
+          {/* Clawback-Multisig protection status — architectural transparency */}
+          {multisigAuthority && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(multisigAuthority) ? (
+            <div style={{ color: C.green }}>
+              🔒 Multisig authority · {multisigAuthority.slice(0, 4)}…{multisigAuthority.slice(-4)}
+            </div>
+          ) : (
+            <div style={{ color: C.ember }}>
+              ⚠ Solo authority — unilateral clawback possible
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -530,6 +543,136 @@ export function humanizeError(e: unknown): string {
   return raw.length > 120 ? raw.slice(0, 117) + '…' : raw;
 }
 
+// ─── Clawback-Multisig authority field ───────────────────────────────────────
+/**
+ * MultisigAuthorityField
+ *
+ * Architectural context (see memory: arch-clawback-multisig):
+ *   The current on-chain Stream struct stores a SINGLE `authority` pubkey.
+ *   If that key is a personal wallet, the creator can unilaterally cancel at
+ *   any time (single-key clawback).  To enforce M-of-N governance, the
+ *   `authority` must be a Squads multisig vault address — then `cancelStream`
+ *   must originate from that vault and requires M co-signers.
+ *
+ *   Current constraint: the Anchor program marks `authority` as a `mut Signer`,
+ *   so the stream can only be created when the authority itself signs.  To use a
+ *   Squads vault as authority, the transaction must be submitted *through* the
+ *   Squads proposal flow, not directly from a personal wallet.
+ *
+ *   This component surfaces the risk disclosure and collects the intended vault
+ *   address for when multisig submit support is added (Phase 2).
+ */
+export function MultisigAuthorityField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (addr: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [focus, setFocus] = useState(false);
+
+  // Validate: 32–44 base58 chars, no obvious non-base58 chars
+  const isValidish = value.length >= 32 && value.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(value);
+  const showErr = value.length > 0 && !isValidish;
+
+  const toggle = useCallback(() => setExpanded(e => !e), []);
+
+  return (
+    <div style={{
+      borderRadius: 12, overflow: 'hidden',
+      border: `1px solid ${expanded ? C.ember + '55' : C.border}`,
+      background: expanded ? `${C.ember}06` : 'rgba(255,255,255,.02)',
+      transition: 'all .2s',
+    }}>
+      {/* Header toggle */}
+      <button
+        type="button"
+        onClick={toggle}
+        style={{
+          width: '100%', padding: '12px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          fontFamily: C.serif,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>{value && isValidish ? '🔒' : '⚠'}</span>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: value && isValidish ? C.green : '#e8e1f8' }}>
+              {value && isValidish ? 'Multisig Authority Set' : 'Clawback Authority'}
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>
+              {value && isValidish
+                ? 'Cancel requires M-of-N vault co-signers'
+                : 'Solo key — you alone can cancel this stream'}
+            </div>
+          </div>
+        </div>
+        <span style={{ color: C.muted, fontSize: 11, fontFamily: C.mono, flexShrink: 0 }}>
+          {expanded ? '▲ collapse' : '▼ configure'}
+        </span>
+      </button>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Risk callout */}
+          <div style={{
+            padding: '10px 14px', borderRadius: 10,
+            background: `${C.ember}0d`, border: `1px solid ${C.ember}35`,
+            fontSize: 11.5, color: `rgba(255,165,100,.9)`, lineHeight: 1.65,
+          }}>
+            <strong>⚠ Default: SOLO AUTHORITY (no multisig protection)</strong>
+            <br />
+            Your connected wallet becomes the sole cancel key.
+            A single signature — yours alone — can freeze unvested tokens instantly.
+            To enforce M-of-N governance, set a <strong>Squads vault address</strong> as the
+            authority below (Phase 2 feature — requires submitting via Squads).
+          </div>
+
+          {/* Address input */}
+          <div>
+            <Label>Squads Vault Address <span style={{ color: C.muted, fontWeight: 400 }}>(optional · Phase 2)</span></Label>
+            <div style={{ position: 'relative' }}>
+              <input
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder="e.g. SMPLecH534NA9acpos4G6x7uf3LWbCAwZQE9e8ZekMu"
+                onFocus={() => setFocus(true)}
+                onBlur={() => setFocus(false)}
+                style={{
+                  width: '100%', padding: '11px 14px', boxSizing: 'border-box',
+                  background: C.bg2,
+                  border: `1px solid ${showErr ? C.red : focus ? C.ember : C.border}`,
+                  borderRadius: 10, color: '#e8e1f8', fontSize: 12, outline: 'none',
+                  fontFamily: C.mono, transition: 'border-color .15s',
+                }}
+              />
+              {value && isValidish && (
+                <span style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  fontSize: 14, color: C.green,
+                }}>✓</span>
+              )}
+            </div>
+            {showErr && (
+              <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>
+                ⚠ Not a valid Solana base58 address
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: C.muted, marginTop: 6, lineHeight: 1.6 }}>
+              Leave blank to use your connected wallet as the sole cancel authority.
+              When multisig submit is live, the Squads vault will sign the create_stream tx
+              directly — M-of-N approval required before any cancellation can execute.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Convert game gate level → on-chain required tier (0 | 1 | 2) ────────────
 export function levelToTier(level: number): 0 | 1 | 2 {
   if (level <= 0)  return 0;  // no gate
@@ -538,6 +681,17 @@ export function levelToTier(level: number): 0 | 1 | 2 {
 }
 
 // ─── Shared page shell ────────────────────────────────────────────────────────
+const SHELL_RESPONSIVE_CSS = `
+@media (max-width: 860px) {
+  .sps-grid { grid-template-columns: 1fr !important; }
+  .sps-sidebar { position: static !important; top: auto !important; }
+}
+@media (max-width: 640px) {
+  .sps-header { padding: 80px 16px 20px !important; }
+  .sps-body   { padding: 20px 16px 80px !important; }
+}
+`;
+
 export function StreamPageShell({
   typeLabel, typeIcon, typeColor, subtitle, children, sidebar,
 }: {
@@ -546,8 +700,10 @@ export function StreamPageShell({
 }) {
   return (
     <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+      {/* eslint-disable-next-line react/no-danger */}
+      <style dangerouslySetInnerHTML={{ __html: SHELL_RESPONSIVE_CSS }} />
       <Navbar />
-      <div style={{
+      <div className="sps-header" style={{
         padding: '80px 32px 24px',
         borderBottom: `1px solid ${C.border}`,
         background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
@@ -575,12 +731,14 @@ export function StreamPageShell({
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 100px',
+      <div className="sps-grid sps-body" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 100px',
         display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {children}
         </div>
-        {sidebar}
+        <div className="sps-sidebar">
+          {sidebar}
+        </div>
       </div>
     </main>
   );

@@ -14,6 +14,7 @@ import {
   deriveVaultPDA,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { BN } from '@coral-xyz/anchor';
 import type { SendTx } from '@/lib/anchor/vesting-client';
 
@@ -79,10 +80,11 @@ export default function ClaimPage() {
     setLoading(true);
     setError(null);
     try {
-      const all = await getStreamsByBeneficiary(connection, publicKey);
+      const now = Math.floor(Date.now() / 1000);
+      const all = await withRpcFallback(conn => getStreamsByBeneficiary(conn, publicKey));
       // Only show non-cancelled streams that have something locked
       const relevant = all.filter(s => !s.cancelled || Number(s.amountWithdrawn.toString()) < Number(s.amountTotal.toString()));
-      relevant.sort((a, b) => Number(computeUnlocked(b, nowSec)) - Number(computeUnlocked(a, nowSec)));
+      relevant.sort((a, b) => Number(computeUnlocked(b, now)) - Number(computeUnlocked(a, now)));
       setStreams(relevant);
       setSelected(0);
     } catch (e) {
@@ -90,7 +92,7 @@ export default function ClaimPage() {
     } finally {
       setLoading(false);
     }
-  }, [publicKey, connection, nowSec]);
+  }, [publicKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -138,7 +140,7 @@ export default function ClaimPage() {
   }, [stream, publicKey, claimable, connection, sendTransaction, load]);
 
   return (
-    <main style={{ minHeight: '100vh', background: DS.bg0, color: '#e8e1f8' }}>
+    <main style={{ minHeight: '100vh', background: DS.bg0, color: '#e8e1f8', fontFamily: DS.cinzel }}>
       <Navbar />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '100px 24px 80px' }}>
