@@ -11,6 +11,8 @@ import Navbar from '@/components/Navbar';
 import {
   VESTING_PROGRAM_ID, deriveStreamPDA, deriveVaultPDA, fetchStream, cancelStream,
 } from '@/lib/anchor/vesting-client';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 
 interface StreamRow {
   pda: PublicKey;
@@ -38,6 +40,8 @@ export default function StreamsPage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
+  const { lang } = useApp();
+  const id = lang === 'id';
 
   const [streams, setStreams] = useState<StreamRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,11 +53,6 @@ export default function StreamsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Anchor accounts can't be filtered by `authority` via getProgramAccounts
-      // without an account discriminator + offset. Easier: enumerate by trying
-      // stream_id around recent timestamps. For Phase 0 we cap discovery at 32
-      // candidates pulled from a local index in localStorage that the create
-      // page writes to. (Solana RPC getProgramAccounts is too heavy a default.)
       const idxKey = `bb_streams_${publicKey.toBase58()}`;
       const stored = JSON.parse(localStorage.getItem(idxKey) ?? '[]') as string[];
       const found: StreamRow[] = [];
@@ -88,7 +87,9 @@ export default function StreamsPage() {
 
   const handleCancel = useCallback(async (row: StreamRow) => {
     if (!publicKey) return;
-    if (!confirm(`Cancel stream ${shortPk(row.pda)}? Unvested tokens return to you; vested-but-unclaimed go to recipient.`)) return;
+    if (!confirm(id
+      ? `Batalkan stream ${shortPk(row.pda)}? Token yang belum vesting kembali ke Anda; yang sudah vesting tapi belum diklaim pergi ke penerima.`
+      : `Cancel stream ${shortPk(row.pda)}? Unvested tokens return to you; vested-but-unclaimed go to recipient.`)) return;
     setCancelBusy(row.pda.toBase58());
     setError(null);
     try {
@@ -110,72 +111,75 @@ export default function StreamsPage() {
     } finally {
       setCancelBusy(null);
     }
-  }, [publicKey, sendTransaction, connection, refresh]);
+  }, [publicKey, sendTransaction, connection, refresh, id]);
+
+  const headers = id
+    ? ['Stream', 'Penerima', 'Mint', 'Vesting', 'Status', '']
+    : ['Stream', 'Recipient', 'Mint', 'Vested', 'Status', ''];
 
   return (
-    <div style={{
-      minHeight: '100vh', background: 'var(--ds-bg)', color: 'var(--ds-text)',
-      fontFamily: "'Montserrat', 'Space Grotesk', system-ui, sans-serif",
-    }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '120px 24px 80px' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <Link href="/distribute" style={{ color: 'var(--ds-text-dim)', fontSize: 12, textDecoration: 'none' }}>
-              ← Back to distribute
+            <Link href="/distribute" style={{ color: T.textDim, fontSize: 12, textDecoration: 'none' }}>
+              ← {id ? 'Kembali ke distribusi' : 'Back to distribute'}
             </Link>
-            <h1 style={{ fontSize: 28, fontWeight: 900, margin: '6px 0 0' }}>My Streams</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 900, margin: '6px 0 0' }}>
+              {id ? 'Stream Saya' : 'My Streams'}
+            </h1>
           </div>
           <Link href="/distribute/new" style={{
-            padding: '10px 18px', borderRadius: 10, background: 'var(--ds-grad)',
+            padding: '10px 18px', borderRadius: 10, background: T.grad,
             color: '#0a0a14', fontWeight: 800, fontSize: 13, textDecoration: 'none',
           }}>
-            + NEW STREAM
+            {id ? '+ STREAM BARU' : '+ NEW STREAM'}
           </Link>
         </div>
 
         {!connected && (
           <div style={{
             padding: 30, borderRadius: 14, textAlign: 'center',
-            background: 'rgba(167,139,250,0.06)', border: '1px solid var(--ds-border)',
+            background: `color-mix(in srgb, ${T.accent} 6%, transparent)`, border: `1px solid ${T.border}`,
           }}>
-            <p style={{ marginBottom: 16, color: 'var(--ds-text-dim)' }}>
-              Connect your wallet to view streams you've created.
+            <p style={{ marginBottom: 16, color: T.textDim }}>
+              {id ? "Hubungkan wallet untuk melihat stream yang telah Anda buat." : "Connect your wallet to view streams you've created."}
             </p>
             <button
               type="button"
               onClick={() => setVisible(true)}
               style={{
                 padding: '10px 18px', borderRadius: 10, border: 'none',
-                background: 'var(--ds-grad)', color: '#0a0a14',
+                background: T.grad, color: '#0a0a14',
                 fontWeight: 800, fontSize: 13, cursor: 'pointer',
               }}
             >
-              CONNECT WALLET
+              {id ? 'HUBUNGKAN WALLET' : 'CONNECT WALLET'}
             </button>
           </div>
         )}
 
         {connected && loading && (
-          <div style={{ padding: 30, textAlign: 'center', color: 'var(--ds-text-dim)' }}>
-            Loading streams…
+          <div style={{ padding: 30, textAlign: 'center', color: T.textDim }}>
+            {id ? 'Memuat stream…' : 'Loading streams…'}
           </div>
         )}
 
         {connected && !loading && streams.length === 0 && (
           <div style={{
             padding: 30, borderRadius: 14, textAlign: 'center',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid var(--ds-border)',
+            background: T.surface, border: `1px solid ${T.border}`,
           }}>
-            <p style={{ color: 'var(--ds-text-dim)', marginBottom: 14 }}>
-              No streams yet. Create your first distribution.
+            <p style={{ color: T.textDim, marginBottom: 14 }}>
+              {id ? 'Belum ada stream. Buat distribusi pertama Anda.' : 'No streams yet. Create your first distribution.'}
             </p>
             <Link href="/distribute/new" style={{
-              padding: '10px 18px', borderRadius: 10, background: 'var(--ds-grad)',
+              padding: '10px 18px', borderRadius: 10, background: T.grad,
               color: '#0a0a14', fontWeight: 800, fontSize: 13, textDecoration: 'none',
             }}>
-              CREATE STREAM
+              {id ? 'BUAT STREAM' : 'CREATE STREAM'}
             </Link>
           </div>
         )}
@@ -192,17 +196,17 @@ export default function StreamsPage() {
 
         {streams.length > 0 && (
           <div style={{
-            background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+            background: T.surface, border: `1px solid ${T.border}`,
             borderRadius: 14, overflow: 'hidden',
           }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--ds-border)' }}>
-                    {['Stream', 'Recipient', 'Mint', 'Vested', 'Status', ''].map((h) => (
+                  <tr style={{ borderBottom: `1px solid ${T.border}` }}>
+                    {headers.map((h) => (
                       <th key={h} style={{
                         padding: '14px 16px', textAlign: 'left',
-                        color: 'var(--ds-text-dim)', fontSize: 11,
+                        color: T.textDim, fontSize: 11,
                         fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase',
                       }}>{h}</th>
                     ))}
@@ -220,10 +224,10 @@ export default function StreamsPage() {
                     const withdrawnPct = total > 0 ? ((withdrawn / total) * 100).toFixed(1) : '0';
                     const isCancelling = cancelBusy === s.pda.toBase58();
                     return (
-                      <tr key={s.pda.toBase58()} style={{ borderBottom: '1px solid var(--ds-border)' }}>
+                      <tr key={s.pda.toBase58()} style={{ borderBottom: `1px solid ${T.border}` }}>
                         <td style={td}>
                           <div style={{ fontFamily: 'monospace', fontSize: 11 }}>{shortPk(s.pda)}</div>
-                          <div style={{ fontSize: 10, color: 'var(--ds-text-dim)', marginTop: 2 }}>
+                          <div style={{ fontSize: 10, color: T.textDim, marginTop: 2 }}>
                             id #{s.streamId.toString()}
                           </div>
                         </td>
@@ -231,8 +235,8 @@ export default function StreamsPage() {
                         <td style={{ ...td, fontFamily: 'monospace', fontSize: 11 }}>{shortPk(s.mint)}</td>
                         <td style={td}>
                           <div style={{ fontSize: 13, fontWeight: 700 }}>{vestedPct}%</div>
-                          <div style={{ fontSize: 10, color: 'var(--ds-text-dim)' }}>
-                            withdrawn {withdrawnPct}% · ends {fmtDate(s.endTs)}
+                          <div style={{ fontSize: 10, color: T.textDim }}>
+                            {id ? 'ditarik' : 'withdrawn'} {withdrawnPct}% · {id ? 'selesai' : 'ends'} {fmtDate(s.endTs)}
                           </div>
                         </td>
                         <td style={td}>
@@ -242,7 +246,7 @@ export default function StreamsPage() {
                             background: s.cancelled ? 'rgba(244,114,182,0.15)' : 'rgba(94,234,212,0.15)',
                             color: s.cancelled ? '#f472b6' : '#5eead4',
                           }}>
-                            {s.cancelled ? 'CANCELLED' : 'ACTIVE'}
+                            {s.cancelled ? (id ? 'DIBATALKAN' : 'CANCELLED') : (id ? 'AKTIF' : 'ACTIVE')}
                           </span>
                         </td>
                         <td style={{ ...td, textAlign: 'right' }}>
@@ -260,7 +264,7 @@ export default function StreamsPage() {
                                 opacity: cancelBusy ? 0.5 : 1,
                               }}
                             >
-                              {isCancelling ? '…' : 'Cancel'}
+                              {isCancelling ? '…' : (id ? 'Batalkan' : 'Cancel')}
                             </button>
                           )}
                         </td>
@@ -278,5 +282,10 @@ export default function StreamsPage() {
 }
 
 const td: React.CSSProperties = {
-  padding: '14px 16px', fontSize: 13, color: 'var(--ds-text)', verticalAlign: 'top',
+  padding: '14px 16px', fontSize: 13, color: T.text, verticalAlign: 'top',
 };
+
+// Silence unused import warning — TOKEN_PROGRAM_ID is referenced in the original
+// but not needed in this simplified implementation.
+void TOKEN_PROGRAM_ID;
+void VESTING_PROGRAM_ID;
