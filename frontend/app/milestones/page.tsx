@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
-import { getStreamsByAuthority, StreamInfo } from '@/lib/anchor/vesting-client';
+import {
+  getStreamsByAuthority, StreamInfo, setMilestone, deriveStreamPDA,
+} from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
@@ -55,11 +57,16 @@ export default function MilestonesPage() {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
 
+  const { sendTransaction } = useWallet();
+
   const [streams, setStreams]   = useState<StreamInfo[]>([]);
   const [loading, setLoading]   = useState(false);
   const [error,   setError]     = useState<string | null>(null);
   const [selIdx,  setSelIdx]    = useState(0);
   const [selMethod, setMethod]  = useState<VerifyMethod>('game');
+  const [verifying, setVerifying] = useState(false);
+  const [verifyOk,  setVerifyOk]  = useState<string | null>(null); // tx sig
+  const [verifyErr, setVerifyErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!publicKey) return;
@@ -77,6 +84,24 @@ export default function MilestonesPage() {
   const method = VERIFY_METHODS.find(v => v.id === selMethod)!;
   const stream = streams[selIdx];
   const nowSec = Math.floor(Date.now() / 1000);
+
+  // ── setMilestone on-chain call ────────────────────────────────────────────
+  const handleVerify = useCallback(async () => {
+    if (!publicKey || !sendTransaction || !stream) return;
+    setVerifying(true); setVerifyErr(null); setVerifyOk(null);
+    try {
+      const sig = await setMilestone(connection, publicKey, stream.pubkey, async (tx, conn) => {
+        const s = await sendTransaction(tx, conn);
+        return s;
+      });
+      setVerifyOk(sig);
+      await load();
+    } catch (e: unknown) {
+      setVerifyErr((e as Error)?.message ?? 'Transaction failed');
+    } finally {
+      setVerifying(false);
+    }
+  }, [publicKey, sendTransaction, stream, connection, load]);
   const mCount = (stream as any)?.milestoneCount ?? 0;
   const isActive = stream && !stream.cancelled && Number(stream.endTs.toString()) > nowSec;
 
@@ -134,8 +159,23 @@ export default function MilestonesPage() {
               <div style={{ fontSize: 13, color: T.textDim }}>{method.detail}</div>
             </div>
             {method.id === 'game'
-              ? <Link href="/game" style={{ padding: '9px 20px', borderRadius: 10, background: T.grad, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>{method.action} →</Link>
-              : <button style={{ padding: '9px 20px', borderRadius: 10, cursor: 'pointer', background: T.accentA2, border: `1px solid ${T.border}`, color: method.color, fontWeight: 700, fontSize: 13, fontFamily: T.serif }}>{method.action} →</button>
+              ? <Link href="/streams/new" style={{ padding: '9px 20px', borderRadius: 10, background: T.grad, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>{method.action} →</Link>
+              : (
+                <button
+                  onClick={isActive && !stream?.milestoneReached ? handleVerify : undefined}
+                  disabled={verifying || !isActive || stream?.milestoneReached}
+                  style={{
+                    padding: '9px 20px', borderRadius: 10, cursor: (isActive && !stream?.milestoneReached && !verifying) ? 'pointer' : 'not-allowed',
+                    background: stream?.milestoneReached ? T.greenA1 : T.accentA2,
+                    border: `1px solid ${stream?.milestoneReached ? T.green : T.border}`,
+                    color: stream?.milestoneReached ? T.green : method.color,
+                    fontWeight: 700, fontSize: 13, fontFamily: T.serif,
+                    opacity: (verifying || !isActive) ? 0.6 : 1,
+                  }}
+                >
+                  {verifying ? 'Confirming…' : stream?.milestoneReached ? '✓ Milestone Reached' : `${method.action} →`}
+                </button>
+              )
             }
           </div>
         </div>
@@ -176,6 +216,20 @@ export default function MilestonesPage() {
 
         {connected && !loading && streams.length > 0 && (
           <>
+            {/* setMilestone tx feedback */}
+            {verifyOk && (
+              <div style={{ padding:'12px 16px', borderRadius:12, marginBottom:14, background:T.greenA1, border:`1px solid ${T.green}`, fontSize:12, color:T.green }}>
+                ✓ Milestone set on-chain! Vesting now unlocks for recipient.{' '}
+                <a href={`https://explorer.solana.com/tx/${verifyOk}?cluster=devnet`} target="_blank" rel="noreferrer" style={{color:T.accent}}>View tx ↗</a>
+              </div>
+            )}
+            {verifyErr && (
+              <div style={{ padding:'12px 16px', borderRadius:12, marginBottom:14, background:T.redA1, border:`1px solid ${T.red}`, fontSize:12, color:T.red }}>
+                ⚠ {verifyErr}
+                <button onClick={()=>setVerifyErr(null)} style={{marginLeft:12,background:'none',border:'none',color:T.accent,cursor:'pointer',fontSize:11}}>Dismiss</button>
+              </div>
+            )}
+
             {/* Program upgrade notice */}
             <div style={{ padding: '14px 18px', borderRadius: 12, marginBottom: 24, background: T.goldA1, border: `1px solid ${T.gold}`, display: 'flex', gap: 12 }}>
               <span style={{ fontSize: 20, color: T.gold, flexShrink: 0 }}>◉</span>

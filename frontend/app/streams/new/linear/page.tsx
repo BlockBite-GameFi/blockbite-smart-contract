@@ -58,8 +58,12 @@ export default function LinearPage() {
     if (!validate()) return;
 
     const startTs = Math.floor(new Date(startDate).getTime() / 1000);
-    const cliffTs = startTs + cliffDays * 86400;
-    const endTs   = cliffTs + vestDays * 86400;
+    // cliffTs = 0 means "no cliff" in the on-chain program (pure linear)
+    // cliffTs = startTs + cliffDays * 86400 means cliff-gated
+    const cliffTs = cliffDays === 0 ? 0 : startTs + cliffDays * 86400;
+    const endTs   = cliffDays === 0
+      ? startTs + vestDays * 86400
+      : cliffTs + vestDays * 86400;
 
     await submit({
       beneficiary:  recipient,

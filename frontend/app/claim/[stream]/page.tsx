@@ -13,7 +13,7 @@ import {
 import Navbar from '@/components/Navbar';
 import {
   fetchStream, deriveStreamPDA, deriveVaultPDA,
-  withdraw, ensureAtaIx, deriveProofCachePDA,
+  withdraw, ensureAtaIx, deriveProofCachePDA, computeUnlocked,
 } from '@/lib/anchor/vesting-client';
 import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';
@@ -106,26 +106,31 @@ export default function ClaimPage() {
 
   const ui = useMemo(() => {
     if (!stream || decimals === 0) return null;
-    const now      = Math.floor(Date.now() / 1000);
-    const total    = Number(stream.amountTotal.toString()) / 10 ** decimals;
-    const taken    = Number(stream.amountWithdrawn.toString()) / 10 ** decimals;
-    const startTs  = stream.startTs.toNumber();
-    const cliffTs  = stream.cliffTs.toNumber();
-    const endTs    = stream.endTs.toNumber();
-    // Mirror on-chain unlocked_amount(): vesting starts at cliffTs, not startTs.
-    let vestedFrac = 0;
-    if (now < cliffTs)     vestedFrac = 0;
-    else if (now >= endTs) vestedFrac = 1;
-    else {
-      const duration = endTs > cliffTs ? endTs - cliffTs : 1;
-      vestedFrac = (now - cliffTs) / duration;
-    }
-    const vested      = total * vestedFrac;
-    const claimable   = Math.max(0, vested - taken);
-    const cliffActive = now < cliffTs;
+    const now     = Math.floor(Date.now() / 1000);
+    const total   = Number(stream.amountTotal.toString()) / 10 ** decimals;
+    const taken   = Number(stream.amountWithdrawn.toString()) / 10 ** decimals;
+    const startTs = stream.startTs.toNumber();
+    const cliffTs = stream.cliffTs.toNumber();
+    const endTs   = stream.endTs.toNumber();
+
+    // Use computeUnlocked which mirrors the Rust logic EXACTLY:
+    // cliff_time=0 → pure linear; cliff_time>0 && !milestoneReached → 0;
+    // cliff_time>0 && milestoneReached → linear from cliff to end.
+    const claimableRaw = computeUnlocked(stream, now);
+    const claimable    = Number(claimableRaw) / 10 ** decimals;
+
+    // Vested fraction for progress bar — only show > 0 when actually unlocked
+    const totalRaw  = BigInt(stream.amountTotal.toString());
+    const vestedFrac = totalRaw > 0n
+      ? Math.min(1, Number(claimableRaw + BigInt(stream.amountWithdrawn.toString())) / Number(totalRaw))
+      : 0;
+
+    const cliffActive = cliffTs > 0 && now < cliffTs;
     const cliffDays   = Math.max(0, Math.ceil((cliffTs - now) / ONE_DAY));
     return {
-      now, total, taken, vested, claimable, vestedFrac,
+      now, total, taken,
+      vested:    claimable + taken,
+      claimable, vestedFrac,
       startTs, cliffTs, endTs, cliffActive, cliffDays,
     };
   }, [stream, decimals]);

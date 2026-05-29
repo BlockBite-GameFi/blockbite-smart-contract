@@ -59,8 +59,10 @@ export default function HybridPage() {
     if (!connected) { setVisible(true); return; }
     if (!validate()) return;
     const startTs = Math.floor(new Date(startDate).getTime() / 1000);
-    const cliffTs = startTs + cliffDays * 86400;
-    const endTs   = cliffTs + vestDays * 86400;
+    const cliffTs = cliffDays === 0 ? 0 : startTs + cliffDays * 86400;
+    const endTs   = cliffDays === 0
+      ? startTs + vestDays * 86400
+      : cliffTs + vestDays * 86400;
     await submit({
       beneficiary:  recipient,
       token,

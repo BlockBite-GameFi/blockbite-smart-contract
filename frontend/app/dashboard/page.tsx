@@ -375,7 +375,7 @@ export default function DashboardPage() {
                 {loading ? '...' : 'REFRESH'}
               </button>
               <div style={{ flex: 1 }} />
-              <Link href="/distribute/new" style={{
+              <Link href="/streams/new" style={{
                 padding: '8px 20px', background: `linear-gradient(135deg, ${TEAL}, ${GOLD})`,
                 border: 'none', borderRadius: 8, color: '#000',
                 fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13, textDecoration: 'none',
@@ -405,9 +405,9 @@ export default function DashboardPage() {
               }}>
                 <div style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 18, marginBottom: 8 }}>No streams found</div>
                 <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, marginBottom: 24 }}>
-                  Create a stream from /distribute/new — it will appear here
+                  Create a stream from /streams/new — it will appear here
                 </div>
-                <Link href="/distribute/new" style={{
+                <Link href="/streams/new" style={{
                   padding: '10px 22px', background: `linear-gradient(135deg, ${TEAL}, ${GOLD})`,
                   borderRadius: 8, color: '#000', fontFamily: 'Space Grotesk, sans-serif',
                   fontWeight: 700, fontSize: 13, textDecoration: 'none',
