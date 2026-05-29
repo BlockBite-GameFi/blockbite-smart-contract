@@ -37,9 +37,8 @@ const TDP_LINKS = [
 
 // NAV_LINKS hrefs only — labels are derived from translations inside the component
 const NAV_HREFS = [
-  { key: 'nav_product',      href: '/protocol'    },
-  { key: 'nav_how_it_works', href: '/how-to-play' },
-  { key: 'nav_play_game',    href: '/map/1'        },
+  { key: 'nav_product',      href: '/protocol'     },
+  { key: 'nav_how_it_works', href: '/#how-it-works' },
   { key: 'nav_waitlist',     href: '/waitlist'     },
 ] as const;
 
@@ -114,8 +113,7 @@ export default function Navbar() {
               <Link
                 href={link.href}
                 className={`${styles.link} ${
-                  (link.href === '/map/1' && (pathname?.startsWith('/map') || pathname?.startsWith('/tutorial') || pathname?.startsWith('/play')))
-                  || (link.href !== '/map/1' && (pathname === link.href || pathname?.startsWith(link.href + '/')))
+                  pathname === link.href || pathname?.startsWith(link.href + '/')
                     ? styles.active : ''
                 }`}
                 style={{ fontFamily: DS.font }}

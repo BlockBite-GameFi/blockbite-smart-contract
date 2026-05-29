@@ -537,7 +537,7 @@ export default function Home() {
       </section>
 
       {/* ─── HOW IT WORKS ──────────────────────────────────────────────────────── */}
-      <section className="m-section" style={{
+      <section id="how-it-works" className="m-section" style={{
         position: 'relative', zIndex: 1,
         padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
         background: D.bg1,
