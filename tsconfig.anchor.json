@@ -5,9 +5,18 @@
     "lib": ["ES2020"],
     "types": ["mocha", "node"],
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "module": "commonjs"
+  },
+  "ts-node": {
+    "esm": false,
+    "transpileOnly": true,
+    "compilerOptions": {
+      "module": "commonjs",
+      "moduleResolution": "node"
+    }
   },
   "include": ["tests/**/*.ts"]
 }
