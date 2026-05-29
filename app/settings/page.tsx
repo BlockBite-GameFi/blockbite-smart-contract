@@ -2,38 +2,36 @@
 
 import Navbar from '@/components/Navbar';
 import { useApp } from '@/lib/useApp';
-import Link from 'next/link';
-
-const C = {
-  bg0:    'var(--p-bg0)',
-  bg1:    'var(--p-bg1)',
-  bg2:    'var(--p-bg2)',
-  accent: '#a78bfa',
-  muted:  'var(--p-muted)',
-  border: 'var(--p-border)',
-  serif:  "'Space Grotesk', system-ui, sans-serif",
-  mono:   "'JetBrains Mono', monospace",
-};
+import { T } from '@/lib/theme';
 
 export default function SettingsPage() {
-  const { t, lang, setLang, theme, setTheme } = useApp();
+  const { lang, setLang, theme, setTheme } = useApp();
+
+  const TX = {
+    title:    lang === 'id' ? 'Pengaturan'                        : 'Settings',
+    subtitle: lang === 'id' ? 'Preferensi bahasa dan tampilan.'   : 'Language and display preferences.',
+    language: lang === 'id' ? 'Bahasa'                            : 'Language',
+    theme:    lang === 'id' ? 'Tema'                              : 'Theme',
+    dark:     lang === 'id' ? 'Gelap'                             : 'Dark',
+    light:    lang === 'id' ? 'Terang'                            : 'Light',
+  };
 
   return (
-    <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <main style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
 
       {/* Header */}
       <div style={{
         padding: '80px 32px 36px',
-        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
-        borderBottom: `1px solid ${C.border}`,
+        background: T.header,
+        borderBottom: `1px solid ${T.border}`,
       }}>
         <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 6px', color: '#fff' }}>
-            Settings
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 6px', color: T.text }}>
+            {TX.title}
           </h1>
-          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
-            Language and display preferences.
+          <p style={{ fontSize: 13, color: T.textDim, margin: 0 }}>
+            {TX.subtitle}
           </p>
         </div>
       </div>
@@ -44,11 +42,11 @@ export default function SettingsPage() {
         {/* Language */}
         <div style={{
           padding: '24px', borderRadius: 16,
-          background: C.bg1, border: `1px solid ${C.border}`,
+          background: T.bg1, border: `1px solid ${T.border}`,
           marginBottom: 16,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: C.muted, marginBottom: 12 }}>
-            Language
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: T.textDim, marginBottom: 12 }}>
+            {TX.language}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {(['en', 'id'] as const).map(l => (
@@ -58,11 +56,9 @@ export default function SettingsPage() {
                 onClick={() => setLang(l)}
                 style={{
                   padding: '8px 24px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  fontFamily: C.serif, fontSize: 13, fontWeight: 700,
-                  background: lang === l
-                    ? `linear-gradient(135deg, ${C.accent}, #5e35d4)`
-                    : 'rgba(255,255,255,.06)',
-                  color: lang === l ? '#fff' : C.muted,
+                  fontFamily: T.serif, fontSize: 13, fontWeight: 700,
+                  background: lang === l ? T.grad : T.surface,
+                  color: lang === l ? '#fff' : T.textDim,
                   transition: 'all .15s',
                 }}
               >
@@ -75,10 +71,10 @@ export default function SettingsPage() {
         {/* Theme */}
         <div style={{
           padding: '24px', borderRadius: 16,
-          background: C.bg1, border: `1px solid ${C.border}`,
+          background: T.bg1, border: `1px solid ${T.border}`,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: C.muted, marginBottom: 12 }}>
-            Theme
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: T.textDim, marginBottom: 12 }}>
+            {TX.theme}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             {(['dark', 'light'] as const).map(th => (
@@ -88,15 +84,13 @@ export default function SettingsPage() {
                 onClick={() => setTheme(th)}
                 style={{
                   padding: '8px 24px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                  fontFamily: C.serif, fontSize: 13, fontWeight: 700,
-                  background: theme === th
-                    ? `linear-gradient(135deg, ${C.accent}, #5e35d4)`
-                    : 'rgba(255,255,255,.06)',
-                  color: theme === th ? '#fff' : C.muted,
+                  fontFamily: T.serif, fontSize: 13, fontWeight: 700,
+                  background: theme === th ? T.grad : T.surface,
+                  color: theme === th ? '#fff' : T.textDim,
                   transition: 'all .15s',
                 }}
               >
-                {th.charAt(0).toUpperCase() + th.slice(1)}
+                {th === 'dark' ? TX.dark : TX.light}
               </button>
             ))}
           </div>
