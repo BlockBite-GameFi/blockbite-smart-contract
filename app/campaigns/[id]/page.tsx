@@ -506,7 +506,7 @@ export default function CampaignDetailPage() {
                     ? (lang === 'en' ? 'Withdrawing…' : 'Menarik…')
                     : isVerifiedOrNoGate
                       ? (lang === 'en' ? '↓ Withdraw Tokens' : '↓ Tarik Token')
-                      : '🔒 Locked'}
+                      : (lang === 'en' ? '🔒 Locked' : '🔒 Terkunci')}
                 </button>
               </div>
             </div>
