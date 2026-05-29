@@ -139,7 +139,7 @@ export default function ClaimPage() {
       setClaimStage('done');
       await load();
     } catch (e) {
-      setClaimErr(e instanceof Error ? e.message : 'Transaction failed');
+      setClaimErr(e instanceof Error ? e.message : (lang === 'id' ? 'Transaksi gagal' : 'Transaction failed'));
       setClaimStage('idle');
     }
   }, [stream, publicKey, claimable, connection, sendTransaction, load]);
@@ -246,7 +246,7 @@ export default function ClaimPage() {
                       {s.pubkey.toBase58().slice(0, 8)}…
                     </div>
                     <div style={{ fontSize: 11, color: c > 0 ? T.green : T.textDim, fontWeight: 700 }}>
-                      {(c / 1e6).toFixed(4)} claimable
+                      {(c / 1e6).toFixed(4)} {lang === 'id' ? 'tersedia' : 'claimable'}
                     </div>
                   </button>
                 );
