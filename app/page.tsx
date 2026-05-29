@@ -129,6 +129,39 @@ const COPY = {
     ctaFinal1: 'Launch App →',
     ctaFinal2: 'View Streams',
     footer: '© 2026 BlockBite · Token Distribution Protocol on Solana',
+    /* ── Stats ── */
+    statStreams: 'Total Streams', statActive: 'Active Streams', statDist: 'Total Distributed',
+    /* ── Features ── */
+    features: [
+      { icon: '◈', title: 'Modular Verification Layers',    desc: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.',                                                               tags: ['Direct Claim', 'Gamified'] },
+      { icon: '∿', title: 'Adaptive Tokenomics Logic',       desc: "Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project's unique roadmap and specific distribution needs.",                                                                              tags: ['Linear', 'Cliff vesting', 'Milestone'] },
+      { icon: '◎', title: 'Eliminate Manual Overhead',       desc: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.',                                                                                                                                           tags: ['Fully automated', 'Zero manual steps'] },
+      { icon: '✦', title: 'Active Clawback Control',         desc: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.',                                                                               tags: ['Treasury protection', 'Instant clawback'] },
+      { icon: '⬡', title: 'Professional Standard Security',  desc: 'BlockBite ensures that project assets are locked securely while providing transparent, on chain proof for every single distribution.',                                                                                           tags: ['On-chain proof', 'Transparent'] },
+    ],
+    /* ── How it works ── */
+    howItems: [
+      { num: '01', title: 'Upload Recipient List',  desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.' },
+      { num: '02', title: 'Set Unlock Schedule',    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.' },
+      { num: '03', title: 'Set Verification Layer', desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
+      { num: '04', title: 'Update or Cancel',       desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.' },
+    ],
+    /* ── Verify methods ── */
+    verifyMethods: [
+      { title: 'Direct Claim',  sub: 'Fastest Setup',   desc: 'The fastest setup for simple distributions. Users can claim their tokens instantly as soon as the schedule unlocks without any extra steps or requirements.', badge: 'No Extra Steps' },
+      { title: 'Gamified',      sub: 'Play to Unlock',  desc: 'The defense against automated bots. Users must complete and pass a specific level or reach a target milestone in the game to unlock their tokens.',            badge: 'Sybil-Resistant' },
+    ],
+    /* ── FAQ ── */
+    faq: [
+      { q: 'What is BlockBite TDP?',                    a: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.' },
+      { q: 'Who controls the locked tokens?',           a: 'Tokens are secured in audited, non custodial smart contracts on Solana. Neither BlockBite nor outside parties can touch them. As the builder, you retain exclusive emergency control via our clawback feature to reclaim unvested tokens if conditions change.' },
+      { q: 'What vesting schedules are supported?',     a: 'We support highly adaptive tokenomics logic. You can use linear streaming for second by second unlocks, cliff schedules for timed lockups, or milestone based unlocks that release tokens only when project goals are achieved.' },
+      { q: 'What is the gamified verification layer?',  a: 'It is a mechanical filter built to block automated scripts and farming bots. When active, users must complete a specific level or reach a target milestone in a game to prove they are human before the smart contract unlocks their tokens.' },
+      { q: 'What happens if a stream is cancelled?',    a: 'Vesting freezes immediately. The recipient keeps everything already vested and can claim it at any time. Unvested tokens are returned to the stream creator.' },
+      { q: 'What wallets are supported?',               a: 'Phantom and Solflare are fully supported via Solana wallet-adapter. Any wallet compatible with the adapter standard will work.' },
+    ],
+    /* ── Why BlockBite ── */
+    whyKicker: 'WHY BLOCKBITE', whyDesc: 'Feature comparison with other protocols is available in the demo section.', whyLink: 'View comparison →',
   },
   id: {
     badge: 'DIDUKUNG SOLANA',
@@ -155,6 +188,39 @@ const COPY = {
     ctaFinal1: 'Buka Aplikasi →',
     ctaFinal2: 'Lihat Stream',
     footer: '© 2026 BlockBite · Protokol Distribusi Token di Solana',
+    /* ── Stats ── */
+    statStreams: 'Total Stream', statActive: 'Stream Aktif', statDist: 'Total Didistribusikan',
+    /* ── Features ── */
+    features: [
+      { icon: '◈', title: 'Lapisan Verifikasi Modular',    desc: 'Kendalikan cara pengguna mengakses token mereka. Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.',                                                            tags: ['Klaim Langsung', 'Gamified'] },
+      { icon: '∿', title: 'Logika Tokenomics Adaptif',      desc: 'Pilih antara linear streaming, cliff vesting, atau milestone unlocks untuk menyesuaikan roadmap dan kebutuhan distribusi spesifik proyek kamu.',                                                                    tags: ['Linear', 'Cliff vesting', 'Milestone'] },
+      { icon: '◎', title: 'Hilangkan Overhead Manual',      desc: 'Berhenti membuang ratusan jam untuk distribusi manual dan pengecekan spreadsheet.',                                                                                                                                  tags: ['Sepenuhnya otomatis', 'Nol langkah manual'] },
+      { icon: '✦', title: 'Kontrol Clawback Aktif',         desc: 'Lindungi treasury dari kontrak bermasalah atau perubahan proyek. Fitur clawback bawaan memungkinkan builder menarik kembali token yang belum vesting secara instan.',                                                 tags: ['Perlindungan treasury', 'Clawback instan'] },
+      { icon: '⬡', title: 'Keamanan Standar Profesional',   desc: 'BlockBite memastikan aset proyek terkunci dengan aman sambil memberikan bukti transparan on-chain untuk setiap distribusi.',                                                                                        tags: ['Bukti on-chain', 'Transparan'] },
+    ],
+    /* ── How it works ── */
+    howItems: [
+      { num: '01', title: 'Upload Daftar Penerima', desc: 'Import alamat wallet dan jumlah token dari CSV. Program mengkompresi menjadi satu root 32-byte on-chain — tidak perlu akun per penerima.' },
+      { num: '02', title: 'Atur Jadwal Unlock',     desc: 'Pilih cliff, linear, atau milestone vesting untuk seluruh kampanye atau per penerima. Program menerapkan kurva on-chain — tidak ada yang bisa klaim lebih awal.' },
+      { num: '03', title: 'Atur Lapisan Verifikasi',desc: 'Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
+      { num: '04', title: 'Perbarui atau Batalkan', desc: 'Perlu memperbaiki alokasi atau mencabut token masa depan? Rotasi Merkle root, atau batalkan kampanye — penerima menyimpan yang sudah vesting dengan grace period 7 hari.' },
+    ],
+    /* ── Verify methods ── */
+    verifyMethods: [
+      { title: 'Klaim Langsung', sub: 'Setup Tercepat', desc: 'Setup tercepat untuk distribusi sederhana. Pengguna dapat klaim token mereka langsung setelah jadwal unlock tanpa langkah tambahan.', badge: 'Tanpa Langkah Ekstra' },
+      { title: 'Gamified',       sub: 'Main untuk Unlock', desc: 'Pertahanan terhadap bot otomatis. Pengguna harus menyelesaikan level tertentu atau mencapai milestone dalam game untuk membuka token mereka.', badge: 'Tahan Sybil' },
+    ],
+    /* ── FAQ ── */
+    faq: [
+      { q: 'Apa itu BlockBite TDP?',                         a: 'BlockBite adalah mesin terpadu untuk logistik token otomatis. Kami menghilangkan kompleksitas dan risiko manajemen manual dengan sistem otomatis yang menangani vesting, streaming, dan distribusi dengan lapisan keamanan fleksibel.' },
+      { q: 'Siapa yang mengendalikan token yang terkunci?',   a: 'Token diamankan dalam smart contract non-kustodial yang diaudit di Solana. Tidak BlockBite maupun pihak luar yang bisa menyentuhnya. Sebagai builder, kamu memiliki kontrol darurat eksklusif via fitur clawback.' },
+      { q: 'Jadwal vesting apa yang didukung?',              a: 'Kami mendukung logika tokenomics yang sangat adaptif: linear streaming untuk unlock per detik, cliff schedules untuk lockup berjangka, atau milestone-based unlocks yang hanya melepas token saat tujuan proyek tercapai.' },
+      { q: 'Apa itu lapisan verifikasi gamified?',            a: 'Filter mekanis untuk memblokir skrip otomatis dan bot farming. Saat aktif, pengguna harus menyelesaikan level atau milestone dalam game untuk membuktikan mereka manusia sebelum smart contract membuka token.' },
+      { q: 'Apa yang terjadi jika stream dibatalkan?',        a: 'Vesting langsung beku. Penerima menyimpan semua yang sudah vesting dan bisa klaim kapan saja. Token yang belum vesting dikembalikan ke pembuat stream.' },
+      { q: 'Wallet apa yang didukung?',                      a: 'Phantom dan Solflare didukung penuh via Solana wallet-adapter. Wallet apapun yang kompatibel dengan standar adapter akan berfungsi.' },
+    ],
+    /* ── Why BlockBite ── */
+    whyKicker: 'KENAPA BLOCKBITE', whyDesc: 'Perbandingan fitur dengan protokol lain tersedia di bagian demo.', whyLink: 'Lihat perbandingan →',
   },
 } as const;
 
@@ -215,7 +281,7 @@ export default function Home() {
     let raf: number;
     const resize = () => { c.width = window.innerWidth; c.height = window.innerHeight; };
     resize(); window.addEventListener('resize', resize);
-    const COLORS = [DS.accent, DS.blue, DS.green, DS.accentDk];
+    const COLORS = [D.accent, D.blue, D.green, D.accentDk];
     const pts = Array.from({ length: 28 }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
@@ -281,7 +347,7 @@ export default function Home() {
           letterSpacing: '2.5px', fontFamily: DS.sora,
           boxShadow: '0 0 20px rgba(20,241,149,.15)',
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: DS.green, display: 'inline-block', animation: 'pulse 2s infinite', boxShadow: '0 0 8px rgba(20,241,149,.8)' }} />
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: D.green, display: 'inline-block', animation: 'pulse 2s infinite', boxShadow: '0 0 8px rgba(20,241,149,.8)' }} />
           {T.badge}
         </div>
 
@@ -364,7 +430,7 @@ export default function Home() {
             padding: '15px 28px', borderRadius: 9999,
             background: 'rgba(153,69,255,.08)',
             border: '1px solid rgba(153,69,255,.45)',
-            color: '#F8F6FF', fontWeight: 600, fontSize: 15,
+            color: D.text, fontWeight: 600, fontSize: 15,
             textDecoration: 'none', letterSpacing: '.02em',
             fontFamily: DS.sora,
             backdropFilter: 'blur(12px)',
@@ -384,9 +450,9 @@ export default function Home() {
           maxWidth: 680, width: '100%',
         }}>
           {([
-            { label: 'Total Streams',     val: liveStats ? liveStats.streams.toLocaleString() : '0' },
-            { label: 'Active Streams',    val: liveStats ? liveStats.active.toLocaleString()  : '0' },
-            { label: 'Total Distributed', val: liveStats ? liveStats.distributed + ' tokens'  : '0 tokens' },
+            { label: T.statStreams, val: liveStats ? liveStats.streams.toLocaleString() : '0' },
+            { label: T.statActive,  val: liveStats ? liveStats.active.toLocaleString()  : '0' },
+            { label: T.statDist,    val: liveStats ? liveStats.distributed + ' tokens'  : '0 tokens' },
           ]).map((s, i) => (
             <div key={i} style={{ textAlign: 'center' }}>
               <p style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(160,154,191,.6)', letterSpacing: '2.5px', textTransform: 'uppercase', margin: '0 0 10px' }}>{s.label}</p>
@@ -407,10 +473,10 @@ export default function Home() {
       <section className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: D.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
               {T.featKicker}
             </p>
-            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
+            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: D.text, margin: 0 }}>
               {T.featTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
@@ -418,45 +484,16 @@ export default function Home() {
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>{T.featItalic}</span>
             </h2>
-            <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
+            <p style={{ fontFamily: DS.sora, fontSize: 15, color: D.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
               {T.featSub}
             </p>
           </div>
 
-          {/* ── 5 core features ── */}
+          {/* ── 5 core features — bilingual via T.features ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 24 }}>
-            {([
-              {
-                icon: '◈', color: DS.accent,
-                title: 'Modular Verification Layers',
-                desc: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.',
-                tags: ['Direct Claim', 'Gamified'],
-              },
-              {
-                icon: '∿', color: DS.blue,
-                title: 'Adaptive Tokenomics Logic',
-                desc: "Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project's unique roadmap and specific distribution needs.",
-                tags: ['Linear', 'Cliff vesting', 'Milestone'],
-              },
-              {
-                icon: '◎', color: DS.green,
-                title: 'Eliminate Manual Overhead',
-                desc: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.',
-                tags: ['Fully automated', 'Zero manual steps'],
-              },
-              {
-                icon: '✦', color: DS.gold,
-                title: 'Active Clawback Control',
-                desc: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.',
-                tags: ['Treasury protection', 'Instant clawback'],
-              },
-              {
-                icon: '⬡', color: DS.ember,
-                title: 'Professional Standard Security',
-                desc: 'BlockBite ensures that project assets are locked securely while providing transparent, on chain proof for every single distribution.',
-                tags: ['On-chain proof', 'Transparent'],
-              },
-            ] as { icon: string; color: string; title: string; desc: string; tags: string[] }[]).map((f, i) => (
+            {T.features.map((f, i) => {
+              const color = [D.accent, D.blue, D.green, D.gold, D.ember][i] ?? D.accent;
+              return (
               <div key={i} style={{
                 borderRadius: 18, padding: 1,
                 background: 'linear-gradient(135deg, rgba(153,69,255,0.30), rgba(20,241,149,0.20))',
@@ -466,34 +503,35 @@ export default function Home() {
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'none'; }}
               >
                 <div style={{
-                  borderRadius: 17, background: DS.bg1,
+                  borderRadius: 17, background: D.bg1,
                   padding: '28px 28px 24px',
                   height: '100%', boxSizing: 'border-box',
                   display: 'flex', flexDirection: 'column', gap: 16,
                 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 14,
-                    background: `linear-gradient(135deg, ${f.color}22, ${f.color}08)`,
-                    border: `1px solid ${f.color}44`,
+                    background: `color-mix(in srgb, ${color} 13%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 24, color: f.color,
-                    boxShadow: `0 0 20px ${f.color}18`,
+                    fontSize: 24, color,
+                    boxShadow: `0 0 20px color-mix(in srgb, ${color} 9%, transparent)`,
                   }}>{f.icon}</div>
-                  <h3 style={{ fontFamily: DS.cinzel, fontSize: 20, fontWeight: 700, color: '#F8F6FF', margin: 0 }}>{f.title}</h3>
-                  <p style={{ fontFamily: DS.sora, fontSize: 13.5, color: DS.muted, lineHeight: 1.75, margin: 0, flex: 1 }}>{f.desc}</p>
+                  <h3 style={{ fontFamily: DS.cinzel, fontSize: 20, fontWeight: 700, color: D.text, margin: 0 }}>{f.title}</h3>
+                  <p style={{ fontFamily: DS.sora, fontSize: 13.5, color: D.muted, lineHeight: 1.75, margin: 0, flex: 1 }}>{f.desc}</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {f.tags.map(tag => (
                       <span key={tag} style={{
                         fontSize: 11, padding: '4px 12px', borderRadius: 999,
-                        background: DS.bg2, border: `1px solid ${f.color}30`,
-                        color: f.color, fontFamily: DS.sora, fontWeight: 600,
+                        background: D.bg2, border: `1px solid color-mix(in srgb, ${color} 19%, transparent)`,
+                        color, fontFamily: DS.sora, fontWeight: 600,
                         letterSpacing: '0.02em',
                       }}>{tag}</span>
                     ))}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -502,16 +540,16 @@ export default function Home() {
       <section className="m-section" style={{
         position: 'relative', zIndex: 1,
         padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
-        background: DS.bg1,
-        borderTop: `1px solid ${DS.border}`,
-        borderBottom: `1px solid ${DS.border}`,
+        background: D.bg1,
+        borderTop: `1px solid ${D.border}`,
+        borderBottom: `1px solid ${D.border}`,
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: DS.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: D.green, letterSpacing: '3px', textTransform: 'uppercase', marginBottom: 16, fontFamily: DS.sora }}>
               {T.howKicker}
             </p>
-            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: '#F8F6FF', margin: '0 0 16px' }}>
+            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(26px,3.5vw,42px)', fontWeight: 700, color: D.text, margin: '0 0 16px' }}>
               {T.howTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
@@ -519,7 +557,7 @@ export default function Home() {
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>{T.howItalic}</span>
             </h2>
-            <p style={{ fontFamily: DS.sora, fontSize: 15, color: DS.muted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
+            <p style={{ fontFamily: DS.sora, fontSize: 15, color: D.muted, maxWidth: 520, margin: '0 auto', lineHeight: 1.7 }}>
               {T.howSub}
             </p>
           </div>
@@ -533,7 +571,7 @@ export default function Home() {
               pointerEvents: 'none',
             }} />
 
-            {HOW_IT_WORKS.map((h, i) => (
+            {T.howItems.map((h, i) => (
               <div key={i} style={{ position: 'relative' }}>
                 {/* Ghost large number */}
                 <span style={{
@@ -553,57 +591,61 @@ export default function Home() {
                   marginBottom: 20,
                   boxShadow: '0 0 20px rgba(153,69,255,0.35)',
                 }}>
-                  <span style={{ fontFamily: DS.cinzel, fontWeight: 800, fontSize: 13, color: DS.bg0 }}>{h.num}</span>
+                  <span style={{ fontFamily: DS.cinzel, fontWeight: 800, fontSize: 13, color: D.bg0 }}>{h.num}</span>
                 </div>
 
-                <h3 style={{ fontFamily: DS.cinzel, fontSize: 17, fontWeight: 700, color: '#F8F6FF', margin: '0 0 12px' }}>{h.title}</h3>
-                <p style={{ fontFamily: DS.sora, fontSize: 13, color: DS.muted, lineHeight: 1.72, margin: 0 }}>{h.desc}</p>
+                <h3 style={{ fontFamily: DS.cinzel, fontSize: 17, fontWeight: 700, color: D.text, margin: '0 0 12px' }}>{h.title}</h3>
+                <p style={{ fontFamily: DS.sora, fontSize: 13, color: D.muted, lineHeight: 1.72, margin: 0 }}>{h.desc}</p>
               </div>
             ))}
           </div>
 
           {/* Verification layer — 4-column to match step grid */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: DS.muted, letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: D.muted, letterSpacing: '2.5px', textTransform: 'uppercase', margin: 0 }}>
               {T.verifyKicker}
             </p>
           </div>
           <div className="m-verify-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,200px),1fr))', gap: 16, marginBottom: 64 }}>
-            {VERIFY_METHODS.map((m, i) => (
+            {T.verifyMethods.map((m, i) => {
+              const vc = [D.blue, '#c084fc'][i] ?? D.accent;
+              return (
               <div key={i} style={{
                 padding: '20px 18px', borderRadius: 14,
-                background: `${m.color}07`, border: `1px solid ${m.color}22`,
+                background: `color-mix(in srgb, ${vc} 3%, transparent)`,
+                border: `1px solid color-mix(in srgb, ${vc} 13%, transparent)`,
                 transition: 'border-color .2s, transform .2s',
               }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = m.color + '50'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = m.color + '22'; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `color-mix(in srgb, ${vc} 31%, transparent)`; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = `color-mix(in srgb, ${vc} 13%, transparent)`; (e.currentTarget as HTMLElement).style.transform = 'none'; }}
               >
-                <div style={{ fontSize: 10, color: m.color, fontWeight: 700, letterSpacing: '1.5px', marginBottom: 6 }}>{m.title.toUpperCase()}</div>
-                <div style={{ fontFamily: DS.cinzel, fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#F8F6FF' }}>{m.sub}</div>
-                <p style={{ fontSize: 12, color: DS.muted, lineHeight: 1.6, margin: 0 }}>{m.desc}</p>
+                <div style={{ fontSize: 10, color: vc, fontWeight: 700, letterSpacing: '1.5px', marginBottom: 6 }}>{m.title.toUpperCase()}</div>
+                <div style={{ fontFamily: DS.cinzel, fontSize: 14, fontWeight: 600, marginBottom: 8, color: D.text }}>{m.sub}</div>
+                <p style={{ fontSize: 12, color: D.muted, lineHeight: 1.6, margin: 0 }}>{m.desc}</p>
                 <div style={{
                   marginTop: 10, display: 'inline-block',
                   padding: '2px 8px', borderRadius: 99, fontSize: 9, fontWeight: 700,
-                  background: `${m.color}15`, color: m.color, letterSpacing: '1px',
+                  background: `color-mix(in srgb, ${vc} 8%, transparent)`, color: vc, letterSpacing: '1px',
                 }}>{m.badge}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* ── Comparison — standalone page under /demo for Pasal 207 compliance ── */}
-          <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 10 }}>
-              WHY BLOCKBITE
+          <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 40, textAlign: 'center' }}>
+            <div style={{ fontSize: 11, letterSpacing: '2px', color: D.accent, fontWeight: 700, marginBottom: 10 }}>
+              {T.whyKicker}
             </div>
-            <p style={{ color: DS.muted, fontSize: 13, marginBottom: 14 }}>
-              Feature comparison with other protocols is available in the demo section.
+            <p style={{ color: D.muted, fontSize: 13, marginBottom: 14 }}>
+              {T.whyDesc}
             </p>
             <Link href="/demo/comparison" style={{
               display: 'inline-block', padding: '9px 22px', borderRadius: 10,
-              border: `1px solid ${DS.border}`, color: DS.accent,
+              border: `1px solid ${D.border}`, color: D.accent,
               fontSize: 13, fontWeight: 600, textDecoration: 'none',
             }}>
-              View comparison →
+              {T.whyLink}
             </Link>
           </div>
         </div>
@@ -613,10 +655,10 @@ export default function Home() {
       <section id="faq" className="m-section" style={{ position: 'relative', zIndex: 1, padding: 'clamp(44px,7vw,80px) clamp(16px,4vw,24px)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <div style={{ fontSize: 11, letterSpacing: '2px', color: DS.accent, fontWeight: 700, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, letterSpacing: '2px', color: D.accent, fontWeight: 700, marginBottom: 12 }}>
               {T.faqKicker}
             </div>
-            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 700, color: '#F8F6FF', margin: 0 }}>
+            <h2 style={{ fontFamily: DS.cinzel, fontSize: 'clamp(24px,3.5vw,40px)', fontWeight: 700, color: D.text, margin: 0 }}>
               {T.faqTitle}{' '}
               <span style={{
                 fontStyle: 'italic',
@@ -628,35 +670,10 @@ export default function Home() {
             </h2>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {([
-              {
-                q: 'What is BlockBite TDP?',
-                a: 'BlockBite is the unified engine for automated token logistics. We remove the complexity and risk of manual management by providing an automated system that handles vesting, streaming, and distribution with flexible security layers, ensuring your treasury is protected and your tokens are delivered with surgical precision.',
-              },
-              {
-                q: 'Who controls the locked tokens?',
-                a: 'Tokens are secured in audited, non custodial smart contracts on Solana. Neither BlockBite nor outside parties can touch them. As the builder, you retain exclusive emergency control via our clawback feature to reclaim unvested tokens if conditions change.',
-              },
-              {
-                q: 'What vesting schedules are supported?',
-                a: 'We support highly adaptive tokenomics logic. You can use linear streaming for second by second unlocks, cliff schedules for timed lockups, or milestone based unlocks that release tokens only when project goals are achieved.',
-              },
-              {
-                q: 'What is the gamified verification layer?',
-                a: 'It is a mechanical filter built to block automated scripts and farming bots. When active, users must complete a specific level or reach a target milestone in a game to prove they are human before the smart contract unlocks their tokens.',
-              },
-              {
-                q: 'What happens if a stream is cancelled?',
-                a: 'Vesting freezes immediately. The recipient keeps everything already vested and can claim it at any time. Unvested tokens are returned to the stream creator.',
-              },
-              {
-                q: 'What wallets are supported?',
-                a: 'Phantom and Solflare are fully supported via Solana wallet-adapter. Any wallet compatible with the adapter standard will work.',
-              },
-            ] as const).map((item, i) => (
+            {(T.faq as readonly { q: string; a: string }[]).map((item, i) => (
               <div key={i} style={{
                 borderRadius: 14, overflow: 'hidden',
-                border: `1px solid ${faqOpen[i] ? 'rgba(153,69,255,0.45)' : DS.border}`,
+                border: `1px solid ${faqOpen[i] ? 'rgba(153,69,255,0.45)' : D.border}`,
                 transition: 'border-color .2s',
               }}>
                 <button
@@ -664,22 +681,22 @@ export default function Home() {
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '16px 20px', textAlign: 'left',
-                    background: faqOpen[i] ? DS.bg2 : 'transparent',
+                    background: faqOpen[i] ? D.bg2 : 'transparent',
                     border: 'none', cursor: 'pointer',
-                    color: '#F8F6FF', fontFamily: DS.sora, fontSize: 14.5, fontWeight: 600,
+                    color: D.text, fontFamily: DS.sora, fontSize: 14.5, fontWeight: 600,
                     transition: 'background .2s',
                   }}
                 >
                   <span>{item.q}</span>
                   <span style={{
-                    fontSize: 18, color: DS.muted, flexShrink: 0, marginLeft: 16,
+                    fontSize: 18, color: D.muted, flexShrink: 0, marginLeft: 16,
                     transform: faqOpen[i] ? 'rotate(180deg)' : 'none',
                     transition: 'transform .2s',
                     display: 'inline-block',
                   }}>⌄</span>
                 </button>
                 {faqOpen[i] && (
-                  <div style={{ padding: '0 20px 16px', fontFamily: DS.sora, fontSize: 13.5, color: DS.muted, lineHeight: 1.75 }}>
+                  <div style={{ padding: '0 20px 16px', fontFamily: DS.sora, fontSize: 13.5, color: D.muted, lineHeight: 1.75 }}>
                     {item.a}
                   </div>
                 )}
@@ -698,11 +715,11 @@ export default function Home() {
         <h2 style={{
           fontFamily: DS.cinzel,
           fontSize: 'clamp(26px,4vw,44px)', fontWeight: 800,
-          marginBottom: 16, color: '#F8F6FF',
+          marginBottom: 16, color: D.text,
         }}>
           {T.ctaFinalTitle}
         </h2>
-        <p style={{ fontSize: 15, color: DS.muted, maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.7 }}>
+        <p style={{ fontSize: 15, color: D.muted, maxWidth: 480, margin: '0 auto 36px', lineHeight: 1.7 }}>
           {T.ctaFinalSub}
         </p>
         <div className="m-cta-wrap" style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 400, margin: '0 auto' }}>
@@ -719,7 +736,7 @@ export default function Home() {
             padding: '15px 36px', borderRadius: 9999,
             background: 'rgba(153,69,255,.06)',
             border: '1px solid rgba(153,69,255,.35)',
-            color: '#F8F6FF', fontWeight: 600, fontSize: 15, textDecoration: 'none',
+            color: D.text, fontWeight: 600, fontSize: 15, textDecoration: 'none',
             textAlign: 'center', display: 'inline-block',
           }}>
             {T.ctaFinal2}
@@ -730,19 +747,19 @@ export default function Home() {
       {/* ─── FOOTER ────────────────────────────────────────────────────────────── */}
       <footer className="m-footer" style={{
         position: 'relative', zIndex: 1,
-        borderTop: `1px solid ${DS.border}`,
+        borderTop: `1px solid ${D.border}`,
         padding: 'clamp(20px,3vw,28px) clamp(16px,4vw,24px)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexWrap: 'wrap', gap: 12,
-        fontSize: 12, color: DS.muted,
-        background: DS.bg1,
+        fontSize: 12, color: D.muted,
+        background: D.bg1,
         fontFamily: DS.sora,
       }}>
         <div>{T.footer}</div>
         <div className="m-footer-links" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Twitter / X</a>
-          <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>Discord</a>
-          <a href="https://github.com/nayrbryanGaming/blockblast" target="_blank" rel="noopener noreferrer" style={{ color: DS.muted, textDecoration: 'none' }}>GitHub</a>
+          <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Twitter / X</a>
+          <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Discord</a>
+          <a href="https://github.com/nayrbryanGaming/blockblast" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>GitHub</a>
         </div>
       </footer>
 
