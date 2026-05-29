@@ -31,8 +31,8 @@ export const IS_DEVNET = ACTIVE_NETWORK === WalletAdapterNetwork.Devnet;
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ??
   (IS_DEVNET
-    ? 'https://rpc.ankr.com/solana_devnet'
-    : 'https://rpc.ankr.com/solana');
+    ? 'https://solana-devnet.drpc.org'
+    : 'https://solana-mainnet.drpc.org');
 
 // ── USDC SPL Mint addresses ────────────────────────────────────────
 // Devnet:  BlockBite mock-USDC (mint authority = team wallet). Circle's official
