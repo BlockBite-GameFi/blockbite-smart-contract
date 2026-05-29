@@ -1,24 +1,35 @@
 /**
- * vesting-client.ts — BlockBite mancer contract adapter.
+ * vesting-client.ts — Exact adapter for the BlockBite program deployed on devnet.
  *
- * Keeps blockblast's function signatures so all page imports work unchanged.
- * Targets: Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq (Solana devnet)
+ * Target: Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq  (deployed 2026-05-20, slot 463647969)
  *
- * StreamAccount layout (188 bytes, after 8-byte discriminator):
- *   [8]   creator              Pubkey
- *   [40]  recipient            Pubkey
- *   [72]  mint                 Pubkey
- *   [104] escrow_token_account Pubkey
- *   [136] total_amount         u64
- *   [144] amount_withdrawn     u64
- *   [152] start_time           i64
- *   [160] end_time             i64
- *   [168] cliff_time           i64
- *   [176] is_cancelled         bool
- *   [177] bump                 u8
- *   [178] seed                 u64
- *   [186] milestone_reached    bool
- *   [187] milestone_enabled    bool
+ * StreamAccount layout — 196 bytes total (after 8-byte discriminator):
+ *   [8..40]   creator              Pubkey
+ *   [40..72]  recipient            Pubkey
+ *   [72..104] mint                 Pubkey
+ *   [104..136]escrow_token_account Pubkey
+ *   [136..144]total_amount         u64
+ *   [144..152]amount_withdrawn     u64
+ *   [152..160]start_time           i64
+ *   [160..168]end_time             i64
+ *   [168..176]cliff_time           i64
+ *   [176]     is_cancelled         bool
+ *   [177]     bump                 u8
+ *   [178..186]seed                 u64
+ *   [186]     milestone_reached    bool
+ *   [187]     velocity_strikes     u8
+ *   [188..196]last_action_ts       i64
+ *
+ * create_stream instruction — 48 bytes data, 9 accounts:
+ *   data: [disc(8)] [total_amount u64 LE(8)] [start_time i64 LE(8)]
+ *         [end_time i64 LE(8)] [cliff_time i64 LE(8)] [seed u64 LE(8)]
+ *   accounts: creator, recipient, mint, creator_ta, escrow_ta,
+ *             stream, developer_ta, token_program, system_program
+ *
+ * unlock logic (mirrors Rust calculate_unlocked):
+ *   cliff_time == 0: pure linear start→end
+ *   cliff_time >  0 && !milestone_reached: 0
+ *   cliff_time >  0 && milestone_reached:  linear cliff→end
  */
 
 import { BN } from '@coral-xyz/anchor';
@@ -35,18 +46,21 @@ import {
   getAccount,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
+import { TEAM_WALLET } from '@/lib/solana/config';
 
 // ─── Program constants ────────────────────────────────────────────────────────
 export const VESTING_PROGRAM_ID = new PublicKey(
   'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
 );
 
-// Instruction discriminators (sha256("global:<name>")[0..8])
+// Instruction discriminators: sha256("global:<name>")[0..8]
 const DISC_CREATE   = Buffer.from([71,  188, 111, 127, 108, 40,  229, 158]);
 const DISC_WITHDRAW = Buffer.from([183, 18,  70,  156, 148, 109, 161, 34 ]);
 const DISC_CANCEL   = Buffer.from([232, 219, 223, 41,  219, 236, 220, 190]);
+const DISC_MILESTONE= Buffer.from([174, 213, 91,  82,  156, 42,  105, 3  ]);
 
-const STREAM_ACCOUNT_SIZE = 188;
+// StreamAccount constants
+export const STREAM_ACCOUNT_SIZE = 196;
 const OFFSET_CREATOR   = 8;
 const OFFSET_RECIPIENT = 40;
 
@@ -72,7 +86,7 @@ export function deriveEscrowPDA(streamPDA: PublicKey): [PublicKey, number] {
   );
 }
 
-/** Vault alias for blockblast compatibility */
+/** Alias used by pages */
 export function deriveVaultPDA(
   creator: PublicKey,
   recipient: PublicKey,
@@ -98,10 +112,11 @@ export type SendTx = (
 
 export interface StreamInfo {
   pubkey:             PublicKey;
-  authority:          PublicKey;
-  beneficiary:        PublicKey;
+  authority:          PublicKey;   // = creator
+  beneficiary:        PublicKey;   // = recipient
   mint:               PublicKey;
-  streamId:           BN;
+  escrowTokenAccount: PublicKey;
+  streamId:           BN;          // = seed
   amountTotal:        BN;
   amountWithdrawn:    BN;
   startTs:            BN;
@@ -109,23 +124,27 @@ export interface StreamInfo {
   endTs:              BN;
   cancelled:          boolean;
   bump:               number;
+  milestoneReached:   boolean;
   velocityStrikes:    number;
   lastActionTs:       BN;
+  // Compatibility fields for blockblast page components
   requiredTier:       number;
   milestoneCount:     number;
   milestonesVerified: boolean[];
   milestonePct:       number[];
-  escrowTokenAccount: PublicKey;
-  milestoneReached:   boolean;
-  milestoneEnabled:   boolean;
 }
 
-// ─── Decode raw account ───────────────────────────────────────────────────────
-function decodeStream(pubkey: PublicKey, data: Buffer): StreamInfo | null {
+// ─── Decode raw 196-byte StreamAccount ───────────────────────────────────────
+function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null {
+  const data = Buffer.from(rawData);
   if (data.length < STREAM_ACCOUNT_SIZE) return null;
   try {
     let off = 8;
-    const rd32 = () => { const pk = new PublicKey(data.slice(off, off + 32)); off += 32; return pk; };
+    const rd32 = (): PublicKey => {
+      const pk = new PublicKey(data.slice(off, off + 32));
+      off += 32;
+      return pk;
+    };
     const creator            = rd32();
     const recipient          = rd32();
     const mint               = rd32();
@@ -139,12 +158,15 @@ function decodeStream(pubkey: PublicKey, data: Buffer): StreamInfo | null {
     const bump               = data[off];                 off++;
     const seed               = data.readBigUInt64LE(off); off += 8;
     const milestoneReached   = data[off] !== 0;           off++;
-    const milestoneEnabled   = data[off] !== 0;
+    const velocityStrikes    = data[off];                 off++;
+    const lastActionTs       = data.readBigInt64LE(off);
+
     return {
       pubkey,
       authority:          creator,
       beneficiary:        recipient,
       mint,
+      escrowTokenAccount,
       streamId:           new BN(seed.toString()),
       amountTotal:        new BN(totalAmount.toString()),
       amountWithdrawn:    new BN(amountWithdrawn.toString()),
@@ -153,15 +175,13 @@ function decodeStream(pubkey: PublicKey, data: Buffer): StreamInfo | null {
       endTs:              new BN(endTime.toString()),
       cancelled:          isCancelled,
       bump,
-      velocityStrikes:    0,
-      lastActionTs:       new BN(0),
-      requiredTier:       milestoneEnabled ? 1 : 0,
-      milestoneCount:     milestoneEnabled ? 1 : 0,
+      milestoneReached,
+      velocityStrikes,
+      lastActionTs:       new BN(lastActionTs.toString()),
+      requiredTier:       cliffTime > 0n ? 1 : 0,
+      milestoneCount:     cliffTime > 0n ? 1 : 0,
       milestonesVerified: [milestoneReached],
       milestonePct:       [100],
-      escrowTokenAccount,
-      milestoneReached,
-      milestoneEnabled,
     };
   } catch {
     return null;
@@ -174,7 +194,7 @@ export async function getAllStreams(connection: Connection): Promise<StreamInfo[
     filters: [{ dataSize: STREAM_ACCOUNT_SIZE }],
   });
   return accs.flatMap(({ pubkey, account }) => {
-    const d = decodeStream(pubkey, Buffer.from(account.data));
+    const d = decodeStream(pubkey, account.data);
     return d ? [d] : [];
   });
 }
@@ -190,7 +210,7 @@ export async function getStreamsByAuthority(
     ],
   });
   return accs.flatMap(({ pubkey, account }) => {
-    const d = decodeStream(pubkey, Buffer.from(account.data));
+    const d = decodeStream(pubkey, account.data);
     return d ? [d] : [];
   });
 }
@@ -206,7 +226,7 @@ export async function getStreamsByBeneficiary(
     ],
   });
   return accs.flatMap(({ pubkey, account }) => {
-    const d = decodeStream(pubkey, Buffer.from(account.data));
+    const d = decodeStream(pubkey, account.data);
     return d ? [d] : [];
   });
 }
@@ -218,7 +238,7 @@ export async function fetchStream(
   try {
     const acc = await connection.getAccountInfo(streamPda);
     if (!acc) return null;
-    return decodeStream(streamPda, Buffer.from(acc.data));
+    return decodeStream(streamPda, acc.data);
   } catch { return null; }
 }
 
@@ -236,7 +256,7 @@ export async function fetchProofCache(
   _c: Connection, _s: PublicKey, _p: PublicKey,
 ) { return null; }
 
-// ─── Compute unlocked (mirrors Rust) ─────────────────────────────────────────
+// ─── Unlocked computation (mirrors Rust calculate_unlocked exactly) ───────────
 export function computeUnlocked(stream: StreamInfo, nowSec: number): bigint {
   const now   = BigInt(nowSec);
   const cliff = BigInt(stream.cliffTs.toString());
@@ -244,12 +264,28 @@ export function computeUnlocked(stream: StreamInfo, nowSec: number): bigint {
   const end   = BigInt(stream.endTs.toString());
   const total = BigInt(stream.amountTotal.toString());
   const drawn = BigInt(stream.amountWithdrawn.toString());
+
   if (stream.cancelled) return 0n;
-  if (now < cliff || now < start) return 0n;
-  if (now >= end) return total > drawn ? total - drawn : 0n;
-  const dur  = end > start ? end - start : 1n;
-  const el   = now - start;
-  const ul   = total * el / dur;
+
+  // Case 1: No cliff → pure linear
+  if (cliff === 0n) {
+    if (now < start) return 0n;
+    if (now >= end) return total > drawn ? total - drawn : 0n;
+    const dur = end > start ? end - start : 1n;
+    const el  = now - start;
+    const ul  = total * el / dur;
+    return ul > drawn ? ul - drawn : 0n;
+  }
+
+  // Case 2: Cliff set but milestone NOT reached → 0
+  if (!stream.milestoneReached) return 0n;
+
+  // Case 3: Cliff + milestone reached → linear from cliff to end
+  if (now < cliff) return 0n;
+  if (now >= end)  return total > drawn ? total - drawn : 0n;
+  const dur = end > cliff ? end - cliff : 1n;
+  const el  = now - cliff;
+  const ul  = total * el / dur;
   return ul > drawn ? ul - drawn : 0n;
 }
 
@@ -265,32 +301,46 @@ export async function ensureAtaIx(
   catch { return createAssociatedTokenAccountInstruction(payer, ata, owner, mint); }
 }
 
-// ─── Raw IX builders ─────────────────────────────────────────────────────────
+// ─── Raw instruction builders ─────────────────────────────────────────────────
+
+/**
+ * build create_stream: 48 bytes, 9 accounts.
+ * Args: total_amount(u64) start_time(i64) end_time(i64) cliff_time(i64) seed(u64)
+ * Account 6: developer_token_account — receives DEV_FEE_BPS (1%) of total_amount
+ */
 function mkCreateIx(
-  creator: PublicKey, recipient: PublicKey, mint: PublicKey,
-  creatorTA: PublicKey, escrowTA: PublicKey, streamPDA: PublicKey,
-  totalAmount: bigint, startTime: bigint, endTime: bigint,
-  cliffTime: bigint, seed: bigint, milestoneEnabled: boolean,
+  creator:     PublicKey,
+  recipient:   PublicKey,
+  mint:        PublicKey,
+  creatorTA:   PublicKey,
+  escrowTA:    PublicKey,
+  streamPDA:   PublicKey,
+  developerTA: PublicKey,
+  totalAmount: bigint,
+  startTime:   bigint,
+  endTime:     bigint,
+  cliffTime:   bigint,
+  seed:        bigint,
 ): TransactionInstruction {
-  const data = Buffer.alloc(49);
+  const data = Buffer.alloc(48); // 8 disc + 5×8 args
   DISC_CREATE.copy(data, 0);
   data.writeBigUInt64LE(totalAmount, 8);
   data.writeBigInt64LE(startTime,   16);
   data.writeBigInt64LE(endTime,     24);
   data.writeBigInt64LE(cliffTime,   32);
   data.writeBigUInt64LE(seed,       40);
-  data[48] = milestoneEnabled ? 1 : 0;
   return new TransactionInstruction({
     programId: VESTING_PROGRAM_ID,
     keys: [
-      { pubkey: creator,                   isSigner: true,  isWritable: true  },
-      { pubkey: recipient,                 isSigner: false, isWritable: false },
-      { pubkey: mint,                      isSigner: false, isWritable: false },
-      { pubkey: creatorTA,                 isSigner: false, isWritable: true  },
-      { pubkey: escrowTA,                  isSigner: false, isWritable: true  },
-      { pubkey: streamPDA,                 isSigner: false, isWritable: true  },
-      { pubkey: TOKEN_PROGRAM_ID,          isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId,   isSigner: false, isWritable: false },
+      { pubkey: creator,                 isSigner: true,  isWritable: true  }, // 0
+      { pubkey: recipient,               isSigner: false, isWritable: false }, // 1
+      { pubkey: mint,                    isSigner: false, isWritable: false }, // 2
+      { pubkey: creatorTA,               isSigner: false, isWritable: true  }, // 3
+      { pubkey: escrowTA,                isSigner: false, isWritable: true  }, // 4
+      { pubkey: streamPDA,               isSigner: false, isWritable: true  }, // 5
+      { pubkey: developerTA,             isSigner: false, isWritable: true  }, // 6 DEV FEE
+      { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false }, // 7
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 8
     ],
     data,
   });
@@ -298,16 +348,16 @@ function mkCreateIx(
 
 function mkWithdrawIx(
   recipient: PublicKey, streamPDA: PublicKey, mint: PublicKey,
-  escrowTA: PublicKey, recipientTA: PublicKey,
+  escrowTA: PublicKey,  recipientTA: PublicKey,
 ): TransactionInstruction {
   return new TransactionInstruction({
     programId: VESTING_PROGRAM_ID,
     keys: [
-      { pubkey: recipient,    isSigner: true,  isWritable: true  },
-      { pubkey: streamPDA,    isSigner: false, isWritable: true  },
-      { pubkey: mint,         isSigner: false, isWritable: false },
-      { pubkey: escrowTA,     isSigner: false, isWritable: true  },
-      { pubkey: recipientTA,  isSigner: false, isWritable: true  },
+      { pubkey: recipient,        isSigner: true,  isWritable: true  },
+      { pubkey: streamPDA,        isSigner: false, isWritable: true  },
+      { pubkey: mint,             isSigner: false, isWritable: false },
+      { pubkey: escrowTA,         isSigner: false, isWritable: true  },
+      { pubkey: recipientTA,      isSigner: false, isWritable: true  },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.from(DISC_WITHDRAW),
@@ -321,31 +371,44 @@ function mkCancelIx(
   return new TransactionInstruction({
     programId: VESTING_PROGRAM_ID,
     keys: [
-      { pubkey: creator,      isSigner: true,  isWritable: true  },
-      { pubkey: streamPDA,    isSigner: false, isWritable: true  },
-      { pubkey: mint,         isSigner: false, isWritable: false },
-      { pubkey: escrowTA,     isSigner: false, isWritable: true  },
-      { pubkey: creatorTA,    isSigner: false, isWritable: true  },
-      { pubkey: recipientTA,  isSigner: false, isWritable: true  },
+      { pubkey: creator,          isSigner: true,  isWritable: true  },
+      { pubkey: streamPDA,        isSigner: false, isWritable: true  },
+      { pubkey: mint,             isSigner: false, isWritable: false },
+      { pubkey: escrowTA,         isSigner: false, isWritable: true  },
+      { pubkey: creatorTA,        isSigner: false, isWritable: true  },
+      { pubkey: recipientTA,      isSigner: false, isWritable: true  },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
     ],
     data: Buffer.from(DISC_CANCEL),
   });
 }
 
-// ─── High-level tx functions (blockblast-compatible) ─────────────────────────
+function mkSetMilestoneIx(
+  creator: PublicKey, streamPDA: PublicKey,
+): TransactionInstruction {
+  return new TransactionInstruction({
+    programId: VESTING_PROGRAM_ID,
+    keys: [
+      { pubkey: creator,   isSigner: true,  isWritable: false },
+      { pubkey: streamPDA, isSigner: false, isWritable: true  },
+    ],
+    data: Buffer.from(DISC_MILESTONE),
+  });
+}
+
+// ─── High-level tx functions ──────────────────────────────────────────────────
 
 export interface CreateStreamParams {
   connection:      Connection;
-  authority:       PublicKey;
+  authority:       PublicKey;     // creator (signer)
   beneficiary:     PublicKey;
   mint:            PublicKey;
-  streamId:        bigint;
-  amount:          bigint;
+  streamId:        bigint;        // used as seed
+  amount:          bigint;        // raw token units (already × 10^decimals)
   startTs:         number;
-  cliffTs:         number;
+  cliffTs:         number;        // 0 = no cliff (pure linear)
   endTs:           number;
-  requiredTier?:   0 | 1 | 2;
+  requiredTier?:   0 | 1 | 2;    // ignored — cliff presence is the gate
   sendTransaction: SendTx;
 }
 
@@ -354,17 +417,27 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
   const [streamPDA] = deriveStreamPDA(p.authority, p.beneficiary, seed);
   const [escrowTA]  = deriveEscrowPDA(streamPDA);
   const creatorTA   = await getAssociatedTokenAddress(p.mint, p.authority);
-  const milestoneEnabled = (p.requiredTier ?? 0) > 0 || p.cliffTs > 0;
 
-  const ix = mkCreateIx(
-    p.authority, p.beneficiary, p.mint, creatorTA, escrowTA, streamPDA,
-    p.amount, BigInt(p.startTs), BigInt(p.endTs), BigInt(p.cliffTs),
-    p.streamId, milestoneEnabled,
-  );
-  const tx = new Transaction().add(ix);
+  // Developer fee account — TEAM_WALLET's ATA for this mint
+  const devTA = await getAssociatedTokenAddress(p.mint, TEAM_WALLET);
+
+  const tx = new Transaction();
+
+  // Ensure developer ATA exists (create if missing — payer = creator)
+  const devAtaIx = await ensureAtaIx(p.connection, p.authority, TEAM_WALLET, p.mint);
+  if (devAtaIx) tx.add(devAtaIx);
+
+  tx.add(mkCreateIx(
+    p.authority, p.beneficiary, p.mint, creatorTA, escrowTA, streamPDA, devTA,
+    p.amount,
+    BigInt(p.startTs), BigInt(p.endTs), BigInt(p.cliffTs),
+    p.streamId,
+  ));
+
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
   tx.feePayer = p.authority;
+
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
   return sig;
@@ -377,18 +450,23 @@ export interface WithdrawParams {
   vault:           PublicKey;
   beneficiaryAta:  PublicKey;
   mint:            PublicKey;
-  proofCache?:     PublicKey;
+  proofCache?:     PublicKey;     // not used in deployed program
   sendTransaction: SendTx;
 }
 
 export async function withdraw(p: WithdrawParams): Promise<string> {
   const tx = new Transaction();
+
+  // Auto-create recipient ATA if needed
   const ataCrIx = await ensureAtaIx(p.connection, p.beneficiary, p.beneficiary, p.mint);
   if (ataCrIx) tx.add(ataCrIx);
+
   tx.add(mkWithdrawIx(p.beneficiary, p.stream, p.mint, p.vault, p.beneficiaryAta));
   tx.feePayer = p.beneficiary;
+
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
+
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
   return sig;
@@ -408,15 +486,34 @@ export interface CancelParams {
 export async function cancelStream(p: CancelParams): Promise<string> {
   const streamInfo = await fetchStream(p.connection, p.stream);
   if (!streamInfo) throw new Error('Stream account not found on devnet');
+
   const ix = mkCancelIx(
     p.authority, p.stream, streamInfo.mint,
     p.vault, p.authorityAta, p.beneficiaryAta,
   );
   const tx = new Transaction().add(ix);
   tx.feePayer = p.authority;
+
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
+
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+  return sig;
+}
+
+export async function setMilestone(
+  connection: Connection,
+  authority: PublicKey,
+  stream: PublicKey,
+  sendTransaction: SendTx,
+): Promise<string> {
+  const ix = mkSetMilestoneIx(authority, stream);
+  const tx = new Transaction().add(ix);
+  tx.feePayer = authority;
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+  tx.recentBlockhash = blockhash;
+  const sig = await sendTransaction(tx, connection);
+  await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
   return sig;
 }
