@@ -5,10 +5,11 @@ const require = createRequire(import.meta.url);
 const nextConfig = {
   reactStrictMode: true,
 
-  // Explicitly disable trailing slash to prevent redirect loops with Vercel.
-  // Vercel by default adds trailing slashes; Next.js removes them. Setting
-  // this to false makes both agree: canonical URLs have no trailing slash.
-  trailingSlash: false,
+  // trailingSlash: true makes Next.js and Vercel agree on URL shape.
+  // Pages with sub-routes (e.g. /waitlist + /waitlist/dashboard) need this
+  // to avoid ERR_TOO_MANY_REDIRECTS: Vercel serves directories with trailing
+  // slashes; Next.js must agree instead of fighting it.
+  trailingSlash: true,
 
   // ESLint errors must not block production builds — linting is a CI step,
   // not a deploy gate. TypeScript errors still block builds.

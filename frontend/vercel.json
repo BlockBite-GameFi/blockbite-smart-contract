@@ -1,6 +1,5 @@
 {
   "framework": "nextjs",
-  "alias": ["blockbite.vercel.app"],
   "buildCommand": "next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
@@ -16,7 +15,7 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
