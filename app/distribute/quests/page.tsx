@@ -6,23 +6,34 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
 import type { Quest, QuestCompletion, QuestType } from '@/lib/quests/store';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 
-const TYPE_OPTIONS: { value: QuestType; label: string; example: string }[] = [
-  { value: 'follow',   label: 'Social follow',  example: 'Follow @blockbite_gg on X' },
-  { value: 'onchain',  label: 'On-chain action', example: 'Hold ≥ 100 BLOCK' },
-  { value: 'gameplay', label: 'Gameplay',       example: 'Reach Level 100' },
-  { value: 'referral', label: 'Referral',       example: 'Refer 3 users' },
-  { value: 'custom',   label: 'Custom',         example: 'Submit a demo video' },
+const TYPE_OPTIONS_EN: { value: QuestType; label: string; example: string }[] = [
+  { value: 'follow',   label: 'Social follow',   example: 'Follow @blockbite_gg on X' },
+  { value: 'onchain',  label: 'On-chain action',  example: 'Hold ≥ 100 BLOCK' },
+  { value: 'gameplay', label: 'Gameplay',         example: 'Reach Level 100' },
+  { value: 'referral', label: 'Referral',         example: 'Refer 3 users' },
+  { value: 'custom',   label: 'Custom',           example: 'Submit a demo video' },
+];
+const TYPE_OPTIONS_ID: { value: QuestType; label: string; example: string }[] = [
+  { value: 'follow',   label: 'Ikuti sosial',     example: 'Ikuti @blockbite_gg di X' },
+  { value: 'onchain',  label: 'Aksi on-chain',    example: 'Pegang ≥ 100 BLOCK' },
+  { value: 'gameplay', label: 'Gameplay',          example: 'Capai Level 100' },
+  { value: 'referral', label: 'Referral',          example: 'Referensikan 3 pengguna' },
+  { value: 'custom',   label: 'Kustom',            example: 'Kirim video demo' },
 ];
 
 export default function DistributeQuestsPage() {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
+  const { lang } = useApp();
+  const id = lang === 'id';
+
+  const TYPE_OPTIONS = id ? TYPE_OPTIONS_ID : TYPE_OPTIONS_EN;
 
   const [quests,      setQuests]      = useState<Quest[]>([]);
   const [loading,     setLoading]     = useState(true);
-
-  // Create form
   const [title,       setTitle]       = useState('');
   const [description, setDescription] = useState('');
   const [type,        setType]        = useState<QuestType>('follow');
@@ -30,8 +41,6 @@ export default function DistributeQuestsPage() {
   const [maxComps,    setMaxComps]    = useState('0');
   const [busy,        setBusy]        = useState(false);
   const [error,       setError]       = useState<string | null>(null);
-
-  // Per-quest review pane
   const [reviewQuest, setReviewQuest] = useState<Quest | null>(null);
   const [completions, setCompletions] = useState<QuestCompletion[]>([]);
   const [reviewBusy,  setReviewBusy]  = useState<string | null>(null);
@@ -57,7 +66,7 @@ export default function DistributeQuestsPage() {
   const handleCreate = useCallback(async () => {
     if (!publicKey) return;
     if (!title.trim() || !description.trim() || !reward.trim()) {
-      setError('Title, description, and reward label are required.');
+      setError(id ? 'Judul, deskripsi, dan label hadiah wajib diisi.' : 'Title, description, and reward label are required.');
       return;
     }
     setBusy(true);
@@ -84,7 +93,7 @@ export default function DistributeQuestsPage() {
     } finally {
       setBusy(false);
     }
-  }, [publicKey, title, description, type, reward, maxComps, refresh]);
+  }, [publicKey, title, description, type, reward, maxComps, refresh, id]);
 
   const openReview = useCallback(async (quest: Quest) => {
     if (!publicKey) return;
@@ -107,9 +116,7 @@ export default function DistributeQuestsPage() {
       const res = await fetch(`/api/quests/${reviewQuest.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          adminWallet: publicKey.toBase58(), wallet, approve,
-        }),
+        body: JSON.stringify({ adminWallet: publicKey.toBase58(), wallet, approve }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await openReview(reviewQuest);
@@ -120,42 +127,54 @@ export default function DistributeQuestsPage() {
     }
   }, [publicKey, reviewQuest, openReview]);
 
+  const lbl: React.CSSProperties = {
+    display: 'block', fontSize: 11, letterSpacing: 1.5, color: T.textDim,
+    fontWeight: 700, marginBottom: 6,
+  };
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', borderRadius: 10,
+    background: T.surface2, border: `1px solid ${T.border}`,
+    color: T.text, fontSize: 13, outline: 'none',
+  };
+  const miniBtn: React.CSSProperties = {
+    padding: '5px 10px', borderRadius: 8, border: '1px solid',
+    background: 'transparent', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+  };
+
   return (
-    <div style={{
-      minHeight: '100vh', background: 'var(--ds-bg)', color: 'var(--ds-text)',
-      fontFamily: "'Montserrat', 'Space Grotesk', system-ui, sans-serif",
-    }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '120px 24px 80px' }}>
 
-        <Link href="/distribute" style={{ color: 'var(--ds-text-dim)', fontSize: 12, textDecoration: 'none' }}>
-          ← Back to distribute
+        <Link href="/distribute" style={{ color: T.textDim, fontSize: 12, textDecoration: 'none' }}>
+          ← {id ? 'Kembali ke distribusi' : 'Back to distribute'}
         </Link>
-        <h1 style={{ fontSize: 28, fontWeight: 900, margin: '6px 0 6px' }}>Quests</h1>
-        <p style={{ color: 'var(--ds-text-dim)', fontSize: 13, marginBottom: 30 }}>
-          Set tasks for your distribution audience. Filter bots through real engagement,
-          not captchas. Zealy-style competition layer.
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: '6px 0 6px' }}>{id ? 'Misi' : 'Quests'}</h1>
+        <p style={{ color: T.textDim, fontSize: 13, marginBottom: 30 }}>
+          {id
+            ? 'Tetapkan tugas untuk audiens distribusi Anda. Saring bot melalui keterlibatan nyata, bukan captcha. Lapisan kompetisi gaya Zealy.'
+            : 'Set tasks for your distribution audience. Filter bots through real engagement, not captchas. Zealy-style competition layer.'}
         </p>
 
         {!connected && (
           <div style={{
             padding: 24, borderRadius: 14, textAlign: 'center',
-            background: 'rgba(167,139,250,0.06)', border: '1px solid var(--ds-border)',
+            background: `color-mix(in srgb, ${T.accent} 6%, transparent)`, border: `1px solid ${T.border}`,
             marginBottom: 24,
           }}>
-            <p style={{ color: 'var(--ds-text-dim)', marginBottom: 14 }}>
-              Connect your wallet to create and review quests.
+            <p style={{ color: T.textDim, marginBottom: 14 }}>
+              {id ? 'Hubungkan wallet untuk membuat dan meninjau misi.' : 'Connect your wallet to create and review quests.'}
             </p>
             <button
               type="button"
               onClick={() => setVisible(true)}
               style={{
                 padding: '10px 18px', borderRadius: 10, border: 'none',
-                background: 'var(--ds-grad)', color: '#0a0a14',
+                background: T.grad, color: '#0a0a14',
                 fontWeight: 800, fontSize: 13, cursor: 'pointer',
               }}
             >
-              CONNECT WALLET
+              {id ? 'HUBUNGKAN WALLET' : 'CONNECT WALLET'}
             </button>
           </div>
         )}
@@ -165,38 +184,38 @@ export default function DistributeQuestsPage() {
             {/* Create form */}
             <section style={{
               padding: 22, borderRadius: 16, marginBottom: 24,
-              background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+              background: T.surface, border: `1px solid ${T.border}`,
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 16px' }}>Create Quest</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 16px' }}>{id ? 'Buat Misi' : 'Create Quest'}</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label style={lbl}>Title</label>
+                  <label style={lbl}>{id ? 'Judul' : 'Title'}</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Follow @blockbite_gg on X" style={inp}/>
+                    placeholder={id ? 'Ikuti @blockbite_gg di X' : 'Follow @blockbite_gg on X'} style={inp}/>
                 </div>
                 <div>
-                  <label style={lbl}>Description</label>
+                  <label style={lbl}>{id ? 'Deskripsi' : 'Description'}</label>
                   <textarea value={description} rows={2} onChange={(e) => setDescription(e.target.value)}
-                    placeholder="What does the user need to do?"
+                    placeholder={id ? 'Apa yang perlu dilakukan pengguna?' : 'What does the user need to do?'}
                     style={{ ...inp, fontFamily: 'inherit', resize: 'vertical' }}/>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                   <div>
-                    <label style={lbl}>Type</label>
+                    <label style={lbl}>{id ? 'Tipe' : 'Type'}</label>
                     <select value={type} onChange={(e) => setType(e.target.value as QuestType)} style={inp}>
                       {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                    <small style={{ fontSize: 10, color: 'var(--ds-text-dim)' }}>
-                      Example: {TYPE_OPTIONS.find((o) => o.value === type)?.example}
+                    <small style={{ fontSize: 10, color: T.textDim }}>
+                      {id ? 'Contoh' : 'Example'}: {TYPE_OPTIONS.find((o) => o.value === type)?.example}
                     </small>
                   </div>
                   <div>
-                    <label style={lbl}>Reward label</label>
+                    <label style={lbl}>{id ? 'Label hadiah' : 'Reward label'}</label>
                     <input type="text" value={reward} onChange={(e) => setReward(e.target.value)}
                       placeholder="+50 pts" style={inp}/>
                   </div>
                   <div>
-                    <label style={lbl}>Max completions (0 = unlimited)</label>
+                    <label style={lbl}>{id ? 'Maks penyelesaian (0 = tak terbatas)' : 'Max completions (0 = unlimited)'}</label>
                     <input type="number" min="0" value={maxComps}
                       onChange={(e) => setMaxComps(e.target.value)} style={inp}/>
                   </div>
@@ -205,12 +224,12 @@ export default function DistributeQuestsPage() {
                   type="button" onClick={handleCreate} disabled={busy}
                   style={{
                     padding: '12px 18px', borderRadius: 10, border: 'none', marginTop: 6,
-                    background: !busy ? 'var(--ds-grad)' : 'rgba(255,255,255,0.08)',
-                    color: !busy ? '#0a0a14' : 'var(--ds-text-dim)',
+                    background: !busy ? T.grad : T.surface2,
+                    color: !busy ? '#0a0a14' : T.textDim,
                     fontWeight: 900, fontSize: 13, cursor: !busy ? 'pointer' : 'wait',
                     letterSpacing: 0.5,
                   }}>
-                  {busy ? 'PUBLISHING…' : 'PUBLISH QUEST'}
+                  {busy ? (id ? 'MENERBITKAN…' : 'PUBLISHING…') : (id ? 'TERBITKAN MISI' : 'PUBLISH QUEST')}
                 </button>
                 {error && (
                   <div style={{ fontSize: 12, color: '#f472b6' }}>{error}</div>
@@ -220,34 +239,34 @@ export default function DistributeQuestsPage() {
 
             {/* My quests */}
             <section style={{ marginBottom: 28 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>My Quests</h2>
-              {loading && <div style={{ color: 'var(--ds-text-dim)', fontSize: 13 }}>Loading…</div>}
+              <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>{id ? 'Misi Saya' : 'My Quests'}</h2>
+              {loading && <div style={{ color: T.textDim, fontSize: 13 }}>{id ? 'Memuat…' : 'Loading…'}</div>}
               {!loading && quests.length === 0 && (
-                <div style={{ color: 'var(--ds-text-dim)', fontSize: 13 }}>No quests yet.</div>
+                <div style={{ color: T.textDim, fontSize: 13 }}>{id ? 'Belum ada misi.' : 'No quests yet.'}</div>
               )}
               <div style={{ display: 'grid', gap: 10 }}>
                 {quests.map((q) => (
                   <div key={q.id} style={{
                     padding: 16, borderRadius: 12,
-                    background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+                    background: T.surface, border: `1px solid ${T.border}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     gap: 12, flexWrap: 'wrap',
                   }}>
                     <div style={{ flex: 1, minWidth: 200 }}>
                       <div style={{ fontSize: 14, fontWeight: 800 }}>{q.title}</div>
-                      <div style={{ fontSize: 11, color: 'var(--ds-text-dim)', marginTop: 2 }}>
-                        {q.type.toUpperCase()} · reward: {q.rewardLabel}
+                      <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>
+                        {q.type.toUpperCase()} · {id ? 'hadiah' : 'reward'}: {q.rewardLabel}
                       </div>
                     </div>
                     <button
                       type="button" onClick={() => openReview(q)}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        border: '1px solid var(--ds-border)',
-                        background: 'transparent', color: 'var(--ds-accent)',
+                        border: `1px solid ${T.border}`,
+                        background: 'transparent', color: T.accent,
                         fontSize: 12, fontWeight: 700, cursor: 'pointer',
                       }}>
-                      REVIEW
+                      {id ? 'TINJAU' : 'REVIEW'}
                     </button>
                   </div>
                 ))}
@@ -258,29 +277,31 @@ export default function DistributeQuestsPage() {
             {reviewQuest && (
               <section style={{
                 padding: 22, borderRadius: 16,
-                background: 'var(--ds-surface)', border: '1px solid var(--ds-accent)',
+                background: T.surface, border: `1px solid ${T.accent}`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                   <div>
                     <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>{reviewQuest.title}</h3>
-                    <div style={{ fontSize: 11, color: 'var(--ds-text-dim)' }}>{completions.length} submission(s)</div>
+                    <div style={{ fontSize: 11, color: T.textDim }}>
+                      {completions.length} {id ? 'pengajuan' : 'submission(s)'}
+                    </div>
                   </div>
                   <button
                     type="button" onClick={() => setReviewQuest(null)}
                     style={{
                       padding: '6px 12px', borderRadius: 8,
-                      border: '1px solid var(--ds-border)', background: 'transparent',
-                      color: 'var(--ds-text-dim)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                    }}>CLOSE</button>
+                      border: `1px solid ${T.border}`, background: 'transparent',
+                      color: T.textDim, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    }}>{id ? 'TUTUP' : 'CLOSE'}</button>
                 </div>
                 {completions.length === 0 && (
-                  <div style={{ color: 'var(--ds-text-dim)', fontSize: 13 }}>No submissions yet.</div>
+                  <div style={{ color: T.textDim, fontSize: 13 }}>{id ? 'Belum ada pengajuan.' : 'No submissions yet.'}</div>
                 )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {completions.map((c) => (
                     <div key={c.wallet} style={{
                       padding: 12, borderRadius: 10,
-                      background: 'rgba(0,0,0,0.25)', border: '1px solid var(--ds-border)',
+                      background: T.surface2, border: `1px solid ${T.border}`,
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ fontFamily: 'monospace', fontSize: 11 }}>
@@ -301,18 +322,18 @@ export default function DistributeQuestsPage() {
                             <button type="button" disabled={reviewBusy === c.wallet}
                               onClick={() => handleReview(c.wallet, true)}
                               style={{ ...miniBtn, color: '#5eead4', borderColor: '#5eead4' }}>
-                              {reviewBusy === c.wallet ? '…' : 'Approve'}
+                              {reviewBusy === c.wallet ? '…' : (id ? 'Setujui' : 'Approve')}
                             </button>
                             <button type="button" disabled={reviewBusy === c.wallet}
                               onClick={() => handleReview(c.wallet, false)}
                               style={{ ...miniBtn, color: '#f472b6', borderColor: '#f472b6' }}>
-                              Reject
+                              {id ? 'Tolak' : 'Reject'}
                             </button>
                           </div>
                         )}
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ds-text-dim)', wordBreak: 'break-word' }}>
-                        Proof: {c.proof}
+                      <div style={{ marginTop: 8, fontSize: 12, color: T.textDim, wordBreak: 'break-word' }}>
+                        {id ? 'Bukti' : 'Proof'}: {c.proof}
                       </div>
                     </div>
                   ))}
@@ -325,17 +346,3 @@ export default function DistributeQuestsPage() {
     </div>
   );
 }
-
-const lbl: React.CSSProperties = {
-  display: 'block', fontSize: 11, letterSpacing: 1.5, color: 'var(--ds-text-dim)',
-  fontWeight: 700, marginBottom: 6,
-};
-const inp: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 10,
-  background: 'rgba(255,255,255,0.03)', border: '1px solid var(--ds-border)',
-  color: 'var(--ds-text)', fontSize: 13, outline: 'none',
-};
-const miniBtn: React.CSSProperties = {
-  padding: '5px 10px', borderRadius: 8, border: '1px solid',
-  background: 'transparent', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-};
