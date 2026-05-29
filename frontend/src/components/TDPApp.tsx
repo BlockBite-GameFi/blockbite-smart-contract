@@ -1,9 +1,14 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { T } from '@/lib/tokens';
 import { STREAMS, MOCK_WALLET, Stream, AUDIT_LOG, AuditEvent } from '@/lib/mock-data';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { Transaction, PublicKey } from '@solana/web3.js';
+import {
+  getStreamPDA, getEscrowPDA, getATA, ChainStream,
+  fetchWalletStreams, buildCreateStreamIx, buildWithdrawIx, buildCancelIx,
+} from '@/lib/program';
 
 // ─── Primitives ──────────────────────────────────────────────
 
@@ -198,16 +203,90 @@ function TopBar({ title, sub, actions }: { title:string; sub?:string; actions?:R
 
 // ─── Dashboard Page ───────────────────────────────────────────
 
+function chainStreamToUI(cs: ChainStream): Stream {
+  const now = Math.floor(Date.now() / 1000);
+  const total = Number(cs.totalAmount);
+  const withdrawn = Number(cs.amountWithdrawn);
+  const start = Number(cs.startTime);
+  const end   = Number(cs.endTime);
+  const cliff = Number(cs.cliffTime);
+  let unlocked = 0;
+  if (!cs.isCancelled && now >= start) {
+    if (cliff > 0 && now < cliff) unlocked = 0;
+    else {
+      const elapsed = Math.min(now, end) - start;
+      const duration = end - start;
+      unlocked = duration > 0 ? Math.min(Math.floor(total * elapsed / duration), total) : total;
+    }
+  }
+  const status: Stream['status'] = cs.isCancelled ? 'cancelled'
+    : now < start ? 'pending'
+    : unlocked >= total ? 'completed' : 'active';
+  return {
+    id: cs.address.toBase58(),
+    name: `Stream ${cs.address.toBase58().slice(0,8)}…`,
+    token: cs.mint.toBase58().slice(0,6) + '…',
+    total, claimed: withdrawn, unlocked,
+    cliff: cliff > 0 ? new Date(cliff * 1000).toISOString().slice(0,10) : 'None',
+    end: new Date(end * 1000).toISOString().slice(0,10),
+    type: cs.milestoneEnabled ? 'cliff' : 'linear',
+    recipient: cs.recipient.toBase58(),
+    creator:   cs.creator.toBase58(),
+    status, vestDays: Math.round((end - start) / 86400),
+    cliffDays: cliff > 0 ? Math.round((cliff - start) / 86400) : 0,
+    milestones: [],
+  };
+}
+
+function timeLeft(endStr: string): string {
+  const diff = new Date(endStr).getTime() - Date.now();
+  if (diff <= 0) return 'Ended';
+  const d = Math.floor(diff / 86_400_000);
+  if (d > 60) return `~${Math.floor(d / 30)}mo left`;
+  if (d > 0)  return `${d}d left`;
+  return `${Math.floor(diff / 3_600_000)}h left`;
+}
+
 function DashboardPage({ setPage }: { setPage:(p:string)=>void }) {
   const { publicKey } = useWallet();
+  const { connection } = useConnection();
   const [role, setRole] = useState('all');
+  const [chainStreams, setChainStreams] = useState<Stream[] | null>(null);
+  const [loadingChain, setLoadingChain] = useState(false);
+
+  // When wallet connects, auto-load real streams from devnet
+  useEffect(() => {
+    if (!publicKey) { setChainStreams(null); return; }
+    setLoadingChain(true);
+    fetchWalletStreams(connection, publicKey)
+      .then(raw => setChainStreams(raw.length > 0 ? raw.map(chainStreamToUI) : null))
+      .catch(() => setChainStreams(null))
+      .finally(() => setLoadingChain(false));
+  }, [publicKey, connection]);
+
+  const refreshFromChain = useCallback(async () => {
+    if (!publicKey) return;
+    setLoadingChain(true);
+    try {
+      const raw = await fetchWalletStreams(connection, publicKey);
+      setChainStreams(raw.length > 0 ? raw.map(chainStreamToUI) : null);
+    } catch { setChainStreams(null); }
+    finally { setLoadingChain(false); }
+  }, [publicKey, connection]);
+
+  // In demo mode (not connected or no real streams), treat MOCK_WALLET as the active wallet
+  // so demo data shows correctly for both creator/recipient filtering
+  const activeWallet = publicKey?.toBase58() ?? MOCK_WALLET;
+  const isMyAddr = (addr: string) => addr === activeWallet || addr === MOCK_WALLET;
+
+  const displayStreams = chainStreams ?? STREAMS;
   const wallet = publicKey ? `${publicKey.toBase58().slice(0,8)}…` : MOCK_WALLET;
-  const filtered = STREAMS.filter(s =>
-    role==='all' ? true : role==='creator' ? s.creator===MOCK_WALLET : s.recipient===MOCK_WALLET
+  const filtered = displayStreams.filter(s =>
+    role==='all' ? true : role==='creator' ? isMyAddr(s.creator) : isMyAddr(s.recipient)
   );
   const totalUnlocked = filtered.reduce((a,s)=>a+s.unlocked,0);
   const totalClaimed  = filtered.reduce((a,s)=>a+s.claimed,0);
-  const claimable     = filtered.filter(s=>s.recipient===MOCK_WALLET).reduce((a,s)=>a+(s.unlocked-s.claimed),0);
+  const claimable     = filtered.filter(s=>isMyAddr(s.recipient)).reduce((a,s)=>a+(s.unlocked-s.claimed),0);
 
   const typeColor: Record<string,string> = { linear:T.accent, milestone:T.blue, cliff:T.gold, hybrid:'#c084fc' };
   const statusColor: Record<string,string> = { active:T.green, pending:T.gold, completed:T.muted, cancelled:T.red };
@@ -215,10 +294,15 @@ function DashboardPage({ setPage }: { setPage:(p:string)=>void }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       <TopBar title="Stream Dashboard"
-        sub={publicKey ? `Wallet: ${wallet}` : 'Connect wallet to interact with streams'}
+        sub={publicKey ? `Wallet: ${wallet}${chainStreams ? ` · ${chainStreams.length} on-chain stream${chainStreams.length!==1?'s':''}` : ' · showing demo data'}` : 'Connect wallet to interact with streams'}
         actions={
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             {!publicKey && <Badge label="DEMO MODE" color={T.gold}/>}
+            {publicKey && (
+              <Btn variant="ghost" size="sm" onClick={refreshFromChain} disabled={loadingChain}>
+                {loadingChain ? '⟳ Loading…' : '⟳ Refresh'}
+              </Btn>
+            )}
             <Btn variant="primary" onClick={()=>setPage('new')}>+ New Stream</Btn>
           </div>
         }/>
@@ -258,7 +342,7 @@ function DashboardPage({ setPage }: { setPage:(p:string)=>void }) {
           {filtered.map(s=>{
             const pctU = Math.round(s.unlocked/s.total*100);
             const pctC = Math.round(s.claimed/s.total*100);
-            const isRec = s.recipient===MOCK_WALLET;
+            const isRec = isMyAddr(s.recipient);
             const clm  = s.unlocked - s.claimed;
             return (
               <Card key={s.id} onClick={()=>setPage(`stream:${s.id}`)} style={{ padding:'16px 20px' }}>
@@ -293,15 +377,16 @@ function DashboardPage({ setPage }: { setPage:(p:string)=>void }) {
                   <span style={{ fontFamily:T.mono, color:'#fff' }}>{s.total.toLocaleString()} {s.token}</span>
                 </div>
 
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:8 }}>
                   {[
-                    {l:'Unlocked', v:s.unlocked.toLocaleString(), c:T.accent},
-                    {l:'Claimed',  v:s.claimed.toLocaleString(),  c:T.green},
-                    {l:'Locked',   v:(s.total-s.unlocked).toLocaleString(), c:T.muted},
+                    {l:'Unlocked',  v:s.unlocked.toLocaleString(), c:T.accent},
+                    {l:'Claimed',   v:s.claimed.toLocaleString(),  c:T.green},
+                    {l:'Locked',    v:(s.total-s.unlocked).toLocaleString(), c:T.muted},
+                    {l:'Remaining', v:timeLeft(s.end), c:s.status==='active'?T.blue:T.muted},
                   ].map(x=>(
                     <div key={x.l} style={{ textAlign:'center', padding:'7px 5px',
                       background:'rgba(255,255,255,.03)', borderRadius:9, border:`1px solid ${T.border}` }}>
-                      <div style={{ fontFamily:T.mono, fontSize:13, fontWeight:700, color:x.c }}>{x.v}</div>
+                      <div style={{ fontFamily:T.mono, fontSize:12, fontWeight:700, color:x.c }}>{x.v}</div>
                       <div style={{ fontSize:9, color:T.muted, marginTop:2, letterSpacing:'.05em' }}>{x.l}</div>
                     </div>
                   ))}
@@ -315,40 +400,248 @@ function DashboardPage({ setPage }: { setPage:(p:string)=>void }) {
   );
 }
 
+// ─── Tx-phase loading indicator ──────────────────────────────
+
+function TxProgress({ phase }: { phase: string }) {
+  const phases = ['Approving wallet', 'Sending transaction', 'Confirming on-chain'];
+  const idx = phases.findIndex(p => phase.startsWith(p));
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'16px 20px',
+      background:`${T.accent}08`, border:`1px solid ${T.accent}22`, borderRadius:12 }}>
+      {phases.map((p, i) => {
+        const done = i < idx;
+        const active = i === idx;
+        return (
+          <div key={p} style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, display:'flex',
+              alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700,
+              background: done ? T.green : active ? T.accent : 'rgba(255,255,255,.08)',
+              color: done || active ? '#fff' : T.muted,
+              border: `1.5px solid ${done ? T.green : active ? T.accent : T.border}`,
+              boxShadow: active ? `0 0 10px ${T.accent}55` : 'none',
+            }}>
+              {done ? '✓' : i + 1}
+            </div>
+            <span style={{ fontSize:12, color: done ? T.green : active ? '#fff' : T.muted,
+              fontWeight: active ? 600 : 400 }}>{p}{active ? '…' : ''}</span>
+            {active && <span style={{ width:14, height:14, border:`2px solid ${T.accent}44`,
+              borderTop:`2px solid ${T.accent}`, borderRadius:'50%',
+              animation:'spin 0.8s linear infinite', display:'inline-block', flexShrink:0 }}/>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Stream Detail Page ───────────────────────────────────────
 
 function StreamDetailPage({ id, setPage }: { id:string; setPage:(p:string)=>void }) {
-  const { publicKey } = useWallet();
-  const s = STREAMS.find(x=>x.id===id) || STREAMS[0];
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+
+  // Support both real on-chain IDs (long pubkey) and mock IDs (s001 etc.)
+  const isReal = id.length > 10;
+  const s = STREAMS.find(x => x.id === id) || STREAMS[0];
   const claimable = s.unlocked - s.claimed;
   const typeColor: Record<string,string> = { linear:T.accent, milestone:T.blue, cliff:T.gold, hybrid:'#c084fc' };
-  const [claiming, setClaiming] = useState(false);
-  const [claimed,  setClaimed]  = useState(false);
 
-  const handleClaim = useCallback(() => {
-    if (!publicKey) { alert('Connect your wallet first!'); return; }
-    setClaiming(true);
-    setTimeout(()=>{ setClaiming(false); setClaimed(true); }, 2000);
-  }, [publicKey]);
+  const activeWallet = publicKey?.toBase58() ?? MOCK_WALLET;
+  const isMyAddr = (addr: string) => addr === activeWallet || addr === MOCK_WALLET;
+
+  // Transaction state
+  const [txPhase,   setTxPhase]   = useState('');   // '' | 'Approving wallet' | 'Sending…' | 'Confirming…'
+  const [txSig,     setTxSig]     = useState('');
+  const [txErr,     setTxErr]     = useState('');
+  const [claimed,   setClaimed]   = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false); // confirm dialog
+
+  const runPhases = useCallback(async (build: () => Promise<string>) => {
+    setTxErr('');
+    setTxPhase('Approving wallet');
+    try {
+      const sig = await build();
+      setTxPhase('Confirming on-chain');
+      await connection.confirmTransaction(sig, 'confirmed');
+      setTxSig(sig);
+      setTxPhase('');
+      return sig;
+    } catch (err: unknown) {
+      setTxPhase('');
+      const msg = err instanceof Error ? err.message : String(err);
+      setTxErr(msg.length > 120 ? msg.slice(0, 120) + '…' : msg);
+      throw err;
+    }
+  }, [connection]);
+
+  // ── Withdraw ──────────────────────────────────────────────────
+  const handleClaim = useCallback(async () => {
+    if (!publicKey || !sendTransaction) { alert('Connect your wallet first!'); return; }
+    if (!isReal) {
+      // Demo path: simulate the 3-phase flow for mock streams
+      setTxErr('');
+      setTxPhase('Approving wallet');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('Sending transaction');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('Confirming on-chain');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('');
+      setClaimed(true);
+      return;
+    }
+    try {
+      await runPhases(async () => {
+        setTxPhase('Sending transaction');
+        // Derive accounts from stream data
+        let recipientPK: PublicKey, creatorPK: PublicKey, mintPK: PublicKey;
+        try {
+          recipientPK = new PublicKey(s.recipient);
+          creatorPK   = new PublicKey(s.creator);
+          mintPK      = new PublicKey(s.token.replace('…', ''));
+        } catch {
+          throw new Error('Invalid stream account data — is this stream on devnet?');
+        }
+        const seed = BigInt(s.id.split('-')[0] || '1');
+        const [streamPDA]   = getStreamPDA(creatorPK, recipientPK, seed);
+        const [escrowPDA]   = getEscrowPDA(streamPDA);
+        const recipientTA   = getATA(publicKey, mintPK);
+
+        const ix = buildWithdrawIx(publicKey, streamPDA, mintPK, escrowPDA, recipientTA);
+        const tx = new Transaction().add(ix);
+        const { blockhash } = await connection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
+        return await sendTransaction(tx, connection);
+      });
+      setClaimed(true);
+    } catch { /* error shown via txErr */ }
+  }, [publicKey, sendTransaction, connection, isReal, s, runPhases]);
+
+  // ── Cancel ────────────────────────────────────────────────────
+  const handleCancel = useCallback(async () => {
+    setCancelOpen(false);
+    if (!publicKey || !sendTransaction) { alert('Connect your wallet first!'); return; }
+    if (!isReal) {
+      // Demo path
+      setTxErr('');
+      setTxPhase('Approving wallet');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('Sending transaction');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('Confirming on-chain');
+      await new Promise(r => setTimeout(r, 900));
+      setTxPhase('');
+      setCancelled(true);
+      return;
+    }
+    try {
+      await runPhases(async () => {
+        setTxPhase('Sending transaction');
+        let recipientPK: PublicKey, mintPK: PublicKey;
+        try {
+          recipientPK = new PublicKey(s.recipient);
+          mintPK      = new PublicKey(s.token.replace('…', ''));
+        } catch {
+          throw new Error('Invalid stream account data');
+        }
+        const seed = BigInt(s.id.split('-')[0] || '1');
+        const [streamPDA] = getStreamPDA(publicKey, recipientPK, seed);
+        const [escrowPDA] = getEscrowPDA(streamPDA);
+        const creatorTA   = getATA(publicKey, mintPK);
+        const recipientTA = getATA(recipientPK, mintPK);
+
+        const ix = buildCancelIx(publicKey, streamPDA, mintPK, escrowPDA, creatorTA, recipientTA);
+        const tx = new Transaction().add(ix);
+        const { blockhash } = await connection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
+        return await sendTransaction(tx, connection);
+      });
+      setCancelled(true);
+    } catch { /* error shown via txErr */ }
+  }, [publicKey, sendTransaction, connection, isReal, s, runPhases]);
+
+  const isBusy = txPhase !== '';
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-      <TopBar title={s.name} sub={`Stream ID: ${s.id} · ${s.type.toUpperCase()} vesting`}
+
+      {/* Cancel confirmation modal */}
+      {cancelOpen && (
+        <div style={{ position:'fixed', inset:0, zIndex:1000,
+          background:'rgba(5,4,13,.82)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div style={{ background:T.bg1, border:`1px solid ${T.red}44`, borderRadius:20,
+            padding:'28px 32px', maxWidth:400, width:'90%', boxShadow:`0 0 48px ${T.red}22` }}>
+            <div style={{ fontSize:32, textAlign:'center', marginBottom:12 }}>⚠️</div>
+            <div style={{ fontFamily:T.serif, fontSize:17, fontWeight:700, color:'#fff',
+              textAlign:'center', marginBottom:8 }}>Cancel Stream?</div>
+            <p style={{ fontSize:13, color:T.muted, textAlign:'center', lineHeight:1.7, marginBottom:20 }}>
+              This will permanently cancel the stream.<br/>
+              Unlocked tokens go to the recipient.<br/>
+              Remaining locked tokens return to you.
+            </p>
+            <div style={{ display:'flex', gap:10 }}>
+              <Btn variant="ghost" onClick={()=>setCancelOpen(false)} style={{ flex:1 }}>Keep Stream</Btn>
+              <Btn variant="danger" onClick={handleCancel} style={{ flex:1 }}>Yes, Cancel It</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <TopBar title={cancelled ? `${s.name} [CANCELLED]` : s.name}
+        sub={`Stream ID: ${s.id.slice(0,16)}${s.id.length>16?'…':''} · ${s.type.toUpperCase()} vesting · ${isReal?'⛓ On-Chain':'🧪 Demo'}`}
         actions={
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <Btn variant="ghost" size="sm" onClick={()=>setPage('dashboard')}>← Back</Btn>
-            {s.creator===MOCK_WALLET&&s.status==='active'&&
-              <Btn variant="danger" size="sm">Cancel Stream</Btn>}
-            {s.recipient===MOCK_WALLET&&claimable>0&&!claimed&&(
-              <Btn variant="gold" onClick={handleClaim} disabled={claiming}>
-                {claiming?'Processing…':`Claim ${claimable.toLocaleString()} BBT`}
+            {isMyAddr(s.creator) && s.status==='active' && !cancelled && (
+              <Btn variant="danger" size="sm" onClick={()=>setCancelOpen(true)} disabled={isBusy}>
+                {isBusy ? '⟳' : '✕ Cancel Stream'}
               </Btn>
             )}
-            {claimed&&<Badge label="✓ CLAIMED" color={T.green}/>}
+            {isMyAddr(s.recipient) && claimable>0 && !claimed && !cancelled && (
+              <Btn variant="gold" onClick={handleClaim} disabled={isBusy}>
+                {isBusy ? '⟳ Processing…' : `Claim ${claimable.toLocaleString()} BBT`}
+              </Btn>
+            )}
+            {claimed    && <Badge label="✓ CLAIMED"   color={T.green}/>}
+            {cancelled  && <Badge label="✕ CANCELLED" color={T.red}/>}
           </div>
         }/>
 
       <div style={{ flex:1, overflowY:'auto', padding:'20px 28px', display:'flex', flexDirection:'column', gap:16 }}>
+
+        {/* Tx loading progress */}
+        {isBusy && <TxProgress phase={txPhase}/>}
+
+        {/* Tx error banner */}
+        {txErr && !isBusy && (
+          <div style={{ padding:'12px 16px', background:`${T.red}10`, border:`1px solid ${T.red}44`,
+            borderRadius:12, display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:18 }}>⚠</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.red }}>Transaction Failed</div>
+              <div style={{ fontSize:11, color:T.muted, marginTop:2 }}>{txErr}</div>
+            </div>
+            <Btn variant="ghost" size="sm" onClick={()=>setTxErr('')}>✕</Btn>
+          </div>
+        )}
+
+        {/* Tx success banner */}
+        {txSig && (
+          <div style={{ padding:'12px 16px', background:`${T.green}10`, border:`1px solid ${T.green}44`,
+            borderRadius:12, display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:18 }}>✓</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.green }}>Transaction Confirmed</div>
+              <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`} target="_blank" rel="noreferrer"
+                style={{ fontSize:11, color:T.accent, fontFamily:T.mono }}>
+                {txSig.slice(0,20)}… ↗ View on Explorer
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
@@ -415,22 +708,22 @@ function StreamDetailPage({ id, setPage }: { id:string; setPage:(p:string)=>void
         )}
 
         {/* Claim area */}
-        {s.recipient===MOCK_WALLET&&claimable>0&&!claimed&&(
+        {isMyAddr(s.recipient) && claimable>0 && !claimed && !cancelled && (
           <Card glow={T.gold} style={{ textAlign:'center', padding:'28px 24px' }}>
             <div style={{ fontFamily:T.mono, fontSize:48, fontWeight:800, color:T.gold,
               textShadow:`0 0 40px ${T.gold}66`, marginBottom:6 }}>
               {claimable.toLocaleString()}
             </div>
             <div style={{ fontSize:14, color:T.gold, fontWeight:600, marginBottom:16 }}>BBT Available to Claim</div>
-            <Btn variant="gold" size="lg" onClick={handleClaim} disabled={claiming} full>
-              {claiming ? (
-                <span style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ width:16, height:16, border:`2px solid ${T.gold}44`,
-                    borderTop:`2px solid ${T.gold}`, borderRadius:'50%',
-                    animation:'spin 0.8s linear infinite', display:'inline-block' }}/>
-                  Processing Transaction…
-                </span>
-              ) : `Claim ${claimable.toLocaleString()} BBT`}
+            <Btn variant="gold" size="lg" onClick={handleClaim} disabled={isBusy} full>
+              {isBusy
+                ? <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ width:16, height:16, border:`2px solid ${T.gold}44`,
+                      borderTop:`2px solid ${T.gold}`, borderRadius:'50%',
+                      animation:'spin 0.8s linear infinite', display:'inline-block' }}/>
+                    {txPhase}…
+                  </span>
+                : `Claim ${claimable.toLocaleString()} BBT`}
             </Btn>
             <div style={{ fontSize:11, color:T.muted, marginTop:10 }}>
               {publicKey ? 'Sends to your connected wallet on Solana Devnet' : '⚠ Connect wallet to claim'}
@@ -438,11 +731,24 @@ function StreamDetailPage({ id, setPage }: { id:string; setPage:(p:string)=>void
           </Card>
         )}
 
-        {claimed&&(
+        {claimed && (
           <Card glow={T.green} style={{ textAlign:'center', padding:'24px' }}>
             <div style={{ fontSize:40 }}>✓</div>
             <div style={{ fontFamily:T.serif, fontSize:18, color:T.green, marginTop:8 }}>Claimed Successfully</div>
-            <div style={{ fontSize:12, color:T.muted, marginTop:4 }}>Tokens sent to your wallet</div>
+            <div style={{ fontSize:12, color:T.muted, marginTop:4 }}>
+              {txSig
+                ? <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`} target="_blank" rel="noreferrer"
+                    style={{ color:T.accent }}>View on Solana Explorer ↗</a>
+                : 'Tokens sent to your wallet (demo)'}
+            </div>
+          </Card>
+        )}
+
+        {cancelled && (
+          <Card glow={T.red} style={{ textAlign:'center', padding:'24px' }}>
+            <div style={{ fontSize:40 }}>✕</div>
+            <div style={{ fontFamily:T.serif, fontSize:18, color:T.red, marginTop:8 }}>Stream Cancelled</div>
+            <div style={{ fontSize:12, color:T.muted, marginTop:4 }}>Tokens returned proportionally</div>
           </Card>
         )}
       </div>
@@ -452,16 +758,105 @@ function StreamDetailPage({ id, setPage }: { id:string; setPage:(p:string)=>void
 
 // ─── Create Stream Page ───────────────────────────────────────
 
-const STEPS = ['Stream Type', 'Recipients', 'Schedule', 'Fund Vault', 'Review'];
+const STEPS = ['Type', 'Token & Recipient', 'Schedule', 'Review & Deploy'];
+
+const inputStyle: React.CSSProperties = {
+  width:'100%', padding:'10px 14px', borderRadius:10, background:'rgba(255,255,255,.05)',
+  border:`1px solid rgba(167,139,255,.2)`, color:'#fff', fontSize:13, outline:'none',
+  fontFamily:"'Sora',sans-serif",
+};
+const labelStyle: React.CSSProperties = { fontSize:12, color:'rgba(232,225,248,.5)', display:'block', marginBottom:6 };
 
 function CreateStreamPage({ setPage }: { setPage:(p:string)=>void }) {
-  const { publicKey } = useWallet();
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [step, setStep] = useState(0);
+
+  const today     = new Date().toISOString().slice(0,10);
+  const oneYear   = new Date(Date.now() + 365*86400*1000).toISOString().slice(0,10);
+  const threeMonths = new Date(Date.now() + 90*86400*1000).toISOString().slice(0,10);
+
   const [form, setForm] = useState({
-    type: 'linear', recipient: '', amount: '', cliff: '90', vest: '365', token: 'BBT',
+    type:       'linear',
+    tokenMint:  '',
+    recipient:  '',
+    amount:     '',
+    startDate:  today,
+    endDate:    oneYear,
+    cliffDate:  '', // optional — only used for cliff/hybrid
   });
   const upd = (k: string, v: string) => setForm(f=>({...f,[k]:v}));
   const typeColor: Record<string,string> = { linear:T.accent, milestone:T.blue, cliff:T.gold, hybrid:'#c084fc' };
+
+  // Tx state
+  const [txPhase, setTxPhase] = useState('');
+  const [txSig,   setTxSig]   = useState('');
+  const [txErr,   setTxErr]   = useState('');
+  const [done,    setDone]    = useState(false);
+  const isBusy = txPhase !== '';
+
+  const needCliff = form.type === 'cliff' || form.type === 'hybrid';
+
+  const handleDeploy = useCallback(async () => {
+    if (!publicKey || !sendTransaction) { alert('Connect wallet first'); return; }
+    setTxErr('');
+
+    // ── Validate inputs ──
+    let recipientPK: PublicKey, mintPK: PublicKey;
+    try { recipientPK = new PublicKey(form.recipient); } catch {
+      setTxErr('Invalid recipient wallet address'); return;
+    }
+    if (recipientPK.equals(publicKey)) { setTxErr('Recipient cannot be your own wallet'); return; }
+    try { mintPK = new PublicKey(form.tokenMint); } catch {
+      setTxErr('Invalid token mint address'); return;
+    }
+    const amountNum = parseFloat(form.amount);
+    if (!form.amount || isNaN(amountNum) || amountNum <= 0) { setTxErr('Enter a valid amount'); return; }
+    if (!form.startDate || !form.endDate) { setTxErr('Start and end dates are required'); return; }
+    const startTs = Math.floor(new Date(form.startDate).getTime() / 1000);
+    const endTs   = Math.floor(new Date(form.endDate).getTime() / 1000);
+    if (endTs <= startTs) { setTxErr('End date must be after start date'); return; }
+    const cliffTs = form.cliffDate ? Math.floor(new Date(form.cliffDate).getTime() / 1000) : 0;
+    if (cliffTs && (cliffTs < startTs || cliffTs > endTs)) {
+      setTxErr('Cliff date must be between start and end date'); return;
+    }
+
+    // ── Build & send ──
+    const seed = BigInt(Date.now());
+    const totalBaseUnits = BigInt(Math.round(amountNum * 1_000_000)); // 6-decimal SPL token
+
+    const [streamPDA] = getStreamPDA(publicKey, recipientPK, seed);
+    const [escrowPDA] = getEscrowPDA(streamPDA);
+    const creatorTA   = getATA(publicKey, mintPK);
+
+    const milestoneEnabled = form.type === 'cliff' || form.type === 'milestone' || form.type === 'hybrid';
+
+    const ix = buildCreateStreamIx(
+      publicKey, recipientPK, mintPK, creatorTA, escrowPDA, streamPDA,
+      totalBaseUnits,
+      BigInt(startTs), BigInt(endTs), BigInt(cliffTs),
+      seed, milestoneEnabled,
+    );
+
+    try {
+      setTxPhase('Approving wallet');
+      const tx = new Transaction().add(ix);
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+      setTxPhase('Sending transaction');
+      const sig = await sendTransaction(tx, connection);
+      setTxPhase('Confirming on-chain');
+      await connection.confirmTransaction(sig, 'confirmed');
+      setTxSig(sig);
+      setTxPhase('');
+      setDone(true);
+    } catch (err: unknown) {
+      setTxPhase('');
+      const m = err instanceof Error ? err.message : String(err);
+      setTxErr(m.length > 140 ? m.slice(0,140) + '…' : m);
+    }
+  }, [publicKey, sendTransaction, connection, form]);
 
   if (!publicKey) return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
@@ -476,15 +871,36 @@ function CreateStreamPage({ setPage }: { setPage:(p:string)=>void }) {
     </div>
   );
 
+  if (done) return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+      <TopBar title="Stream Created" sub="Your vesting stream is live on Solana Devnet"
+        actions={<Btn variant="primary" onClick={()=>setPage('dashboard')}>Go to Dashboard →</Btn>}/>
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:20 }}>
+        <div style={{ fontSize:64 }}>🚀</div>
+        <div style={{ fontFamily:T.serif, fontSize:22, color:T.green }}>Stream Deployed!</div>
+        <div style={{ fontSize:13, color:T.muted, textAlign:'center', maxWidth:360 }}>
+          Tokens are locked in a PDA escrow on Solana Devnet.<br/>The recipient can withdraw as they vest.
+        </div>
+        {txSig && (
+          <a href={`https://explorer.solana.com/tx/${txSig}?cluster=devnet`} target="_blank" rel="noreferrer"
+            style={{ fontSize:12, color:T.accent, fontFamily:T.mono }}>
+            {txSig.slice(0,24)}… ↗ View on Explorer
+          </a>
+        )}
+        <Btn variant="primary" size="lg" onClick={()=>setPage('dashboard')}>Open Dashboard</Btn>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-      <TopBar title="Create Stream" sub="Lock tokens into a vesting schedule on-chain"
+      <TopBar title="Create Stream" sub="Deploy a vesting stream to Solana Devnet"
         actions={<Btn variant="ghost" size="sm" onClick={()=>setPage('dashboard')}>← Cancel</Btn>}/>
 
       <div style={{ flex:1, overflowY:'auto', padding:'24px 28px', display:'flex', flexDirection:'column', gap:20 }}>
 
         {/* Step indicators */}
-        <div style={{ display:'flex', alignItems:'center', gap:0 }}>
+        <div style={{ display:'flex', alignItems:'center' }}>
           {STEPS.map((s,i)=>(
             <React.Fragment key={i}>
               <div style={{ display:'flex', alignItems:'center', gap:8, cursor:i<=step?'pointer':'default' }}
@@ -497,28 +913,45 @@ function CreateStreamPage({ setPage }: { setPage:(p:string)=>void }) {
                   boxShadow:step===i?`0 0 14px ${T.accent}66`:'none' }}>
                   {i<step?'✓':i+1}
                 </div>
-                <span style={{ fontSize:12, color:step===i?'#fff':i<step?T.green:T.muted,
+                <span style={{ fontSize:11, color:step===i?'#fff':i<step?T.green:T.muted,
                   fontWeight:step===i?600:400, whiteSpace:'nowrap' }}>{s}</span>
               </div>
-              {i<STEPS.length-1&&<div style={{ flex:1, height:1, margin:'0 8px',
-                background:i<step?T.green:T.border }}/>}
+              {i<STEPS.length-1&&<div style={{ flex:1, height:1, margin:'0 8px', background:i<step?T.green:T.border }}/>}
             </React.Fragment>
           ))}
         </div>
 
+        {/* Error banner */}
+        {txErr && (
+          <div style={{ padding:'12px 16px', background:`${T.red}10`, border:`1px solid ${T.red}44`,
+            borderRadius:12, display:'flex', gap:10, alignItems:'flex-start', maxWidth:600 }}>
+            <span style={{ fontSize:18, flexShrink:0 }}>⚠</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.red }}>Error</div>
+              <div style={{ fontSize:11, color:T.muted, marginTop:2 }}>{txErr}</div>
+            </div>
+            <Btn variant="ghost" size="sm" onClick={()=>setTxErr('')}>✕</Btn>
+          </div>
+        )}
+
+        {/* Tx loading */}
+        {isBusy && <div style={{ maxWidth:600 }}><TxProgress phase={txPhase}/></div>}
+
         {/* Step content */}
         <Card style={{ maxWidth:600 }}>
+
+          {/* ── Step 0: Vesting type ─── */}
           {step===0&&(
-            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Choose Vesting Type</div>
               {[
-                {k:'linear',    label:'Linear', desc:'Tokens stream continuously from start to end date'},
-                {k:'cliff',     label:'Cliff',  desc:'Locked until cliff date, then linear vesting begins'},
-                {k:'milestone', label:'Milestone', desc:'Creator sets milestone flag to unlock vesting'},
-                {k:'hybrid',    label:'Hybrid', desc:'Combine cliff + milestone + linear in one stream'},
+                {k:'linear',    label:'Linear',    desc:'Tokens unlock continuously from start → end date'},
+                {k:'cliff',     label:'Cliff',     desc:'No tokens until cliff date, then linear vesting begins'},
+                {k:'milestone', label:'Milestone', desc:'Gated behind on-chain milestone — creator unlocks manually'},
+                {k:'hybrid',    label:'Hybrid',    desc:'Cliff + milestone + linear combined in one stream'},
               ].map(t=>(
                 <div key={t.k} onClick={()=>upd('type',t.k)} style={{
-                  padding:'14px 16px', borderRadius:12, cursor:'pointer',
+                  padding:'13px 16px', borderRadius:12, cursor:'pointer',
                   border:`1.5px solid ${form.type===t.k?typeColor[t.k]:T.border}`,
                   background:form.type===t.k?`${typeColor[t.k]}10`:'transparent',
                   transition:'all .18s' }}>
@@ -531,93 +964,109 @@ function CreateStreamPage({ setPage }: { setPage:(p:string)=>void }) {
             </div>
           )}
 
+          {/* ── Step 1: Token & Recipient ─── */}
           {step===1&&(
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Recipient & Amount</div>
+              <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Token & Recipient</div>
               <div>
-                <label style={{ fontSize:12, color:T.muted, display:'block', marginBottom:6 }}>Recipient Wallet Address *</label>
-                <input value={form.recipient} onChange={e=>upd('recipient',e.target.value)}
-                  placeholder="Solana wallet address (32-44 chars)"
-                  style={{ width:'100%', padding:'10px 14px', borderRadius:10, background:T.bg1,
-                    border:`1px solid ${T.border}`, color:'#fff', fontSize:13, outline:'none',
-                    fontFamily:T.mono }} />
+                <label style={labelStyle}>Token Mint Address * <span style={{color:T.muted,fontWeight:400}}>(SPL token on devnet)</span></label>
+                <input value={form.tokenMint} onChange={e=>upd('tokenMint',e.target.value)}
+                  placeholder="e.g. So11111111111111111111111111111111111111112"
+                  style={{...inputStyle, fontFamily:T.mono}} />
+                <div style={{ fontSize:10.5, color:T.muted, marginTop:5 }}>
+                  Enter the SPL token mint address. You must have this token in your wallet.
+                </div>
               </div>
               <div>
-                <label style={{ fontSize:12, color:T.muted, display:'block', marginBottom:6 }}>Total Amount (BBT) *</label>
+                <label style={labelStyle}>Recipient Wallet Address *</label>
+                <input value={form.recipient} onChange={e=>upd('recipient',e.target.value)}
+                  placeholder="Solana wallet address (32–44 chars)"
+                  style={{...inputStyle, fontFamily:T.mono}} />
+              </div>
+              <div>
+                <label style={labelStyle}>Total Amount * <span style={{color:T.muted,fontWeight:400}}>(6 decimal places assumed)</span></label>
                 <input value={form.amount} onChange={e=>upd('amount',e.target.value)}
-                  placeholder="e.g. 100000" type="number"
-                  style={{ width:'100%', padding:'10px 14px', borderRadius:10, background:T.bg1,
-                    border:`1px solid ${T.border}`, color:'#fff', fontSize:13, outline:'none' }} />
+                  placeholder="e.g. 100000" type="number" min="0"
+                  style={inputStyle} />
               </div>
             </div>
           )}
 
+          {/* ── Step 2: Schedule ─── */}
           {step===2&&(
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
               <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Vesting Schedule</div>
-              <div>
-                <label style={{ fontSize:12, color:T.muted, display:'block', marginBottom:6 }}>
-                  Cliff Duration: <b style={{color:T.gold}}>{form.cliff} days</b>
-                </label>
-                <input type="range" min={0} max={365} value={form.cliff}
-                  onChange={e=>upd('cliff',e.target.value)} style={{ width:'100%', accentColor:T.gold }} />
-              </div>
-              <div>
-                <label style={{ fontSize:12, color:T.muted, display:'block', marginBottom:6 }}>
-                  Vesting Duration: <b style={{color:T.accent}}>{form.vest} days</b>
-                </label>
-                <input type="range" min={30} max={1095} value={form.vest}
-                  onChange={e=>upd('vest',e.target.value)} style={{ width:'100%', accentColor:T.accent }} />
-              </div>
-              <div style={{ padding:'12px 14px', background:T.bg1, borderRadius:10, border:`1px solid ${T.border}` }}>
-                <div style={{ fontSize:12, color:T.muted }}>Schedule Preview</div>
-                <div style={{ fontFamily:T.mono, fontSize:13, color:'#fff', marginTop:6 }}>
-                  Cliff: {form.cliff}d → Linear vest: {form.vest}d → Total: {+form.cliff + +form.vest}d
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={labelStyle}>Start Date *</label>
+                  <input type="date" value={form.startDate} onChange={e=>upd('startDate',e.target.value)}
+                    style={{...inputStyle, colorScheme:'dark'}} />
+                </div>
+                <div>
+                  <label style={labelStyle}>End Date *</label>
+                  <input type="date" value={form.endDate} onChange={e=>upd('endDate',e.target.value)}
+                    style={{...inputStyle, colorScheme:'dark'}} />
                 </div>
               </div>
+              {needCliff&&(
+                <div>
+                  <label style={labelStyle}>Cliff Date <span style={{color:T.muted,fontWeight:400}}>(optional)</span></label>
+                  <input type="date" value={form.cliffDate} onChange={e=>upd('cliffDate',e.target.value)}
+                    min={form.startDate} max={form.endDate}
+                    style={{...inputStyle, colorScheme:'dark', accentColor:T.gold}} />
+                  <div style={{ fontSize:10.5, color:T.muted, marginTop:5 }}>
+                    No tokens release until this date. Leave blank for no cliff.
+                  </div>
+                </div>
+              )}
+              {form.startDate && form.endDate && (
+                <div style={{ padding:'12px 14px', background:T.bg1, borderRadius:10, border:`1px solid ${T.border}` }}>
+                  <div style={{ fontSize:11, color:T.muted, marginBottom:6 }}>Schedule Preview</div>
+                  <div style={{ fontFamily:T.mono, fontSize:12, color:'#fff', lineHeight:1.8 }}>
+                    <div>Start: <span style={{color:T.green}}>{form.startDate}</span></div>
+                    {form.cliffDate && needCliff && <div>Cliff: <span style={{color:T.gold}}>{form.cliffDate}</span></div>}
+                    <div>End: <span style={{color:T.accent}}>{form.endDate}</span></div>
+                    <div style={{color:T.muted,marginTop:4}}>
+                      Duration: {Math.round((new Date(form.endDate).getTime()-new Date(form.startDate).getTime())/86400000)} days
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
+          {/* ── Step 3: Review & Deploy ─── */}
           {step===3&&(
-            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Fund the Vault</div>
-              <div style={{ padding:'16px', background:`${T.gold}10`, border:`1px solid ${T.gold}33`, borderRadius:12 }}>
-                <div style={{ fontSize:12, color:T.gold, fontWeight:600, marginBottom:8 }}>TRANSACTION SUMMARY</div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:'#fff', marginBottom:6 }}>
-                  <span>Stream amount</span><span style={{ fontFamily:T.mono }}>{(+form.amount||0).toLocaleString()} BBT</span>
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, color:T.muted, marginBottom:6 }}>
-                  <span>Protocol fee (1%)</span><span style={{ fontFamily:T.mono }}>{Math.floor((+form.amount||0)*0.01).toLocaleString()} BBT</span>
-                </div>
-                <div style={{ height:1, background:T.border, margin:'8px 0' }}/>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, color:T.gold, fontWeight:600 }}>
-                  <span>Total deducted</span><span style={{ fontFamily:T.mono }}>{Math.floor((+form.amount||0)*1.01).toLocaleString()} BBT</span>
-                </div>
-              </div>
-              <div style={{ fontSize:12, color:T.muted }}>
-                Tokens will be locked in a PDA escrow on Solana devnet. The recipient can withdraw unlocked tokens at any time.
-              </div>
-            </div>
-          )}
-
-          {step===4&&(
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div style={{ fontFamily:T.serif, fontSize:15, color:'#fff', marginBottom:4 }}>Review & Deploy</div>
               {[
-                {l:'Type',      v:form.type.charAt(0).toUpperCase()+form.type.slice(1)},
-                {l:'Recipient', v:form.recipient||'(not set)'},
-                {l:'Amount',    v:`${(+form.amount||0).toLocaleString()} BBT`},
-                {l:'Cliff',     v:`${form.cliff} days`},
-                {l:'Vesting',   v:`${form.vest} days`},
+                {l:'Type',       v:form.type.charAt(0).toUpperCase()+form.type.slice(1)},
+                {l:'Token Mint', v:form.tokenMint ? `${form.tokenMint.slice(0,12)}…` : '—'},
+                {l:'Recipient',  v:form.recipient ? `${form.recipient.slice(0,16)}…` : '—'},
+                {l:'Amount',     v:`${(+form.amount||0).toLocaleString()} tokens`},
+                {l:'Start Date', v:form.startDate || '—'},
+                {l:'End Date',   v:form.endDate   || '—'},
+                ...(needCliff&&form.cliffDate ? [{l:'Cliff Date', v:form.cliffDate}] : []),
               ].map(r=>(
                 <div key={r.l} style={{ display:'flex', justifyContent:'space-between',
                   padding:'9px 0', borderBottom:`1px solid ${T.border}` }}>
                   <span style={{ fontSize:12, color:T.muted }}>{r.l}</span>
-                  <span style={{ fontSize:13, color:'#fff', fontFamily:T.mono }}>{r.v}</span>
+                  <span style={{ fontSize:12, color:'#fff', fontFamily:T.mono }}>{r.v}</span>
                 </div>
               ))}
-              <Btn variant="primary" size="lg" full onClick={()=>{ alert('✅ Stream created on devnet! (demo)'); setPage('dashboard'); }}>
-                🚀 Deploy Stream to Devnet
+
+              <div style={{ padding:'14px', background:`${T.gold}08`, border:`1px solid ${T.gold}22`, borderRadius:12, fontSize:12, color:T.muted }}>
+                <div style={{ color:T.gold, fontWeight:600, marginBottom:4 }}>Transaction Info</div>
+                Protocol fee: 1% · Tokens locked in PDA escrow · On Solana Devnet
+              </div>
+
+              <Btn variant="primary" size="lg" full onClick={handleDeploy} disabled={isBusy}>
+                {isBusy
+                  ? <span style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{width:14,height:14,border:`2px solid ${T.accent}44`,borderTop:`2px solid ${T.accent}`,borderRadius:'50%',animation:'spin .8s linear infinite',display:'inline-block'}}/>
+                      {txPhase}…
+                    </span>
+                  : '🚀 Deploy Stream to Devnet'}
               </Btn>
             </div>
           )}
@@ -628,10 +1077,11 @@ function CreateStreamPage({ setPage }: { setPage:(p:string)=>void }) {
           <Btn variant="ghost" onClick={()=>step>0?setStep(s=>s-1):setPage('dashboard')} style={{ flex:1 }}>
             {step===0?'Cancel':'← Back'}
           </Btn>
-          <Btn variant="primary" onClick={()=>step<STEPS.length-1&&setStep(s=>s+1)} style={{ flex:2 }}
-            disabled={step===STEPS.length-1}>
-            {step===STEPS.length-1?'Deploy →':'Next →'}
-          </Btn>
+          {step<STEPS.length-1&&(
+            <Btn variant="primary" onClick={()=>setStep(s=>s+1)} style={{ flex:2 }}>
+              Next →
+            </Btn>
+          )}
         </div>
       </div>
     </div>
