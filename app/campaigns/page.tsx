@@ -168,7 +168,7 @@ export default function CampaignsPage() {
                             {camp.name}
                           </div>
                           <div style={{ fontFamily: T.mono, fontSize: 11, color: T.textDim }}>
-                            Cliff {camp.cliffDays}d · Vest {camp.vestDays}d
+                            Cliff {camp.cliffDays}{lang === 'id' ? 'h' : 'd'} · Vest {camp.vestDays}{lang === 'id' ? 'h' : 'd'}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
