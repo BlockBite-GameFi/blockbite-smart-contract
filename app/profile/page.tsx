@@ -7,12 +7,76 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Award, History, Shield, Edit2, Check, Copy, ExternalLink } from 'lucide-react';
 import { CssAvatar, AvatarPicker, AVATAR_CONFIGS } from '@/components/CssAvatars';
 import { explorerAddr } from '@/lib/solana/config';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 import styles from './profile.module.css';
 
 const GameBackground = dynamic(() => import('@/components/GameBackground'), { ssr: false });
 
+const PROFILE_TX = {
+  en: {
+    anonPlayer:   'Anonymous Player',
+    notConnected: 'Not Connected',
+    chooseAvatar: 'CHOOSE YOUR AVATAR',
+    avatarDesc:   '12 unique CSS-generated avatars — each with its own visual identity.',
+    selected:     'Selected',
+    totalEarnings:'TOTAL EARNINGS',
+    gamesPlayed:  'GAMES PLAYED',
+    maxLevel:     'MAX LEVEL',
+    phase0:       'Phase 0 · Devnet',
+    acctSettings: 'ACCOUNT SETTINGS',
+    settings: [
+      { label: 'Two-Factor Authentication', desc: 'Secure your account with 2FA.' },
+      { label: 'Email Notifications',       desc: 'Get notified when you win rewards.' },
+      { label: 'Rank Change Alerts',        desc: 'Browser push when your rank shifts.' },
+    ],
+    referralProgram: 'REFERRAL PROGRAM',
+    referralDesc: 'Earn',
+    referralPct:  '5% lifetime',
+    referralSuffix: 'from every ticket your referrals buy.',
+    connectForLink:  'Connect wallet to get your link',
+    copy:            'COPY',
+    copied:          'COPIED',
+    totalReferrals:  'TOTAL REFERRALS',
+    noReferrals:     'No referrals yet — share your link to start earning.',
+    regWallets:      'REGISTERED WALLETS:',
+    usernamePlaceholder: 'Enter username...',
+  },
+  id: {
+    anonPlayer:   'Pemain Anonim',
+    notConnected: 'Tidak Terhubung',
+    chooseAvatar: 'PILIH AVATAR ANDA',
+    avatarDesc:   '12 avatar CSS unik — masing-masing dengan identitas visual tersendiri.',
+    selected:     'Dipilih',
+    totalEarnings:'TOTAL PENGHASILAN',
+    gamesPlayed:  'GAME DIMAINKAN',
+    maxLevel:     'LEVEL MAKS',
+    phase0:       'Fase 0 · Devnet',
+    acctSettings: 'PENGATURAN AKUN',
+    settings: [
+      { label: 'Autentikasi Dua Faktor',        desc: 'Amankan akun Anda dengan 2FA.' },
+      { label: 'Notifikasi Email',               desc: 'Dapatkan notifikasi saat menang hadiah.' },
+      { label: 'Peringatan Perubahan Peringkat', desc: 'Push browser saat peringkat Anda berubah.' },
+    ],
+    referralProgram: 'PROGRAM REFERRAL',
+    referralDesc: 'Dapatkan',
+    referralPct:  '5% seumur hidup',
+    referralSuffix: 'dari setiap tiket yang dibeli referral Anda.',
+    connectForLink:  'Hubungkan wallet untuk mendapatkan tautan Anda',
+    copy:            'SALIN',
+    copied:          'DISALIN',
+    totalReferrals:  'TOTAL REFERRAL',
+    noReferrals:     'Belum ada referral — bagikan tautan Anda untuk mulai menghasilkan.',
+    regWallets:      'WALLET TERDAFTAR:',
+    usernamePlaceholder: 'Masukkan nama pengguna...',
+  },
+};
+
 export default function ProfilePage() {
   const { publicKey, wallet } = useWallet();
+  const { lang } = useApp();
+  const TX = PROFILE_TX[lang];
+
   const [username, setUsername] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
@@ -29,19 +93,16 @@ export default function ProfilePage() {
     setUsername(u);
     setEditValue(u);
     setSelectedAvatar(a);
-    // Seed from localStorage first (instant display)
     const lvl = parseInt(localStorage.getItem('bb_max_level') || '1');
     setMaxLevel(isNaN(lvl) ? 1 : lvl);
     const gp = parseInt(localStorage.getItem('bb_games_played') || '0');
     setGamesPlayed(isNaN(gp) ? 0 : gp);
-    // Real referrals
     try {
       const refs = JSON.parse(localStorage.getItem('bb_referrals') || '[]');
       setReferredWallets(Array.isArray(refs) ? refs : []);
     } catch { setReferredWallets([]); }
   }, []);
 
-  // Sync maxLevel from server when wallet is connected (source of truth)
   useEffect(() => {
     if (!publicKey) return;
     const addr = publicKey.toBase58();
@@ -82,12 +143,12 @@ export default function ProfilePage() {
   const walletAddr = publicKey?.toBase58() ?? '';
   const displayAddr = walletAddr
     ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-6)}`
-    : 'Not Connected';
+    : TX.notConnected;
 
   const avatarCfg = AVATAR_CONFIGS[selectedAvatar] ?? AVATAR_CONFIGS[0];
 
   return (
-    <main className={styles.main} style={{ background: 'var(--ds-bg)', color: 'var(--ds-text)', fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+    <main className={styles.main} style={{ background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
 
       <div className="container" style={{ paddingTop: 120, paddingBottom: 100 }}>
@@ -117,7 +178,7 @@ export default function ProfilePage() {
                     onChange={(e) => setEditValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                     className={styles.usernameInput}
-                    placeholder="Enter username..."
+                    placeholder={TX.usernamePlaceholder}
                     maxLength={24}
                     autoFocus
                   />
@@ -127,7 +188,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <>
-                  <h1 className="orbitron neon-cyan">{username || 'Anonymous Player'}</h1>
+                  <h1 className="orbitron neon-cyan">{username || TX.anonPlayer}</h1>
                   <button type="button" onClick={() => setIsEditing(true)} className={styles.editBtn} title="Edit username">
                     <Edit2 size={16} />
                   </button>
@@ -167,29 +228,29 @@ export default function ProfilePage() {
 
         {/* ── Avatar Selection ── */}
         <section className="glass-panel" style={{ padding: 32, marginBottom: 32 }}>
-          <h3 className="orbitron neon-cyan" style={{ marginBottom: 8, fontSize: 16 }}>CHOOSE YOUR AVATAR</h3>
-          <p style={{ color: '#55557A', fontSize: 12, marginBottom: 24, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            12 unique CSS-generated avatars — each with its own visual identity.
+          <h3 className="orbitron neon-cyan" style={{ marginBottom: 8, fontSize: 16 }}>{TX.chooseAvatar}</h3>
+          <p style={{ color: T.textDim, fontSize: 12, marginBottom: 24 }}>
+            {TX.avatarDesc}
           </p>
           <AvatarPicker selected={selectedAvatar} onSelect={handleAvatarSelect} size={54} />
-          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#55557A', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Selected: <span style={{ color: avatarCfg.glowColor, fontWeight: 700 }}>{avatarCfg.name}</span>
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: T.textDim }}>
+            {TX.selected}: <span style={{ color: avatarCfg.glowColor, fontWeight: 700 }}>{avatarCfg.name}</span>
           </p>
         </section>
 
         {/* ── Stats ── */}
         <div className={styles.statsGrid}>
           <div className="glass-panel" style={{ padding: 24 }}>
-            <div className={styles.statLabel}><Award size={15} /> TOTAL EARNINGS</div>
-            <div className={styles.statValue}>0.00 <span style={{ fontSize: 13, color: '#8888BB' }}>USDC</span></div>
-            <div style={{ fontSize: 11, color: '#444466', marginTop: 4 }}>Phase 0 · Devnet</div>
+            <div className={styles.statLabel}><Award size={15} /> {TX.totalEarnings}</div>
+            <div className={styles.statValue}>0.00 <span style={{ fontSize: 13, color: T.textDim }}>USDC</span></div>
+            <div style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>{TX.phase0}</div>
           </div>
           <div className="glass-panel" style={{ padding: 24 }}>
-            <div className={styles.statLabel}><History size={15} /> GAMES PLAYED</div>
+            <div className={styles.statLabel}><History size={15} /> {TX.gamesPlayed}</div>
             <div className={styles.statValue}>{gamesPlayed}</div>
           </div>
           <div className="glass-panel" style={{ padding: 24 }}>
-            <div className={styles.statLabel}><Shield size={15} /> MAX LEVEL</div>
+            <div className={styles.statLabel}><Shield size={15} /> {TX.maxLevel}</div>
             <div className={styles.statValue}>{maxLevel}</div>
           </div>
         </div>
@@ -197,16 +258,12 @@ export default function ProfilePage() {
         {/* ── Settings + Referral ── */}
         <div className={styles.contentSections}>
           <section className="glass-panel" style={{ padding: 32 }}>
-            <h3 className="orbitron neon-magenta" style={{ marginBottom: 24, fontSize: 16 }}>ACCOUNT SETTINGS</h3>
-            {[
-              { label: 'Two-Factor Authentication', desc: 'Secure your account with 2FA.' },
-              { label: 'Email Notifications',       desc: 'Get notified when you win rewards.' },
-              { label: 'Rank Change Alerts',        desc: 'Browser push when your rank shifts.' },
-            ].map(({ label, desc }) => (
+            <h3 className="orbitron neon-magenta" style={{ marginBottom: 24, fontSize: 16 }}>{TX.acctSettings}</h3>
+            {TX.settings.map(({ label, desc }) => (
               <div key={label} className={styles.settingItem}>
                 <div>
-                  <p style={{ fontWeight: 600 }}>{label}</p>
-                  <p style={{ fontSize: 12, color: '#8888BB' }}>{desc}</p>
+                  <p style={{ fontWeight: 600, color: T.text }}>{label}</p>
+                  <p style={{ fontSize: 12, color: T.textDim }}>{desc}</p>
                 </div>
                 <span className="badge badge-cyan">SOON</span>
               </div>
@@ -214,9 +271,11 @@ export default function ProfilePage() {
           </section>
 
           <section className="glass-panel" style={{ padding: 32 }}>
-            <h3 className="orbitron neon-green" style={{ marginBottom: 8, fontSize: 16 }}>REFERRAL PROGRAM</h3>
-            <p style={{ fontSize: 14, color: '#8888BB', marginBottom: 16 }}>
-              Earn <strong style={{ color: '#00FF88' }}>5% lifetime</strong> from every ticket your referrals buy.
+            <h3 className="orbitron neon-green" style={{ marginBottom: 8, fontSize: 16 }}>{TX.referralProgram}</h3>
+            <p style={{ fontSize: 14, color: T.textDim, marginBottom: 16 }}>
+              {TX.referralDesc}{' '}
+              <strong style={{ color: '#00FF88' }}>{TX.referralPct}</strong>{' '}
+              {TX.referralSuffix}
             </p>
 
             {/* Referral link */}
@@ -224,7 +283,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 readOnly
-                value={walletAddr ? `https://blockbite.vercel.app/r/${walletAddr.slice(0, 8)}` : 'Connect wallet to get your link'}
+                value={walletAddr ? `https://blockbite.vercel.app/r/${walletAddr.slice(0, 8)}` : TX.connectForLink}
                 className={styles.referralInput}
               />
               <button
@@ -238,31 +297,31 @@ export default function ProfilePage() {
                   }
                 }}
               >
-                {refCopied ? 'COPIED' : 'COPY'}
+                {refCopied ? TX.copied : TX.copy}
               </button>
             </div>
 
             {/* Real referred wallets */}
             <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 12, color: '#55557A', fontFamily: "'Orbitron', monospace", letterSpacing: '0.1em', marginBottom: 12 }}>
-                TOTAL REFERRALS: <span style={{ color: '#00FF88' }}>{referredWallets.length}</span>
+              <div style={{ fontSize: 12, color: T.textDim, fontFamily: "'Orbitron', monospace", letterSpacing: '0.1em', marginBottom: 12 }}>
+                {TX.totalReferrals}: <span style={{ color: '#00FF88' }}>{referredWallets.length}</span>
               </div>
               {referredWallets.length === 0 ? (
-                <p style={{ fontSize: 13, color: '#444466', fontStyle: 'italic' }}>
-                  No referrals yet — share your link to start earning.
+                <p style={{ fontSize: 13, color: T.textDim, fontStyle: 'italic' }}>
+                  {TX.noReferrals}
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontSize: 12, color: '#55557A', marginBottom: 4 }}>REGISTERED WALLETS:</div>
-                  {referredWallets.map((wallet, i) => (
-                    <div key={wallet} style={{
+                  <div style={{ fontSize: 12, color: T.textDim, marginBottom: 4 }}>{TX.regWallets}</div>
+                  {referredWallets.map((w, i) => (
+                    <div key={w} style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       background: 'rgba(0,255,136,0.04)', border: '1px solid rgba(0,255,136,0.1)',
                       borderRadius: 8, padding: '8px 12px',
                     }}>
                       <span style={{ color: '#00FF88', fontFamily: "'Orbitron', monospace", fontSize: 11 }}>{i + 1}.</span>
-                      <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#CCCCCC', letterSpacing: '0.05em' }}>
-                        {wallet.length > 20 ? `${wallet.slice(0, 6)}...${wallet.slice(-6)}` : wallet}
+                      <span style={{ fontFamily: 'monospace', fontSize: 13, color: T.text, letterSpacing: '0.05em' }}>
+                        {w.length > 20 ? `${w.slice(0, 6)}...${w.slice(-6)}` : w}
                       </span>
                     </div>
                   ))}
