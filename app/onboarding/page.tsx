@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 
 const C = {
   bg0:    'var(--p-bg0)',
@@ -88,7 +89,7 @@ export default function OnboardingPage() {
   const isLast = idx === slides.length - 1;
 
   return (
-    <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <main style={{ minHeight: '100vh', background: C.bg0, color: T.text, fontFamily: C.serif }}>
       <Navbar />
 
       <div style={{
@@ -122,7 +123,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* Title */}
-          <h1 style={{ fontSize: 'clamp(22px,4vw,28px)', fontWeight: 900, margin: '0 0 16px', color: '#fff', lineHeight: 1.2 }}>
+          <h1 style={{ fontSize: 'clamp(22px,4vw,28px)', fontWeight: 900, margin: '0 0 16px', color: T.text, lineHeight: 1.2 }}>
             {s.title}
           </h1>
 
