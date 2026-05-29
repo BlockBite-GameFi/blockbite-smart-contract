@@ -155,7 +155,13 @@ export default function StreamsPage() {
       const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
       setStreams(all);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      const isRpcBlock = /403|-32052|getProgramAccounts|api key|forbidden|blocked/i.test(msg);
+      if (isRpcBlock) {
+        setStreams([]);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
