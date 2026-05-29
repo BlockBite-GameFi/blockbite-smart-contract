@@ -9,28 +9,95 @@ import { getLevelTier } from '@/lib/game/constants';
 import { ART, buildPathD, generateLongNodes } from '@/lib/components/MapArt';
 import { BIOMES } from '@/lib/game/biomes';
 import styles from './MapScreen.module.css';
+import { T } from '@/lib/theme';
+import { useApp } from '@/lib/useApp';
 
 const CustomWalletButton = dynamic(
   () => import('@/components/CustomWalletButton'),
   { ssr: false, loading: () => <div style={{ height: 36 }} /> }
 );
 
-// ─── Design System tokens (mirrors Navbar / globals.css) ──────────────────────
+// ─── Design System tokens — CSS-variable-backed for instant theme switching ───
 const DS = {
-  bg:       'rgba(8,8,26,0.92)',
-  blur:     'blur(20px)',
-  border:   'rgba(167,139,255,0.15)',
-  borderSub:'rgba(167,139,255,0.08)',
-  surface:  'rgba(255,255,255,0.04)',
-  surface2: 'rgba(255,255,255,0.07)',
-  accent:   '#a78bfa',       // purple
-  accentDk: '#c4b5fd',
-  textDim:  '#94a3b8',
-  font:     "'Space Grotesk', system-ui, sans-serif",
-  fontMono: "'JetBrains Mono', monospace",
+  bg:        T.bg,
+  bgPanel:   `color-mix(in srgb, ${T.bg} 97%, transparent)`,
+  blur:      'blur(20px)',
+  border:    T.border,
+  borderSub: `color-mix(in srgb, ${T.border} 55%, transparent)`,
+  surface:   T.surface,
+  surface2:  T.surface2,
+  accent:    T.accent,
+  accentDk:  T.accent,
+  text:      T.text,
+  textDim:   T.textDim,
+  font:      T.serif,
+  fontMono:  T.mono,
   kicker: {
     fontSize: 9, letterSpacing: 2.5, fontWeight: 700,
-    color: '#a78bfa', textTransform: 'uppercase' as const,
+    color: T.accent, textTransform: 'uppercase' as const,
+  },
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ─── Bilingual strings for the map UI ─────────────────────────────────────────
+const MAP_TX = {
+  en: {
+    navPlay:        'Play',
+    navHowItWorks:  'How It Works',
+    act:            'Act',
+    diff:           'DIFFICULTY',
+    reward:         'REWARD',
+    goal:           'GOAL',
+    moves:          'MOVES',
+    diff2:          'DIFF',
+    ongoingJourney: 'Ongoing Journey',
+    levelLabel:     'Level',
+    startExpedition:'START EXPEDITION →',
+    playBtn:        'PLAY →',
+    played:         'played',
+    rewardLbl:      'reward',
+    journeyStart:   '▼ JOURNEY START ▼',
+    higherLevels:   '▲ HIGHER LEVELS ▲',
+    blocks:         (n: number) => `${n} blocks`,
+    actGateway:     (act: string, lvl: string) => `ACT ${act} GATEWAY · LVL ${lvl}`,
+    finalLevel:     (lvl: string) => `FINAL LEVEL · LVL ${lvl}`,
+    actEnd:         (act: string) => `ACT ${act} END`,
+    actStart:       (act: string, lvl: string) => `ACT ${act} · LVL ${lvl}`,
+    gameVerif:      'Game Verification',
+    verifSuccess:   'Verification Success!',
+    thanksHuman:    'Thanks, human! 🎉',
+    verifDesc:      (n: number) => `You cleared all ${n} level${n !== 1 ? 's' : ''} of the BlockBite game. Your completion has been recorded — the campaign tokens are now ready to claim.`,
+    claimTokens:    'Claim Tokens →',
+    backToMap:      '← Back to Map',
+  },
+  id: {
+    navPlay:        'Main',
+    navHowItWorks:  'Cara Kerja',
+    act:            'Babak',
+    diff:           'KESULITAN',
+    reward:         'HADIAH',
+    goal:           'TARGET',
+    moves:          'LANGKAH',
+    diff2:          'SULIT',
+    ongoingJourney: 'Perjalanan Aktif',
+    levelLabel:     'Level',
+    startExpedition:'MULAI EKSPEDISI →',
+    playBtn:        'MAIN →',
+    played:         'dimainkan',
+    rewardLbl:      'hadiah',
+    journeyStart:   '▼ MULAI PERJALANAN ▼',
+    higherLevels:   '▲ LEVEL LEBIH TINGGI ▲',
+    blocks:         (n: number) => `${n} blok`,
+    actGateway:     (act: string, lvl: string) => `BABAK ${act} GERBANG · LVL ${lvl}`,
+    finalLevel:     (lvl: string) => `LEVEL AKHIR · LVL ${lvl}`,
+    actEnd:         (act: string) => `BABAK ${act} SELESAI`,
+    actStart:       (act: string, lvl: string) => `BABAK ${act} · LVL ${lvl}`,
+    gameVerif:      'Verifikasi Game',
+    verifSuccess:   'Verifikasi Berhasil!',
+    thanksHuman:    'Terima kasih, manusia! 🎉',
+    verifDesc:      (n: number) => `Kamu menyelesaikan semua ${n} level di game BlockBite. Penyelesaianmu telah dicatat — token kampanye siap diklaim.`,
+    claimTokens:    'Klaim Token →',
+    backToMap:      '← Kembali ke Peta',
   },
 };
 // ──────────────────────────────────────────────────────────────────────────────
@@ -131,7 +198,7 @@ function Pill({ label, value, biome, small }: {
       fontFamily: DS.font,
     }}>
       <div style={{ ...DS.kicker, color: DS.textDim, letterSpacing: 1.5 }}>{label}</div>
-      <div style={{ fontSize: small ? 12 : 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ fontSize: small ? 12 : 13, fontWeight: 700, color: DS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {value}
       </div>
     </div>
@@ -292,33 +359,36 @@ function ActSelector({ biome }: { biome: Biome }) {
 }
 
 function FinishFlag({ x, y, biome }: { x: number; y: number; biome: Biome }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
   return (
     <g>
       <line x1={x} y1={y} x2={x} y2={y + 50} stroke={biome.glow} strokeWidth="2" />
       <polygon points={`${x},${y} ${x + 22},${y + 6} ${x},${y + 14}`} fill={biome.accent} />
       <text x={x + 32} y={y + 12} fontSize="11" fontWeight="700" fill={biome.glow}>
-        ACT {romanize(biome.act)} END
+        {TX.actEnd(romanize(biome.act))}
       </text>
     </g>
   );
 }
 
-const NAV_ITEMS = [
-  { href: '/map', label: 'Play'         },
-  { href: '/',    label: 'How It Works' },
-];
-
 function MobileTabBar({ biome }: { biome: Biome }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
+  const navItems = [
+    { href: '/map', label: TX.navPlay        },
+    { href: '/',    label: TX.navHowItWorks  },
+  ];
   return (
     <div style={{
       flexShrink: 0,
       padding: '8px 16px 14px',
-      background: DS.bg, backdropFilter: DS.blur,
+      background: DS.bgPanel, backdropFilter: DS.blur,
       borderTop: `1px solid ${DS.border}`,
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
       fontFamily: DS.font,
     }}>
-      {NAV_ITEMS.map((item) => {
+      {navItems.map((item) => {
         const active = item.href === '/game';
         return (
           <Link key={item.href} href={item.href} style={{
@@ -344,6 +414,12 @@ function DesktopRail({
   biome: Biome; username: string;
   gamesPlayed: number; tier: string; currentLevel: number; walletAddress?: string;
 }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
+  const navItems = [
+    { href: '/map', label: TX.navPlay        },
+    { href: '/',    label: TX.navHowItWorks  },
+  ];
   const cfg = levelConfig(currentLevel);
   const displayName = walletAddress
     ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`
@@ -352,7 +428,7 @@ function DesktopRail({
   return (
     <div style={{
       width: 160, flexShrink: 0,
-      background: 'rgba(8,8,26,0.97)', backdropFilter: DS.blur,
+      background: DS.bgPanel, backdropFilter: DS.blur,
       borderRight: `1px solid ${DS.border}`,
       display: 'flex', flexDirection: 'column',
       height: '100%', position: 'relative', zIndex: 2,
@@ -367,11 +443,11 @@ function DesktopRail({
             <div style={{ fontSize: 8, letterSpacing: 2, fontWeight: 700, color: DS.accent, textTransform: 'uppercase', marginBottom: 1 }}>
               {tier}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: DS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
               {displayName}
             </div>
             <div style={{ fontSize: 9, color: DS.textDim, marginTop: 1 }}>
-              {gamesPlayed} played
+              {gamesPlayed} {TX.played}
             </div>
           </div>
         </div>
@@ -379,7 +455,7 @@ function DesktopRail({
 
       {/* ── Nav ── */}
       <nav style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = item.href === '/game';
           return (
             <Link key={item.href} href={item.href} style={{
@@ -387,7 +463,7 @@ function DesktopRail({
               padding: '8px 10px',
               borderRadius: 8,
               borderLeft: `2px solid ${active ? DS.accent : 'transparent'}`,
-              background: active ? 'rgba(167,139,255,0.07)' : 'transparent',
+              background: active ? T.accentA1 : 'transparent',
               color: active ? DS.accentDk : DS.textDim,
               fontSize: 12, fontWeight: active ? 700 : 400,
               textDecoration: 'none', fontFamily: DS.font,
@@ -412,11 +488,11 @@ function DesktopRail({
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '5px 8px', borderRadius: 8,
           background: DS.surface, border: `1px solid ${DS.borderSub}`,
-          fontSize: 11, color: '#fff',
+          fontSize: 11, color: DS.text,
         }}>
-          <span style={{ color: biome.glow, fontSize: 11, lineHeight: 1 }}>◆</span>
+          <span style={{ color: biome.glow, fontSize: 11, lineHeight: 1 }}>&#9670;</span>
           <span style={{ fontWeight: 600 }}>{cfg.reward}</span>
-          <span style={{ color: DS.textDim, fontSize: 9 }}>reward</span>
+          <span style={{ color: DS.textDim, fontSize: 9 }}>{TX.rewardLbl}</span>
         </div>
         <CustomWalletButton />
       </div>
@@ -427,21 +503,23 @@ function DesktopRail({
 function TopHeader({ biome, layout, username, tier }: {
   biome: Biome; layout: Layout; username: string; tier: string;
 }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
   const pad = layout === 'mobile' ? 14 : 20;
   return (
     <div style={{
       padding: `${pad}px ${pad}px 10px`,
       display: 'flex', alignItems: 'center', gap: 12,
-      background: `linear-gradient(180deg, ${DS.bg} 0%, rgba(8,8,26,0) 100%)`,
+      background: `linear-gradient(180deg, ${T.bg} 0%, transparent 100%)`,
       position: 'relative', zIndex: 2, flexShrink: 0,
       fontFamily: DS.font,
     }}>
       <Avatar biome={biome} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...DS.kicker, marginBottom: 3 }}>
-          Act {romanize(biome.act)} · {biome.cohort} · {tier}
+          {TX.act} {romanize(biome.act)} · {biome.cohort} · {tier}
         </div>
-        <div style={{ fontSize: layout === 'mobile' ? 16 : 22, fontWeight: 800, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: layout === 'mobile' ? 16 : 22, fontWeight: 800, color: DS.text, lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {username}
         </div>
       </div>
@@ -455,19 +533,21 @@ function SideCards({
   biome: Biome; level: number; layout: Layout;
   onEnterLevel: (l: number) => void;
 }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
   const cfg = levelConfig(level);
   const statRows = [
-    { label: 'DIFFICULTY', value: cfg.rarity },
-    { label: 'REWARD',     value: `◆ ${cfg.reward}` },
-    { label: 'GOAL',       value: `${cfg.goal} blocks` },
-    { label: 'MOVES',      value: String(cfg.moves) },
+    { label: TX.diff,   value: cfg.rarity },
+    { label: TX.reward, value: `◆ ${cfg.reward}` },
+    { label: TX.goal,   value: TX.blocks(cfg.goal) },
+    { label: TX.moves,  value: String(cfg.moves) },
   ];
 
   return (
     <div style={{
       width: layout === 'desktop' ? 260 : 220,
       flexShrink: 0,
-      background: 'rgba(8,8,26,0.97)', backdropFilter: DS.blur,
+      background: DS.bgPanel, backdropFilter: DS.blur,
       borderLeft: `1px solid ${DS.border}`,
       display: 'flex', flexDirection: 'column',
       overflowY: 'auto', fontFamily: DS.font,
@@ -476,11 +556,11 @@ function SideCards({
       {/* ── Level header ── */}
       <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${DS.borderSub}` }}>
         <div style={{ fontSize: 8, letterSpacing: 2.5, fontWeight: 700, color: DS.accent, textTransform: 'uppercase', marginBottom: 8 }}>
-          Ongoing Journey
+          {TX.ongoingJourney}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, color: DS.textDim }}>Level</span>
-          <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{level}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: DS.textDim }}>{TX.levelLabel}</span>
+          <span style={{ fontSize: 22, fontWeight: 900, color: DS.text, lineHeight: 1 }}>{level}</span>
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: biome.glow, lineHeight: 1.2 }}>
           {cfg.title}
@@ -503,7 +583,7 @@ function SideCards({
               <span style={{ fontSize: 8, fontWeight: 700, color: DS.textDim, letterSpacing: 1.5, textTransform: 'uppercase' }}>
                 {row.label}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: DS.text }}>
                 {row.value}
               </span>
             </div>
@@ -532,7 +612,7 @@ function SideCards({
             (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 18px ${biome.accent}44`;
           }}
         >
-          START EXPEDITION →
+          {TX.startExpedition}
         </button>
       </div>
     </div>
@@ -545,18 +625,20 @@ function BottomCard({
   biome: Biome; level: number;
   onEnterLevel: (l: number) => void;
 }) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
   const cfg = levelConfig(level);
   return (
     <div style={{
       padding: '14px 14px 0',
-      background: DS.bg, backdropFilter: DS.blur,
+      background: DS.bgPanel, backdropFilter: DS.blur,
       borderTop: `1px solid ${DS.border}`,
       flexShrink: 0, fontFamily: DS.font,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div>
-          <div style={{ ...DS.kicker, marginBottom: 2 }}>Ongoing Journey</div>
-          <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2 }}>
+          <div style={{ ...DS.kicker, marginBottom: 2 }}>{TX.ongoingJourney}</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: DS.text, lineHeight: 1.2 }}>
             Lv.{level} <span style={{ color: biome.glow }}>{cfg.title}</span>
           </div>
         </div>
@@ -570,19 +652,21 @@ function BottomCard({
             boxShadow: `0 2px 14px ${biome.accent}66`, cursor: 'pointer',
           }}
         >
-          PLAY →
+          {TX.playBtn}
         </button>
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-        <Pill label="DIFF"   value={cfg.rarity}        biome={biome} small />
-        <Pill label="REWARD" value={`◆ ${cfg.reward}`} biome={biome} small />
-        <Pill label="MOVES"  value={cfg.moves}          biome={biome} small />
+        <Pill label={TX.diff2}  value={cfg.rarity}                biome={biome} small />
+        <Pill label={TX.reward} value={`◆ ${cfg.reward}`}    biome={biome} small />
+        <Pill label={TX.moves}  value={cfg.moves}                  biome={biome} small />
       </div>
     </div>
   );
 }
 
 export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress, topOffset = 0, maxLevel, campaignId }: Props) {
+  const { lang } = useApp();
+  const TX = MAP_TX[lang];
   const player    = usePlayerData(currentLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const Art       = ART[biome.id];
@@ -711,12 +795,12 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
         marginTop: topOffset,
         background: biome.sky,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: '"Space Grotesk", system-ui, sans-serif',
+        fontFamily: T.serif,
       }}>
         <div style={{
           maxWidth: 480, width: '100%', margin: '0 20px',
           padding: '48px 36px', borderRadius: 24, textAlign: 'center',
-          background: 'rgba(8,8,26,0.96)',
+          background: DS.bgPanel,
           border: `1.5px solid ${biome.glow}55`,
           boxShadow: `0 0 60px ${biome.accent}18`,
         }}>
@@ -726,34 +810,31 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
             background: `radial-gradient(circle at 35% 35%, ${biome.glow}, ${biome.accent})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 36, boxShadow: `0 0 40px ${biome.accent}55`,
-          }}>✦</div>
+          }}>&#10022;</div>
 
           <div style={{
             fontSize: 10, letterSpacing: '3px', fontWeight: 800,
             color: biome.glow, textTransform: 'uppercase', marginBottom: 12,
           }}>
-            Game Verification
+            {TX.gameVerif}
           </div>
           <h2 style={{
-            fontSize: 28, fontWeight: 900, color: '#fff',
+            fontSize: 28, fontWeight: 900, color: DS.text,
             margin: '0 0 8px', lineHeight: 1.2,
           }}>
-            Verification Success!
+            {TX.verifSuccess}
           </h2>
           <p style={{
             fontSize: 15, color: biome.glow, fontWeight: 700,
             margin: '0 0 16px',
           }}>
-            Thanks, human! 🎉
+            {TX.thanksHuman}
           </p>
           <p style={{
-            fontSize: 13, color: '#94a3b8', lineHeight: 1.7,
+            fontSize: 13, color: DS.textDim, lineHeight: 1.7,
             margin: '0 0 32px',
           }}>
-            You cleared all <strong style={{ color: '#fff' }}>
-              {maxLevel} level{maxLevel !== 1 ? 's' : ''}
-            </strong> of the BlockBite game. Your completion has been recorded —
-            the campaign tokens are now ready to claim.
+            {TX.verifDesc(maxLevel ?? 0)}
           </p>
 
           {/* Claim button */}
@@ -768,14 +849,14 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
               letterSpacing: '0.02em',
             }}
           >
-            Claim Tokens →
+            {TX.claimTokens}
           </Link>
 
           <div style={{ marginTop: 20 }}>
             <Link href="/map" style={{
-              fontSize: 12, color: '#475569', textDecoration: 'none',
+              fontSize: 12, color: DS.textDim, textDecoration: 'none',
             }}>
-              ← Back to Map
+              {TX.backToMap}
             </Link>
           </div>
         </div>
@@ -787,8 +868,8 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
     <div style={{
       width: '100%', height: `calc(100vh - ${topOffset}px)`,
       marginTop: topOffset,
-      background: biome.sky, color: '#fff',
-      fontFamily: '"Space Grotesk", system-ui, sans-serif',
+      background: biome.sky, color: DS.text,
+      fontFamily: T.serif,
       display: 'flex',
       flexDirection: isDesktop ? 'row' : 'column',
       overflow: 'hidden',
@@ -956,8 +1037,8 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
                 fill={biome.glow} opacity="0.7" letterSpacing="5"
               >
                 {maxLevel != null
-                  ? `FINAL LEVEL · LVL ${effectiveEnd.toLocaleString()}`
-                  : `ACT ${romanize(biome.act)} GATEWAY · LVL ${biome.range[1].toLocaleString()}`
+                  ? TX.finalLevel(effectiveEnd.toLocaleString())
+                  : TX.actGateway(romanize(biome.act), biome.range[1].toLocaleString())
                 }
               </text>
               <text
@@ -965,7 +1046,7 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
                 textAnchor="middle" fontSize="12" fontWeight="600"
                 fill="#fff" opacity="0.45" letterSpacing="3"
               >
-                ▲ HIGHER LEVELS ▲
+                {TX.higherLevels}
               </text>
 
               {/* Candy path — shadow base */}
@@ -1038,14 +1119,14 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
                 textAnchor="middle" fontSize="14" fontWeight="700"
                 fill="#fff" opacity="0.45" letterSpacing="3"
               >
-                ▼ JOURNEY START ▼
+                {TX.journeyStart}
               </text>
               <text
                 x={SVG_W / 2} y={SVG_H - 30}
                 textAnchor="middle" fontSize="16" fontWeight="800"
                 fill={biome.glow} opacity="0.6" letterSpacing="3"
               >
-                ACT {romanize(biome.act)} · LVL {biome.range[0].toLocaleString()}
+                {TX.actStart(romanize(biome.act), biome.range[0].toLocaleString())}
               </text>
             </svg>
           </div>
@@ -1074,7 +1155,7 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
       <div style={{
         position: 'fixed', right: 12, bottom: 12, zIndex: 9999,
         padding: '5px 10px', borderRadius: 8,
-        background: 'rgba(8,8,26,0.88)', backdropFilter: 'blur(12px)',
+        background: DS.bgPanel, backdropFilter: 'blur(12px)',
         border: `1px solid ${DS.border}`,
         color: DS.textDim, fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
         fontFamily: DS.fontMono, pointerEvents: 'none',
