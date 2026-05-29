@@ -100,8 +100,7 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
   const authorityAta = await getAssociatedTokenAddress(p.mint, p.authority);
 
   // Build the instruction with Anchor.
-  // create_stream IDL args: stream_id, amount, start_ts, cliff_ts, end_ts (5 total).
-  // requiredTier is a UI-only concept; the IDL does not expose it as an instruction arg.
+  // create_stream IDL args: stream_id, amount, start_ts, cliff_ts, end_ts, required_tier (6 total).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ix = await (program.methods as any)
     .createStream(
@@ -110,6 +109,7 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
       new BN(p.startTs),
       new BN(p.cliffTs),
       new BN(p.endTs),
+      new BN(p.requiredTier ?? 0),
     )
     .accounts({
       authority:     p.authority,
@@ -144,6 +144,8 @@ export interface WithdrawParams {
   vault:           PublicKey;
   beneficiaryAta:  PublicKey;
   mint:            PublicKey;
+  /** Pass SystemProgram.programId when required_tier == 0 (no gate). */
+  proofCache:      PublicKey;
   sendTransaction: SendTx;
 }
 
@@ -157,6 +159,8 @@ export async function withdraw(p: WithdrawParams): Promise<string> {
       stream:         p.stream,
       vault:          p.vault,
       beneficiaryAta: p.beneficiaryAta,
+      // Pass SystemProgram.programId when required_tier == 0 (no ProofCache gate).
+      proofCache:     p.proofCache,
       tokenProgram:   TOKEN_PROGRAM_ID,
     })
     .instruction();
@@ -191,18 +195,21 @@ export interface CancelParams {
 
 export async function cancelStream(p: CancelParams): Promise<string> {
   const program = readonlyProgram(p.connection);
-  // IDL cancel accounts: authority, stream, vault, authority_ata, token_program.
-  // beneficiary / beneficiaryAta are NOT in the cancel instruction — tokens already
-  // vested remain with the beneficiary; only unvested tokens return to authority_ata.
+  // IDL cancel accounts: authority, beneficiary, stream, vault,
+  // authority_ata, beneficiary_ata, token_program, system_program.
+  // Vested-but-unclaimed tokens → beneficiary_ata; unvested → authority_ata.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ix = await (program.methods as any)
     .cancel()
     .accounts({
-      authority:    p.authority,
-      stream:       p.stream,
-      vault:        p.vault,
-      authorityAta: p.authorityAta,
-      tokenProgram: TOKEN_PROGRAM_ID,
+      authority:      p.authority,
+      beneficiary:    p.beneficiary,
+      stream:         p.stream,
+      vault:          p.vault,
+      authorityAta:   p.authorityAta,
+      beneficiaryAta: p.beneficiaryAta,
+      tokenProgram:   TOKEN_PROGRAM_ID,
+      systemProgram:  SystemProgram.programId,
     })
     .instruction();
 
@@ -224,17 +231,23 @@ export async function fetchStream(connection: Connection, streamPda: PublicKey) 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await (program.account as any).streamAccount.fetch(streamPda);
     return data as {
-      authority: PublicKey;
-      beneficiary: PublicKey;
-      mint: PublicKey;
-      amountTotal: BN;
-      amountWithdrawn: BN;
-      startTs: BN;
-      cliffTs: BN;
-      endTs: BN;
-      streamId: BN;
-      cancelled: boolean;
-      bump: number;
+      authority:          PublicKey;
+      beneficiary:        PublicKey;
+      mint:               PublicKey;
+      streamId:           BN;
+      amountTotal:        BN;
+      amountWithdrawn:    BN;
+      startTs:            BN;
+      cliffTs:            BN;
+      endTs:              BN;
+      cancelled:          boolean;
+      bump:               number;
+      velocityStrikes:    number;
+      lastActionTs:       BN;
+      requiredTier:       number;
+      milestoneCount:     number;
+      milestonesVerified: boolean[];
+      milestonePct:       number[];
     };
   } catch {
     return null;
@@ -244,7 +257,7 @@ export async function fetchStream(connection: Connection, streamPda: PublicKey) 
 /** Derive the ProofCache PDA for a (stream, player) pair. */
 export function deriveProofCachePDA(stream: PublicKey, player: PublicKey) {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from('proof'), stream.toBuffer(), player.toBuffer()],
+    [Buffer.from('proof_cache'), stream.toBuffer(), player.toBuffer()],
     VESTING_PROGRAM_ID,
   );
 }
@@ -261,12 +274,13 @@ export async function fetchProofCache(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await (program.account as any).proofCache.fetch(pda);
     return data as {
-      stream:        PublicKey;
-      player:        PublicKey;
-      tierReached:   number;
-      lastActionTs:  BN;
+      schedule:        PublicKey; // the stream PDA this proof belongs to
+      player:          PublicKey;
+      cohortId:        number;
+      tierReached:     number;
+      lastProofTs:     BN;
       velocityStrikes: number;
-      bump:          number;
+      bump:            number;
     };
   } catch {
     return null;
@@ -385,19 +399,32 @@ export async function getStreamsByBeneficiary(
 
 /**
  * Compute claimable (unlocked minus withdrawn) at a given unix timestamp.
- * Mirrors the Rust `unlocked_amount()` function.
+ * Mirrors the Rust `unlocked_amount()` function exactly:
+ *   - Returns 0 before cliff_ts
+ *   - Linear from start_ts to end_ts (elapsed = now - start_ts, duration = end_ts - start_ts)
+ *   - Returns amount_total when now >= end_ts
  */
 export function computeUnlocked(stream: StreamInfo, nowSec: number): bigint {
-  const now    = BigInt(nowSec);
-  const cliff  = BigInt(stream.cliffTs.toString());
-  const end    = BigInt(stream.endTs.toString());
-  const total  = BigInt(stream.amountTotal.toString());
-  const drawn  = BigInt(stream.amountWithdrawn.toString());
+  const now   = BigInt(nowSec);
+  const cliff = BigInt(stream.cliffTs.toString());
+  const start = BigInt(stream.startTs.toString());
+  const end   = BigInt(stream.endTs.toString());
+  const total = BigInt(stream.amountTotal.toString());
+  const drawn = BigInt(stream.amountWithdrawn.toString());
 
+  // Gate 1: cliff not reached → nothing unlocked
   if (now < cliff) return 0n;
+  // Gate 2: before start (edge case) → nothing unlocked
+  if (now < start) return 0n;
+  // Gate 3: fully vested
+  if (now >= end) {
+    const available = total > drawn ? total - drawn : 0n;
+    return available;
+  }
 
-  const duration = end > cliff ? end - cliff : 1n;
-  const elapsed  = now >= end ? duration : now - cliff;
+  // Linear: elapsed / duration × total
+  const duration = end > start ? end - start : 1n;
+  const elapsed  = now - start;
   const unlocked = total * elapsed / duration;
   const available = unlocked > drawn ? unlocked - drawn : 0n;
   return available;

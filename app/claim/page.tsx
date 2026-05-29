@@ -6,12 +6,14 @@ import Navbar from '@/components/Navbar';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { SystemProgram } from '@solana/web3.js';
 import {
   getStreamsByBeneficiary,
   computeUnlocked,
   withdraw,
   deriveStreamPDA,
   deriveVaultPDA,
+  deriveProofCachePDA,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
@@ -114,6 +116,10 @@ export default function ClaimPage() {
       const [streamPda] = deriveStreamPDA(stream.authority, streamIdBn);
       const [vaultPda]  = deriveVaultPDA(stream.authority, streamIdBn);
       const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, publicKey);
+      // If stream has a tier gate, pass the ProofCache PDA; otherwise pass SystemProgram
+      const proofCache = (stream.requiredTier ?? 0) > 0
+        ? deriveProofCachePDA(streamPda, publicKey)[0]
+        : SystemProgram.programId;
 
       const sig = await withdraw({
         connection,
@@ -122,6 +128,7 @@ export default function ClaimPage() {
         vault:          vaultPda,
         beneficiaryAta,
         mint:           stream.mint,
+        proofCache,
         sendTransaction: async (tx, conn) => {
           const s = await (sendTransaction as unknown as SendTx)(tx, conn);
           setClaimStage('confirming'); // wallet approved, now waiting for chain

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
   getAssociatedTokenAddress, getMint,
@@ -13,7 +13,7 @@ import {
 import Navbar from '@/components/Navbar';
 import {
   fetchStream, deriveStreamPDA, deriveVaultPDA,
-  withdraw, ensureAtaIx,
+  withdraw, ensureAtaIx, deriveProofCachePDA,
 } from '@/lib/anchor/vesting-client';
 
 const ONE_DAY = 86_400;
@@ -148,6 +148,11 @@ export default function ClaimPage() {
         );
       }
 
+      // Tier gate: pass ProofCache PDA if required; SystemProgram otherwise
+      const proofCache = (stream.requiredTier ?? 0) > 0
+        ? deriveProofCachePDA(streamPda, publicKey)[0]
+        : SystemProgram.programId;
+
       const signature = await withdraw({
         connection,
         beneficiary:    publicKey,
@@ -155,6 +160,7 @@ export default function ClaimPage() {
         vault,
         beneficiaryAta,
         mint:           stream.mint,
+        proofCache,
         sendTransaction,
       });
       setSig(signature);

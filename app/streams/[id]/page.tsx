@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useApp } from '@/lib/useApp';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
@@ -17,6 +17,7 @@ import {
   withdraw as doWithdraw,
   cancelStream,
   deriveVaultPDA,
+  deriveProofCachePDA,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
 
@@ -196,6 +197,10 @@ export default function StreamDetailPage() {
     try {
       const [vaultPda] = deriveVaultPDA(stream.authority, stream.streamId);
       const beneficiaryAta = await getAssociatedTokenAddress(stream.mint, publicKey);
+      // Tier gate: pass ProofCache PDA if required_tier > 0; SystemProgram otherwise
+      const proofCache = (stream.requiredTier ?? 0) > 0
+        ? deriveProofCachePDA(streamPda, publicKey)[0]
+        : SystemProgram.programId;
       const sig = await doWithdraw({
         connection,
         beneficiary:    publicKey,
@@ -203,6 +208,7 @@ export default function StreamDetailPage() {
         vault:          vaultPda,
         beneficiaryAta,
         mint:           stream.mint,
+        proofCache,
         sendTransaction: async (tx, conn) => {
           const s = await sendTransaction(tx, conn); // user approves here
           setClaimStage('confirming');                // move to stage 2
