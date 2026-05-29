@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
 
 /**
  * Founder/B2B landing for the Token Distribution Protocol.
@@ -10,11 +12,21 @@ import Navbar from '@/components/Navbar';
  * the actual create-stream flow (wallet-gated inside that page).
  */
 export default function DistributeLanding() {
+  const { lang } = useApp();
+  const id = lang === 'id';
+
+  const steps = id ? [
+    { n: '01', t: 'Konfigurasi jadwal', d: 'Pilih cliff (1m / 1bl / 3bl / 6bl / 1th / kustom) dan durasi vesting total. Preview langsung menampilkan laju unlock harian.' },
+    { n: '02', t: 'Kunci token on-chain', d: 'create_stream secara atomik mentransfer token dari wallet kamu ke vault milik PDA. Vault bersifat otonom — hanya program yang bisa melepas dana.' },
+    { n: '03', t: 'Penerima klaim melalui bermain', d: 'Penerima melihat progres vesting di /claim/[stream]. Gerbang kompetisi menyaring bot secara alami. Kamu berhenti mengejar spreadsheet.' },
+  ] : [
+    { n: '01', t: 'Configure schedule', d: 'Pick cliff (1w / 1mo / 3mo / 6mo / 1y / custom) and total vesting duration. Live preview shows the daily unlock rate.' },
+    { n: '02', t: 'Lock tokens on-chain', d: 'create_stream atomically transfers tokens from your wallet into a PDA-owned vault. The vault is autonomous — only the program can release funds.' },
+    { n: '03', t: 'Recipients claim through play', d: 'Beneficiaries see vested progress on /claim/[stream]. Competition gates the claim — bots filter naturally. You stop chasing spreadsheets.' },
+  ];
+
   return (
-    <div style={{
-      minHeight: '100vh', background: 'var(--ds-bg)', color: 'var(--ds-text)',
-      fontFamily: "'Montserrat', 'Space Grotesk', system-ui, sans-serif",
-    }}>
+    <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: T.serif }}>
       <Navbar />
       <main style={{ maxWidth: 1100, margin: '0 auto', padding: '120px 24px 80px' }}>
 
@@ -22,82 +34,69 @@ export default function DistributeLanding() {
         <section style={{ textAlign: 'center', marginBottom: 80 }}>
           <div style={{
             display: 'inline-flex', gap: 8, padding: '8px 16px', borderRadius: 999,
-            border: '1px solid var(--ds-accent)', background: 'rgba(167,139,250,.12)',
-            fontSize: 12, fontWeight: 800, color: 'var(--ds-accent)', letterSpacing: '1.5px',
+            border: `1px solid ${T.accent}`, background: `color-mix(in srgb, ${T.accent} 12%, transparent)`,
+            fontSize: 12, fontWeight: 800, color: T.accent, letterSpacing: '1.5px',
             marginBottom: 24,
           }}>
-            FOR BUILDERS · TOKEN DISTRIBUTION PROTOCOL
+            {id ? 'UNTUK BUILDER · PROTOKOL DISTRIBUSI TOKEN' : 'FOR BUILDERS · TOKEN DISTRIBUTION PROTOCOL'}
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 7vw, 64px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px', margin: 0 }}>
-            Distribute Tokens via<br/>
-            <span style={{ background: 'var(--ds-grad)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              Verifiable Competition.
+            {id ? <>Distribusikan Token via<br/></> : <>Distribute Tokens via<br/></>}
+            <span style={{ background: T.grad, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              {id ? 'Kompetisi Terverifikasi.' : 'Verifiable Competition.'}
             </span>
           </h1>
-          <p style={{ fontSize: 18, color: 'var(--ds-text-dim)', lineHeight: 1.6, maxWidth: 600, margin: '24px auto 0' }}>
-            Lock tokens with cliff + linear vesting. Let on-chain milestones
-            decide who claims and when. Bots filtered. Recipients engaged.
-            Zero spreadsheets.
+          <p style={{ fontSize: 18, color: T.textDim, lineHeight: 1.6, maxWidth: 600, margin: '24px auto 0' }}>
+            {id
+              ? 'Kunci token dengan cliff + vesting linear. Biarkan milestone on-chain menentukan siapa yang klaim dan kapan. Bot tersaring. Penerima terlibat. Tanpa spreadsheet.'
+              : 'Lock tokens with cliff + linear vesting. Let on-chain milestones decide who claims and when. Bots filtered. Recipients engaged. Zero spreadsheets.'}
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 36, flexWrap: 'wrap' }}>
             <Link href="/distribute/new" style={{
-              padding: '14px 32px', borderRadius: 12, background: 'var(--ds-grad)',
+              padding: '14px 32px', borderRadius: 12, background: T.grad,
               color: '#0a0a14', fontWeight: 900, fontSize: 16, textDecoration: 'none',
               boxShadow: '0 0 28px rgba(167,139,250,.45)',
             }}>
-              CREATE NEW STREAM
+              {id ? 'BUAT STREAM BARU' : 'CREATE NEW STREAM'}
             </Link>
             <Link href="/distribute/streams" style={{
               padding: '14px 28px', borderRadius: 12, background: 'transparent',
-              border: '1px solid var(--ds-border)', color: 'var(--ds-text)',
+              border: `1px solid ${T.border}`, color: T.text,
               fontWeight: 700, fontSize: 16, textDecoration: 'none',
             }}>
-              MY STREAMS
+              {id ? 'STREAM SAYA' : 'MY STREAMS'}
             </Link>
             <Link href="/distribute/quests" style={{
               padding: '14px 28px', borderRadius: 12, background: 'transparent',
-              border: '1px solid var(--ds-border)', color: 'var(--ds-text)',
+              border: `1px solid ${T.border}`, color: T.text,
               fontWeight: 700, fontSize: 16, textDecoration: 'none',
             }}>
-              QUESTS
+              {id ? 'MISI' : 'QUESTS'}
             </Link>
           </div>
         </section>
 
         {/* Three-step founder flow */}
         <section style={{ marginBottom: 80 }}>
-          <p style={{ fontSize: 11, letterSpacing: '2px', color: 'var(--ds-accent)', textAlign: 'center', marginBottom: 10 }}>
-            HOW IT WORKS · FOR FOUNDERS
+          <p style={{ fontSize: 11, letterSpacing: '2px', color: T.accent, textAlign: 'center', marginBottom: 10 }}>
+            {id ? 'CARA KERJA · UNTUK FOUNDER' : 'HOW IT WORKS · FOR FOUNDERS'}
           </p>
           <h2 style={{ fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 900, textAlign: 'center', marginBottom: 40 }}>
-            Three steps to launch a distribution
+            {id ? 'Tiga langkah untuk meluncurkan distribusi' : 'Three steps to launch a distribution'}
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-            {[
-              {
-                n: '01', t: 'Configure schedule',
-                d: 'Pick cliff (1w / 1mo / 3mo / 6mo / 1y / custom) and total vesting duration. Live preview shows the daily unlock rate.',
-              },
-              {
-                n: '02', t: 'Lock tokens on-chain',
-                d: 'create_stream atomically transfers tokens from your wallet into a PDA-owned vault. The vault is autonomous — only the program can release funds.',
-              },
-              {
-                n: '03', t: 'Recipients claim through play',
-                d: 'Beneficiaries see vested progress on /claim/[stream]. Competition gates the claim — bots filter naturally. You stop chasing spreadsheets.',
-              },
-            ].map((s) => (
+            {steps.map((s) => (
               <div key={s.n} style={{
                 padding: 24, borderRadius: 16,
-                background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+                background: T.surface, border: `1px solid ${T.border}`,
                 position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{
-                  fontSize: 58, fontWeight: 900, color: 'var(--ds-accent)', opacity: 0.12,
+                  fontSize: 58, fontWeight: 900, color: T.accent, opacity: 0.12,
                   position: 'absolute', top: 4, right: 14, lineHeight: 1, userSelect: 'none',
                 }}>{s.n}</div>
                 <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 10, position: 'relative' }}>{s.t}</div>
-                <div style={{ fontSize: 13, color: 'var(--ds-text-dim)', lineHeight: 1.6, position: 'relative' }}>{s.d}</div>
+                <div style={{ fontSize: 13, color: T.textDim, lineHeight: 1.6, position: 'relative' }}>{s.d}</div>
               </div>
             ))}
           </div>
@@ -105,20 +104,22 @@ export default function DistributeLanding() {
 
         {/* On-chain spec summary */}
         <section style={{
-          padding: 32, borderRadius: 18, background: 'var(--ds-surface)',
-          border: '1px solid var(--ds-border)', marginBottom: 40,
+          padding: 32, borderRadius: 18, background: T.surface,
+          border: `1px solid ${T.border}`, marginBottom: 40,
         }}>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: 'var(--ds-accent)', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, marginBottom: 8 }}>
             PROGRAM SPEC · DEVNET
           </div>
-          <h3 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 18px' }}>What runs on-chain</h3>
-          <ul style={{ paddingLeft: 18, lineHeight: 1.8, color: 'var(--ds-text-dim)', fontSize: 14, margin: 0 }}>
-            <li><code style={{ color: 'var(--ds-text)' }}>create_stream(stream_id, amount, start_ts, cliff_ts, end_ts)</code> — lock + record</li>
-            <li><code style={{ color: 'var(--ds-text)' }}>withdraw()</code> — beneficiary pulls vested portion (24h cooldown)</li>
-            <li><code style={{ color: 'var(--ds-text)' }}>cancel()</code> — creator reclaims unvested, beneficiary gets vested-but-unclaimed</li>
-            <li>Velocity-Gated Proof Validation rejects bot-like claim patterns</li>
+          <h3 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 18px' }}>
+            {id ? 'Yang berjalan on-chain' : 'What runs on-chain'}
+          </h3>
+          <ul style={{ paddingLeft: 18, lineHeight: 1.8, color: T.textDim, fontSize: 14, margin: 0 }}>
+            <li><code style={{ color: T.text }}>create_stream(stream_id, amount, start_ts, cliff_ts, end_ts)</code> — {id ? 'kunci + catat' : 'lock + record'}</li>
+            <li><code style={{ color: T.text }}>withdraw()</code> — {id ? 'penerima menarik bagian vesting (cooldown 24j)' : 'beneficiary pulls vested portion (24h cooldown)'}</li>
+            <li><code style={{ color: T.text }}>cancel()</code> — {id ? 'pembuat ambil kembali yang belum vesting, penerima dapat yang sudah vesting tapi belum diklaim' : 'creator reclaims unvested, beneficiary gets vested-but-unclaimed'}</li>
+            <li>{id ? 'Validasi Bukti Velocity-Gated menolak pola klaim seperti bot' : 'Velocity-Gated Proof Validation rejects bot-like claim patterns'}</li>
           </ul>
-          <p style={{ marginTop: 18, fontSize: 12, color: 'var(--ds-text-dim)', fontFamily: 'monospace' }}>
+          <p style={{ marginTop: 18, fontSize: 12, color: T.textDim, fontFamily: 'monospace' }}>
             Program ID: DvhxiL5PF8Cq3icqcjdbQvtMhJcj6LWheUgovRpaXTFf
           </p>
         </section>
