@@ -5,6 +5,37 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
 import type { Quest, QuestCompletion } from '@/lib/quests/store';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
+
+const QUESTS_TX = {
+  en: {
+    title:       'Quests',
+    subtitle:    'Complete tasks from ecosystem partners to unlock reward tiers.',
+    connectNote: 'Connect a wallet to submit quest completions.',
+    connectBtn:  'CONNECT WALLET',
+    loading:     'Loading quests…',
+    empty:       "No active quests right now. Check back soon — or if you're a builder, create some at",
+    cancel:      'CANCEL',
+    submit:      'SUBMIT',
+    proofLabel:  'Proof (link, txn signature, screenshot URL, etc.)',
+    submitting:  'SUBMITTING…',
+    submitReview:'SUBMIT FOR REVIEW',
+  },
+  id: {
+    title:       'Misi',
+    subtitle:    'Selesaikan tugas dari mitra ekosistem untuk membuka level hadiah.',
+    connectNote: 'Hubungkan wallet untuk mengajukan penyelesaian misi.',
+    connectBtn:  'HUBUNGKAN WALLET',
+    loading:     'Memuat misi…',
+    empty:       'Belum ada misi aktif. Cek lagi nanti — atau jika kamu pembangun, buat di',
+    cancel:      'BATAL',
+    submit:      'KIRIM',
+    proofLabel:  'Bukti (tautan, tanda tangan txn, URL screenshot, dll.)',
+    submitting:  'MENGAJUKAN…',
+    submitReview:'KIRIM UNTUK DITINJAU',
+  },
+};
 
 /**
  * Public quest feed for users.
@@ -18,6 +49,8 @@ import type { Quest, QuestCompletion } from '@/lib/quests/store';
 export default function QuestsPage() {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
+  const { lang } = useApp();
+  const TX = QUESTS_TX[lang];
 
   const [quests,       setQuests]       = useState<Quest[]>([]);
   const [mySubs,       setMySubs]       = useState<Record<string, QuestCompletion>>({});
@@ -35,18 +68,10 @@ export default function QuestsPage() {
 
       if (publicKey) {
         const wallet = publicKey.toBase58();
-        // Fetch each quest's review feed and pick out our wallet's row.
-        // For Phase 0 this is N requests — fine for tens of quests; W7
-        // adds /api/quests/mine?wallet=... aggregator.
         const subs: Record<string, QuestCompletion> = {};
         await Promise.all(
           (data.quests as Quest[]).map(async (q) => {
             try {
-              // Public can't hit review GET (admin-only). For user side we
-              // optimistically POST submit with no proof to fetch existing
-              // record? No — we'd write. Skip: user state shown only after
-              // they themselves submit during this session.
-              // Future: dedicated /api/quests/[id]/me?wallet endpoint.
               void q; void wallet;
             } catch { /* ignore */ }
           }),
@@ -84,48 +109,53 @@ export default function QuestsPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: 'var(--ds-bg)', color: 'var(--ds-text)',
-      fontFamily: "'Montserrat', 'Space Grotesk', system-ui, sans-serif",
+      minHeight: '100vh', background: T.bg, color: T.text,
+      fontFamily: T.serif,
     }}>
       <Navbar />
       <main style={{ maxWidth: 800, margin: '0 auto', padding: '120px 24px 80px' }}>
 
-        <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, marginBottom: 6 }}>Quests</h1>
-        <p style={{ color: 'var(--ds-text-dim)', fontSize: 13, marginBottom: 26 }}>
-          Complete tasks from ecosystem partners to unlock reward tiers.
+        <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, marginBottom: 6 }}>{TX.title}</h1>
+        <p style={{ color: T.textDim, fontSize: 13, marginBottom: 26 }}>
+          {TX.subtitle}
         </p>
 
         {!connected && (
           <div style={{
             padding: 22, borderRadius: 14, marginBottom: 18,
-            background: 'rgba(167,139,250,0.06)', border: '1px solid var(--ds-border)',
+            background: `color-mix(in srgb, ${T.accent} 6%, transparent)`,
+            border: `1px solid ${T.border}`,
             textAlign: 'center',
           }}>
-            <p style={{ color: 'var(--ds-text-dim)', marginBottom: 12, fontSize: 13 }}>
-              Connect a wallet to submit quest completions.
+            <p style={{ color: T.textDim, marginBottom: 12, fontSize: 13 }}>
+              {TX.connectNote}
             </p>
             <button
               type="button" onClick={() => setVisible(true)}
               style={{
                 padding: '10px 18px', borderRadius: 10, border: 'none',
-                background: 'var(--ds-grad)', color: '#0a0a14',
+                background: T.grad, color: '#0a0a14',
                 fontWeight: 800, fontSize: 13, cursor: 'pointer',
               }}>
-              CONNECT WALLET
+              {TX.connectBtn}
             </button>
           </div>
         )}
 
-        {loading && <div style={{ color: 'var(--ds-text-dim)', fontSize: 13, textAlign: 'center', padding: 30 }}>Loading quests…</div>}
+        {loading && (
+          <div style={{ color: T.textDim, fontSize: 13, textAlign: 'center', padding: 30 }}>
+            {TX.loading}
+          </div>
+        )}
 
         {!loading && quests.length === 0 && (
           <div style={{
             padding: 30, borderRadius: 14, textAlign: 'center',
-            background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+            background: T.surface, border: `1px solid ${T.border}`,
           }}>
-            <p style={{ color: 'var(--ds-text-dim)', fontSize: 13 }}>
-              No active quests right now. Check back soon — or if you're a builder,
-              create some at <a href="/distribute/quests" style={{ color: 'var(--ds-accent)' }}>/distribute/quests</a>.
+            <p style={{ color: T.textDim, fontSize: 13 }}>
+              {TX.empty}{' '}
+              <a href="/distribute/quests" style={{ color: T.accent }}>/distribute/quests</a>.
             </p>
           </div>
         )}
@@ -137,15 +167,15 @@ export default function QuestsPage() {
             return (
               <div key={q.id} style={{
                 padding: 18, borderRadius: 14,
-                background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+                background: T.surface, border: `1px solid ${T.border}`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 10, letterSpacing: 1.4, color: 'var(--ds-accent)', fontWeight: 700, marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, letterSpacing: 1.4, color: T.accent, fontWeight: 700, marginBottom: 4 }}>
                       {q.type.toUpperCase()} · {q.rewardLabel}
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 800 }}>{q.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--ds-text-dim)', marginTop: 6, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: T.textDim, marginTop: 6, lineHeight: 1.6 }}>
                       {q.description}
                     </div>
                   </div>
@@ -168,20 +198,20 @@ export default function QuestsPage() {
                       onClick={() => setOpenQuest(open ? null : q.id)}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
-                        border: '1px solid var(--ds-accent)',
-                        background: open ? 'var(--ds-grad)' : 'transparent',
-                        color: open ? '#0a0a14' : 'var(--ds-accent)',
+                        border: `1px solid ${T.accent}`,
+                        background: open ? T.grad : 'transparent',
+                        color: open ? '#0a0a14' : T.accent,
                         fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
                       }}>
-                      {open ? 'CANCEL' : 'SUBMIT'}
+                      {open ? TX.cancel : TX.submit}
                     </button>
                   ) : null}
                 </div>
 
                 {open && (
                   <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <label style={{ fontSize: 10, letterSpacing: 1.5, color: 'var(--ds-text-dim)', fontWeight: 700 }}>
-                      Proof (link, txn signature, screenshot URL, etc.)
+                    <label style={{ fontSize: 10, letterSpacing: 1.5, color: T.textDim, fontWeight: 700 }}>
+                      {TX.proofLabel}
                     </label>
                     <textarea
                       rows={2}
@@ -190,8 +220,8 @@ export default function QuestsPage() {
                       placeholder="https://x.com/yourhandle/status/..."
                       style={{
                         width: '100%', padding: '10px 12px', borderRadius: 10,
-                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--ds-border)',
-                        color: 'var(--ds-text)', fontSize: 13, outline: 'none',
+                        background: T.surface2, border: `1px solid ${T.border}`,
+                        color: T.text, fontSize: 13, outline: 'none',
                         fontFamily: 'inherit', resize: 'vertical',
                       }}
                     />
@@ -201,13 +231,13 @@ export default function QuestsPage() {
                       style={{
                         padding: '10px 14px', borderRadius: 10, border: 'none',
                         background: busy !== q.id && (proofInput[q.id] ?? '').trim()
-                          ? 'var(--ds-grad)' : 'rgba(255,255,255,0.08)',
+                          ? T.grad : T.surface2,
                         color: busy !== q.id && (proofInput[q.id] ?? '').trim()
-                          ? '#0a0a14' : 'var(--ds-text-dim)',
+                          ? '#0a0a14' : T.textDim,
                         fontWeight: 800, fontSize: 13,
                         cursor: busy === q.id ? 'wait' : 'pointer',
                       }}>
-                      {busy === q.id ? 'SUBMITTING…' : 'SUBMIT FOR REVIEW'}
+                      {busy === q.id ? TX.submitting : TX.submitReview}
                     </button>
                   </div>
                 )}
