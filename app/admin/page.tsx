@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
+import { T } from '@/lib/theme';
 
 const C = {
   bg0:    'var(--p-bg0)',
@@ -51,18 +52,18 @@ export default function AdminPage() {
   }, []);
 
   return (
-    <main style={{ minHeight: '100vh', background: C.bg0, color: '#e8e1f8', fontFamily: C.serif }}>
+    <main style={{ minHeight: '100vh', background: C.bg0, color: T.text, fontFamily: C.serif }}>
       <Navbar />
 
       {/* Header */}
       <div style={{
         padding: '80px 32px 36px',
-        background: 'linear-gradient(180deg,#0a0820 0%,#08081a 100%)',
+        background: T.header,
         borderBottom: `1px solid ${C.border}`,
       }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: '#fff' }}>
+            <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: T.text }}>
               Admin Dashboard
             </h1>
             <div style={{
