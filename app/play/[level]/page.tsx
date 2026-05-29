@@ -4,6 +4,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import GameCanvas from '@/components/game/GameCanvas';
 import { BIOMES, type Biome } from '@/lib/game/biomes';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
+
+const ACT_NUMERALS = ['I','II','III','IV','V','VI','VII','VIII'];
 
 /**
  * Backdrop3D is intentionally a no-op as of 2026-05-16 — see the matching
@@ -19,6 +23,13 @@ export default function PlayLevelPage() {
   const params = useParams<{ level: string }>();
   const level = Math.max(1, parseInt(params.level || '1', 10));
   const router = useRouter();
+  const { lang } = useApp();
+
+  const TX = {
+    backToMap: lang === 'id' ? 'KEMBALI KE PETA' : 'BACK TO MAP',
+    level:     lang === 'id' ? 'LEVEL'            : 'LEVEL',
+    act:       lang === 'id' ? 'BABAK'            : 'ACT',
+  };
 
   // Pick the biome that owns this level so the in-game backdrop matches the
   // map theme the player just came from (Crystal/Frost/Ember/.../Apex).
@@ -71,27 +82,27 @@ export default function PlayLevelPage() {
             style={{
               padding: '7px 16px', borderRadius: 10,
               border: `1px solid ${biome.accent}44`,
-              background: 'rgba(255,255,255,0.05)', color: biome.glow,
+              background: T.surface, color: biome.glow,
               fontFamily: "'Orbitron', monospace", fontSize: 11,
               cursor: 'pointer', letterSpacing: '0.06em',
             }}
           >
-            BACK TO MAP
+            {TX.backToMap}
           </button>
           <span style={{
             fontFamily: "'Orbitron', monospace", fontSize: 13,
             color: biome.glow, fontWeight: 700,
           }}>
-            LEVEL {level.toLocaleString()}
+            {TX.level} {level.toLocaleString()}
           </span>
           <span style={{
             fontFamily: "'Orbitron', monospace", fontSize: 10,
-            color: '#cbd5e1', opacity: 0.7, letterSpacing: '0.2em',
+            color: T.textDim, opacity: 0.9, letterSpacing: '0.2em',
             padding: '4px 10px', borderRadius: 999,
             background: `${biome.accent}22`,
             border: `1px solid ${biome.accent}55`,
           }}>
-            ACT {['I','II','III','IV','V','VI','VII','VIII'][biome.act - 1]} · {biome.name.toUpperCase()}
+            {TX.act} {ACT_NUMERALS[biome.act - 1]} · {biome.name.toUpperCase()}
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 24px 40px' }}>
@@ -106,7 +117,7 @@ export default function PlayLevelPage() {
           <div style={{
             padding: 14,
             borderRadius: 24,
-            background: `linear-gradient(180deg, ${biome.accent}1a 0%, rgba(8,8,22,0.55) 60%)`,
+            background: `linear-gradient(180deg, ${biome.accent}1a 0%, ${T.surface} 60%)`,
             border: `1px solid ${biome.accent}66`,
           }}>
             <GameCanvas initialLevel={level} onBack={() => router.back()} biome={biome} />
