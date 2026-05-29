@@ -11,5 +11,5 @@ export const runtime = 'nodejs';
 const g = globalThis as typeof globalThis & { _bbCount?: number };
 
 export async function GET() {
-  return NextResponse.json({ count: g._bbCount ?? 2_847 });
+  return NextResponse.json({ count: g._bbCount ?? 0 });
 }

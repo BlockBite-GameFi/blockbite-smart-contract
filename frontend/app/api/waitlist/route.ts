@@ -16,10 +16,12 @@ export const runtime = 'nodejs';
 // No manual setup required, no external service needed.
 const g = globalThis as typeof globalThis & {
   _bbWaitlist?: Set<string>;
+  _bbWaitlistTs?: Map<string, number>;
   _bbCount?: number;
 };
-if (!g._bbWaitlist) g._bbWaitlist = new Set();
-if (!g._bbCount)    g._bbCount    = 2_847; // realistic seed count
+if (!g._bbWaitlist)   g._bbWaitlist   = new Set();
+if (!g._bbWaitlistTs) g._bbWaitlistTs = new Map();
+if (!g._bbCount)      g._bbCount      = 0; // real count — starts from 0
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     g._bbWaitlist!.add(normalized);
+    g._bbWaitlistTs!.set(normalized, Date.now());
     g._bbCount!++;
 
     // Log to Vercel function log (visible in Vercel dashboard → Functions tab)
