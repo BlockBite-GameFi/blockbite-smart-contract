@@ -159,19 +159,6 @@ export default function Navbar() {
 
           <CustomWalletButton />
 
-          {/* Play Game CTA */}
-          <Link href="/map/1" style={{
-            padding: '8px 18px', borderRadius: 9999,
-            background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--p-cyan) 35%, transparent)',
-            color: 'var(--p-cyan)', fontWeight: 700, fontSize: 13,
-            textDecoration: 'none', letterSpacing: '.03em',
-            fontFamily: DS.font, whiteSpace: 'nowrap',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            {t('cta_play')}
-          </Link>
-
           {/* Launch App primary CTA */}
           <Link href="/streams/new" style={{
             padding: '8px 20px', borderRadius: 9999,
@@ -259,20 +246,6 @@ export default function Navbar() {
               <span className={styles.mobileLinkInner}>{link.name}</span>
             </Link>
           ))}
-
-          <Link
-            href="/map/1"
-            onClick={() => setMenuOpen(false)}
-            style={{
-              display: 'block', margin: '4px 16px 0',
-              padding: '12px 20px', borderRadius: 12, textAlign: 'center',
-              background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--p-cyan) 30%, transparent)',
-              color: 'var(--p-cyan)', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-              fontFamily: DS.font,
-            }}
-          >
-            {t('cta_play')}
-          </Link>
 
           <div className={styles.mobileWalletWrap}>
             <CustomWalletButton />

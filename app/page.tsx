@@ -410,7 +410,7 @@ export default function Home() {
         </p>
 
         {/* CTAs */}
-        <div className="m-cta-wrap" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 480 }}>
+        <div className="m-cta-wrap" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', width: '100%', maxWidth: 600 }}>
           <Link href="/waitlist" className="m-cta-btn" style={{
             padding: '15px 36px', borderRadius: 9999,
             background: 'linear-gradient(90deg, #9945FF 0%, #00C2FF 100%)',

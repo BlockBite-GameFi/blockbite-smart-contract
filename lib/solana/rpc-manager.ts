@@ -30,11 +30,13 @@ import { IS_DEVNET } from './config';
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
 const DEVNET_ENDPOINTS = [
+  'https://solana-devnet.drpc.org',
   'https://api.devnet.solana.com',
   'https://rpc.ankr.com/solana_devnet',
 ];
 
 const MAINNET_ENDPOINTS = [
+  'https://solana-mainnet.drpc.org',
   'https://api.mainnet-beta.solana.com',
   'https://rpc.ankr.com/solana',
 ];
@@ -82,7 +84,9 @@ function isInfraError(err: Error): boolean {
     m.includes('503')                   ||
     m.includes('504')                   ||
     m.includes('-32005')                ||  // node behind / method not available
+    m.includes('-32052')                ||  // ankr: API key required / not allowed
     m.includes('-32601')                ||  // method not found (blocked by provider)
+    m.includes('api key is not allowed') || // ankr explicit message
     m.includes('method not found')      ||
     m.includes('method not supported')  ||
     m.includes('getprogramaccounts')       // explicit getProgramAccounts block message
