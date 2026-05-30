@@ -13,6 +13,70 @@ import {
   MultisigAuthorityField,
 } from '../_shared';
 
+/** Devnet helper — shows faucet links and "Get Test Tokens" button */
+function DevnetFaucet({ token }: { walletAddress?: string; token: string }) {
+  const { publicKey } = useWallet();
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const isSol = token.toUpperCase() === 'SOL';
+  const needsSolFaucet = !token || isSol;
+
+  async function getTestTokens() {
+    if (!publicKey) { setMsg('Connect your wallet first'); return; }
+    setLoading(true); setMsg(null);
+    try {
+      const res = await fetch('/api/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: publicKey.toBase58() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMsg(`✗ ${data.error}`); return; }
+      setMsg(`✓ Sent 10,000 ${token || 'BBT'} to your wallet! TX: ${data.signature?.slice(0, 8)}...`);
+    } catch { setMsg('✗ Faucet request failed'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ padding: '12px 15px', borderRadius: 10, marginBottom: 8,
+      background: 'color-mix(in srgb, var(--p-accent) 5%, transparent)',
+      border: '1px solid color-mix(in srgb, var(--p-accent) 20%, transparent)',
+      fontSize: 12 }}>
+      <div style={{ fontWeight: 700, color: 'var(--p-accent)', marginBottom: 6 }}>
+        🧪 Devnet Test Tokens
+      </div>
+      <div style={{ color: 'var(--p-muted)', marginBottom: 8, lineHeight: 1.6 }}>
+        {needsSolFaucet
+          ? 'Need devnet SOL for gas fees: '
+          : `Need devnet ${token || 'BBT/USDC'} tokens: `}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer"
+          style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid color-mix(in srgb, var(--p-accent) 35%, transparent)',
+            color: 'var(--p-accent)', textDecoration: 'none', fontSize: 11, fontWeight: 600 }}>
+          Get devnet SOL ↗
+        </a>
+        {!isSol && (
+          <button type="button" onClick={getTestTokens} disabled={loading}
+            style={{ padding: '5px 12px', borderRadius: 6, cursor: loading ? 'default' : 'pointer',
+              background: loading ? 'transparent' : 'color-mix(in srgb, var(--p-accent) 15%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--p-accent) 40%, transparent)',
+              color: 'var(--p-accent)', fontSize: 11, fontWeight: 600 }}>
+            {loading ? 'Sending...' : `Get 10,000 devnet ${token || 'BBT'}`}
+          </button>
+        )}
+      </div>
+      {msg && (
+        <div style={{ marginTop: 6, fontSize: 11,
+          color: msg.startsWith('✓') ? 'var(--p-green)' : 'var(--p-red)' }}>
+          {msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LinearPage() {
   const { connected }  = useWallet();
   const { setVisible } = useWalletModal();
@@ -237,6 +301,9 @@ export default function LinearPage() {
       {(isSubmitting || txStatus === 'error') && (
         <TxProgress status={txStatus} sig={txSig} error={txErr ? humanizeError(txErr) : null} />
       )}
+
+      {/* Devnet faucet helper */}
+      <DevnetFaucet walletAddress={connected ? undefined : undefined} token={token} />
 
       <div style={{ padding: '11px 15px', borderRadius: 10,
         background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>
