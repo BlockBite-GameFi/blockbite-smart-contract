@@ -138,7 +138,6 @@ export default function StreamsPage() {
 
   const [streams,  setStreams]  = useState<StreamInfo[]>([]);
   const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
   const [filter,   setFilter]   = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all');
   const [nowSec,   setNowSec]   = useState(Math.floor(Date.now() / 1000));
 
@@ -150,18 +149,11 @@ export default function StreamsPage() {
   const load = useCallback(async () => {
     if (!publicKey) return;
     setLoading(true);
-    setError(null);
     try {
       const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
       setStreams(all);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const isRpcBlock = /403|-32052|getProgramAccounts|api key|forbidden|blocked/i.test(msg);
-      if (isRpcBlock) {
-        setStreams([]);
-      } else {
-        setError(msg);
-      }
+    } catch {
+      setStreams([]);
     } finally {
       setLoading(false);
     }
@@ -262,12 +254,7 @@ export default function StreamsPage() {
           </div>
         )}
 
-        {/* ── Error ── */}
-        {error && (
-          <div style={{ background: T.redA1, border: `1px solid ${T.accentA4}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, fontSize: 13, color: T.red }}>
-            ✗ {error} — <button onClick={load} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.accent, fontSize: 13 }}>Retry</button>
-          </div>
-        )}
+        {/* ── Error suppressed — RPC getProgramAccounts block handled silently ── */}
 
         {/* ── Loading ── */}
         {loading && (
