@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
+import TokenSelector from '@/components/TokenSelector';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -55,6 +56,8 @@ export default function MilestonePage() {
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
   const [token,      setToken]      = useState('');
+  const [mintAddress, setMintAddress] = useState('');
+  const [decimals,    setDecimals]    = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [cancelable, setCancelable] = useState(false);
   const [milestones, setMilestones] = useState<MS[]>([
@@ -103,8 +106,10 @@ export default function MilestonePage() {
     const endTs   = startTs + 4 * 365 * 86400;    // 4-year horizon for on-chain PDA
 
     await submit({
+      mintAddress,
+      decimals,
+      symbol: token,
       beneficiary:  recipient,
-      token,
       amount:       String(deposit),
       startTs,
       cliffTs,
@@ -222,3 +227,5 @@ export default function MilestonePage() {
     </StreamPageShell>
   );
 }
+
+

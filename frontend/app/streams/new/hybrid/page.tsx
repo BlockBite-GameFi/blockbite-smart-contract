@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
+import TokenSelector from '@/components/TokenSelector';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -19,6 +20,8 @@ export default function HybridPage() {
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
   const [token,      setToken]      = useState('');
+  const [mintAddress, setMintAddress] = useState('');
+  const [decimals,    setDecimals]    = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [startDate,  setStartDate]  = useState('');
@@ -64,8 +67,10 @@ export default function HybridPage() {
       ? startTs + vestDays * 86400
       : cliffTs + vestDays * 86400;
     await submit({
-      beneficiary:  recipient,
-      token,
+      mintAddress,
+      decimals,
+      symbol: token,
+      beneficiary: recipient,
       amount,
       startTs,
       cliffTs,
@@ -121,11 +126,13 @@ export default function HybridPage() {
         <div style={{ fontSize: 12, color: C.muted }}>Token and stream settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token} onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[{ v: 'BBT', l: 'BBT — BlockBite Token' }, { v: 'USDC', l: 'USDC' }, { v: 'SOL', l: 'SOL (wrapped)' }]} />
-          <FieldError msg={fieldErrors.token} />
+          <Label required>Token — Any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={mintAddress}
+            onChange={(mint, dec, sym) => { setMintAddress(mint); setDecimals(dec); setToken(sym); setFieldErrors(p => ({ ...p, token: '' })); }}
+            isDevnet={true}
+            error={fieldErrors.token}
+          />
         </div>
         {mode === 'manual' && (<>
           <div>
@@ -220,3 +227,4 @@ export default function HybridPage() {
     </StreamPageShell>
   );
 }
+

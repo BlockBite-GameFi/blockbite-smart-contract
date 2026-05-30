@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
+import TokenSelector from '@/components/TokenSelector';
 import {
   C, Label, SInput, SSelect, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -19,6 +20,8 @@ export default function CliffPage() {
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
   const [token,      setToken]      = useState('');
+  const [mintAddress, setMintAddress] = useState('');
+  const [decimals,    setDecimals]    = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [cliffDate,  setCliffDate]  = useState('');
@@ -57,7 +60,7 @@ export default function CliffPage() {
     const startTs = Math.floor(Date.now() / 1000);
     const cliffTs = Math.floor(new Date(cliffDate).getTime() / 1000);
     const endTs   = cliffTs + 1; // instant full release at cliff
-    await submit({ beneficiary: recipient, token, amount, startTs, cliffTs, endTs,
+    await submit({ mintAddress, decimals, symbol: token, beneficiary: recipient, amount, startTs, cliffTs, endTs,
       requiredTier: gameGate ? levelToTier(gameLevel) : 0 });
   };
 
@@ -176,3 +179,5 @@ export default function CliffPage() {
     </StreamPageShell>
   );
 }
+
+

@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
+import TokenSelector from '@/components/TokenSelector';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -19,7 +20,10 @@ export default function LinearPage() {
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
-  const [token,      setToken]      = useState('');
+  // Universal token — any SPL mint on any network
+  const [token,      setToken]      = useState('');      // display symbol
+  const [mintAddress,setMintAddress]= useState('');      // actual mint pubkey
+  const [decimals,   setDecimals]   = useState(6);       // fetched from chain
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [startDate,  setStartDate]  = useState('');
@@ -66,8 +70,10 @@ export default function LinearPage() {
       : cliffTs + vestDays * 86400;
 
     await submit({
-      beneficiary:  recipient,
-      token,
+      mintAddress,
+      decimals,
+      symbol: token,
+      beneficiary: recipient,
       amount,
       startTs,
       cliffTs,
@@ -136,17 +142,23 @@ export default function LinearPage() {
         <ManualCsvToggle mode={mode} onChange={setMode} />
 
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token}
-            onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[
-              { v: 'BBT',  l: 'BBT — BlockBite Token' },
-              { v: 'USDC', l: 'USDC' },
-              { v: 'SOL',  l: 'SOL (wrapped)' },
-            ]}
+          <Label required>Token — Any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={mintAddress}
+            onChange={(mint, dec, sym) => {
+              setMintAddress(mint);
+              setDecimals(dec);
+              setToken(sym);
+              setFieldErrors(p => ({ ...p, token: '' }));
+            }}
+            isDevnet={true}
+            error={fieldErrors.token}
           />
-          <FieldError msg={fieldErrors.token} />
+          {mintAddress && (
+            <div style={{ fontSize: 10, color: '#666', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
+              Mint: {mintAddress.slice(0,16)}… · {decimals} decimals
+            </div>
+          )}
         </div>
 
         {mode === 'manual' && (
