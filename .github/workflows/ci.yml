@@ -89,6 +89,17 @@ jobs:
             exit "$status"
           fi
 
-      - name: Run tests
+      - name: Run tests (local validator)
         # anchor test auto-deploys to local validator; tests read PROGRAM_ID from IDL.
         run: anchor test --skip-build
+
+      - name: Run tests (Surfpool devnet fork) — Week 6 validation
+        # Surfpool provides a real devnet fork for integration testing.
+        # Skipped automatically when SURFPOOL_RPC secret is not configured.
+        if: ${{ env.SURFPOOL_RPC != '' }}
+        env:
+          SURFPOOL_RPC: ${{ secrets.SURFPOOL_RPC }}
+        run: |
+          ANCHOR_PROVIDER_URL="$SURFPOOL_RPC" \
+          ANCHOR_WALLET=~/.config/solana/id.json \
+          npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts
