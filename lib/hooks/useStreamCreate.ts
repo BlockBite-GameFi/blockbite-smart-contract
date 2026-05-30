@@ -51,8 +51,9 @@ export function useStreamCreate() {
       setTxErr('End date must be after start date'); setTxStatus('error'); return false;
     }
 
-    const isNativeSol = p.mint === 'SOL';
-    const mintAddr    = isNativeSol ? NATIVE_MINT.toBase58() : p.mint;
+    // Treat both 'SOL' string AND the native WSOL mint address as native SOL wrapping flow
+    const isNativeSol = p.mint === 'SOL' || p.mint === NATIVE_MINT.toBase58();
+    const mintAddr    = NATIVE_MINT.toBase58() === p.mint ? p.mint : (isNativeSol ? NATIVE_MINT.toBase58() : p.mint);
 
     let mintPk: PublicKey;
     try { mintPk = new PublicKey(mintAddr); }
@@ -118,8 +119,8 @@ export function useStreamCreate() {
         }
       } catch {
         setTxErr(
-          `No ${p.symbol} token account found.\n` +
-          `Make sure you have ${p.symbol} on devnet, or select a different token.`
+          `No ${p.symbol} token account found on devnet.\n` +
+          `Use the "Get ${p.symbol}" button in the token selector, or switch to SOL (native) which wraps automatically.`
         );
         setTxStatus('error'); return false;
       }

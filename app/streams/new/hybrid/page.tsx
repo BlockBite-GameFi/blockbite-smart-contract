@@ -42,7 +42,7 @@ export default function HybridPage() {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!token) errs.token = 'Select a token';
+    if (!tokenMint) errs.token = 'Select a token';
     if (mode === 'manual') {
       if (!recipient) {
         errs.recipient = 'Enter recipient wallet address';
@@ -66,7 +66,9 @@ export default function HybridPage() {
     const endTs   = cliffTs + vestDays * 86400;
     await submit({
       beneficiary:  recipient,
-      token,
+      mint:         tokenMint,
+      symbol:       tokenSymbol,
+      decimals:     tokenDecimals,
       amount,
       startTs,
       cliffTs,
@@ -112,7 +114,7 @@ export default function HybridPage() {
       subtitle="Cliff + milestone + linear combined. Most flexible token distribution model."
       sidebar={
         <StreamSidebar typeLabel="Hybrid" typeColor={COLOR} typeIcon="◆"
-          totalDeposit={deposit} token={token || 'TOKEN'} recipientCount={recipient ? 1 : 0}
+          totalDeposit={deposit} token={tokenSymbol || 'TOKEN'} recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel} onSubmit={handleCreate}
           isSubmitting={isSubmitting} txStatus={txStatus}
           txErr={txErr ? humanizeError(txErr) : null} />
@@ -122,10 +124,18 @@ export default function HybridPage() {
         <div style={{ fontSize: 12, color: C.muted }}>Token and stream settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token} onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[{ v: 'BBT', l: 'BBT — BlockBite Token' }, { v: 'USDC', l: 'USDC' }, { v: 'SOL', l: 'SOL (wrapped)' }]} />
+          <Label required>Token — any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={tokenMint}
+            onChange={(mint, sym, dec) => {
+              setTokenMint(mint); setTokenSymbol(sym); setTokenDecimals(dec);
+              setFieldErrors(p => ({ ...p, token: '' }));
+            }}
+            disabled={isSubmitting}
+          />
+          {tokenMint && <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontFamily: C.mono }}>
+            Mint: {tokenMint.slice(0, 20)}… · {tokenDecimals} decimals
+          </div>}
           <FieldError msg={fieldErrors.token} />
         </div>
         {mode === 'manual' && (<>
@@ -198,7 +208,7 @@ export default function HybridPage() {
           {deposit > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
               <span style={{ color: C.muted }}>Linear daily rate</span>
-              <span style={{ fontFamily: C.mono, fontWeight: 700, color: C.green }}>{daily} {token || 'T'}/day</span>
+              <span style={{ fontFamily: C.mono, fontWeight: 700, color: C.green }}>{daily} {tokenSymbol || 'T'}/day</span>
             </div>
           )}
           <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,.07)', overflow: 'hidden' }}>

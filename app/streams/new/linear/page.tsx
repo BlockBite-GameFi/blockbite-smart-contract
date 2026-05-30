@@ -52,7 +52,7 @@ function DevnetFaucet({ token, mint }: { walletAddress?: string; token: string; 
       <div style={{ color: 'var(--p-muted)', marginBottom: 8, lineHeight: 1.6 }}>
         {needsSolFaucet
           ? 'Need devnet SOL for gas fees: '
-          : `Need devnet ${token || tokenSymbol || 'BBT/USDC'} tokens: `}
+          : `Need devnet ${token || 'BBT/USDC'} tokens: `}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer"
