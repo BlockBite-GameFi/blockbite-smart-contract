@@ -99,8 +99,8 @@ export default function ProtocolPage() {
             </h2>
             <p style={{ fontSize: 14, color: T.textDim, maxWidth: 520, lineHeight: 1.7, margin: '0 0 24px' }}>
               BlockBite TDP is a programmable token distribution protocol.
-              Create configurable vesting streams with cliff, milestone, linear,
-              and hybrid schedules — backed by audited smart contracts.
+              Create configurable vesting streams with cliff, milestone, and linear
+              schedules — backed by audited smart contracts.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/streams/new" style={{
@@ -148,7 +148,6 @@ export default function ProtocolPage() {
                 { type: 'Linear',    col: T.accent,  icon: '∿',  desc: tx.features[0].desc, href: '/streams/new/linear'    },
                 { type: 'Cliff',     col: T.gold,    icon: '◇',  desc: tx.features[1].desc, href: '/streams/new/cliff'     },
                 { type: 'Milestone', col: T.blue,    icon: '◉',  desc: tx.features[2].desc, href: '/streams/new/milestone' },
-                { type: 'Hybrid',    col: '#c084fc', icon: '⬡',  desc: tx.features[3].desc, href: '/streams/new/hybrid'    },
               ].map(m => (
                 <Link key={m.type} href={m.href} style={{ textDecoration: 'none' }}>
                   <Card style={{ padding: '18px 20px', display: 'flex', gap: 14, cursor: 'pointer', transition: 'border-color .15s', borderColor: `${m.col}22` }}>
@@ -179,7 +178,7 @@ export default function ProtocolPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 14 }}>
               {[
-                { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
+                { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, or milestone. Set amounts and schedule.' },
                 { step: '02', title: 'Deploy',     icon: '▲', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
                 { step: '03', title: 'Verify',     icon: '✦', desc: 'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
                 { step: '04', title: 'Claim',      icon: '◎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
