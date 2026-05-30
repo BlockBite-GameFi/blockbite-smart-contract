@@ -7,29 +7,32 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
-  C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
+  C, Label, SInput, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
   MultisigAuthorityField,
 } from '../_shared';
+import TokenSelector from '@/components/TokenSelector';
 
 /** Devnet helper — shows faucet links and "Get Test Tokens" button */
-function DevnetFaucet({ token }: { walletAddress?: string; token: string }) {
+function DevnetFaucet({ token, mint }: { walletAddress?: string; token: string; mint?: string }) {
   const { publicKey } = useWallet();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const isSol = token.toUpperCase() === 'SOL';
+  const isSol = token.toUpperCase() === 'SOL' || mint === 'SOL';
   const needsSolFaucet = !token || isSol;
 
   async function getTestTokens() {
     if (!publicKey) { setMsg('Connect your wallet first'); return; }
     setLoading(true); setMsg(null);
     try {
+      const body: Record<string, string> = { wallet: publicKey.toBase58() };
+      if (mint && mint !== 'SOL') body.mint = mint;
       const res = await fetch('/api/faucet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: publicKey.toBase58() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) { setMsg(`✗ ${data.error}`); return; }
@@ -49,7 +52,7 @@ function DevnetFaucet({ token }: { walletAddress?: string; token: string }) {
       <div style={{ color: 'var(--p-muted)', marginBottom: 8, lineHeight: 1.6 }}>
         {needsSolFaucet
           ? 'Need devnet SOL for gas fees: '
-          : `Need devnet ${token || 'BBT/USDC'} tokens: `}
+          : `Need devnet ${token || tokenSymbol || 'BBT/USDC'} tokens: `}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer"
@@ -82,9 +85,11 @@ export default function LinearPage() {
   const { setVisible } = useWalletModal();
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
-  const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
-  const [token,      setToken]      = useState('');
-  const [recipient,  setRecipient]  = useState('');
+  const [mode,          setMode]         = useState<'manual' | 'csv'>('manual');
+  const [tokenMint,     setTokenMint]    = useState('');
+  const [tokenSymbol,   setTokenSymbol]  = useState('');
+  const [tokenDecimals, setTokenDecimals]= useState(6);
+  const [recipient,     setRecipient]    = useState('');
   const [amount,     setAmount]     = useState('');
   const [startDate,  setStartDate]  = useState('');
   const [cliffDays,  setCliffDays]  = useState(30);
@@ -102,7 +107,7 @@ export default function LinearPage() {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!token) errs.token = 'Select a token';
+    if (!tokenMint) errs.token = 'Select a token';
     if (mode === 'manual') {
       if (!recipient) {
         errs.recipient = 'Enter recipient wallet address';
@@ -127,7 +132,9 @@ export default function LinearPage() {
 
     await submit({
       beneficiary:  recipient,
-      token,
+      mint:         tokenMint,
+      symbol:       tokenSymbol,
+      decimals:     tokenDecimals,
       amount,
       startTs,
       cliffTs,
@@ -144,7 +151,7 @@ export default function LinearPage() {
         <div style={{ fontSize: 52, marginBottom: 20 }}>∿</div>
         <h2 style={{ fontSize: 28, fontWeight: 900, color: C.gold, marginBottom: 8 }}>Stream Created!</h2>
         <p style={{ fontSize: 13.5, color: C.muted, lineHeight: 1.7, marginBottom: 16 }}>
-          Linear vesting active — <strong style={{ color: COLOR }}>{daily} {token}/day</strong> unlock rate.
+          Linear vesting active — <strong style={{ color: COLOR }}>{daily} {tokenSymbol}/day</strong> unlock rate.
           {gameGate && ` BlockBite Game Gate active at Level ${gameLevel}.`}
         </p>
         {txSig && (
@@ -180,7 +187,7 @@ export default function LinearPage() {
       sidebar={
         <StreamSidebar
           typeLabel="Linear" typeColor={COLOR} typeIcon="∿"
-          totalDeposit={deposit} token={token || 'TOKEN'}
+          totalDeposit={deposit} token={tokenSymbol || 'TOKEN'}
           recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel}
           multisigAuthority={multisigAuthority}
@@ -196,15 +203,16 @@ export default function LinearPage() {
         <ManualCsvToggle mode={mode} onChange={setMode} />
 
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token}
-            onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[
-              { v: 'BBT',  l: 'BBT — BlockBite Token' },
-              { v: 'USDC', l: 'USDC' },
-              { v: 'SOL',  l: 'SOL (wrapped)' },
-            ]}
+          <Label required>Token — select from wallet or paste any SPL mint</Label>
+          <TokenSelector
+            value={tokenMint}
+            onChange={(mint, sym, dec) => {
+              setTokenMint(mint);
+              setTokenSymbol(sym);
+              setTokenDecimals(dec);
+              setFieldErrors(p => ({ ...p, token: '' }));
+            }}
+            disabled={isSubmitting}
           />
           <FieldError msg={fieldErrors.token} />
         </div>
@@ -272,7 +280,7 @@ export default function LinearPage() {
             {[
               { l: 'Cliff unlock',  v: `Day ${cliffDays}`,            c: C.ember  },
               { l: 'Fully vested',  v: `Day ${cliffDays + vestDays}`, c: COLOR    },
-              { l: 'Daily rate',    v: `${daily} ${token || 'T'}/day`,c: C.green  },
+              { l: 'Daily rate',    v: `${daily} ${tokenSymbol || 'T'}/day`, c: C.green },
               { l: 'Per second',    v: `${perSec} T/s`,               c: C.blue   },
             ].map(r => (
               <div key={r.l} style={{ padding: '10px 12px', borderRadius: 9,
@@ -303,7 +311,7 @@ export default function LinearPage() {
       )}
 
       {/* Devnet faucet helper */}
-      <DevnetFaucet walletAddress={connected ? undefined : undefined} token={token} />
+      <DevnetFaucet walletAddress={undefined} token={tokenSymbol} mint={tokenMint} />
 
       <div style={{ padding: '11px 15px', borderRadius: 10,
         background: 'color-mix(in srgb, var(--p-gold) 4%, transparent)', border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)', fontSize: 12, color: C.gold }}>

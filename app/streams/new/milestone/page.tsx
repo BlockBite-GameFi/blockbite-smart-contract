@@ -7,10 +7,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
-  C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
+  C, Label, SInput, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
 } from '../_shared';
+import TokenSelector from '@/components/TokenSelector';
 
 // ─── Milestone row ────────────────────────────────────────────────────────────
 interface MS { label: string; amount: string; pct: number; }
@@ -54,7 +55,9 @@ export default function MilestonePage() {
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
-  const [token,      setToken]      = useState('');
+  const [tokenMint, setTokenMint] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [tokenDecimals, setTokenDecimals] = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [cancelable, setCancelable] = useState(false);
   const [milestones, setMilestones] = useState<MS[]>([
