@@ -148,6 +148,7 @@ export default function ProtocolPage() {
                 { type: 'Linear',    col: T.accent,  icon: '∿',  desc: tx.features[0].desc, href: '/streams/new/linear'    },
                 { type: 'Cliff',     col: T.gold,    icon: '◇',  desc: tx.features[1].desc, href: '/streams/new/cliff'     },
                 { type: 'Milestone', col: T.blue,    icon: '◉',  desc: tx.features[2].desc, href: '/streams/new/milestone' },
+                { type: 'Hybrid',    col: '#c084fc', icon: '⬡',  desc: tx.features[3].desc, href: '/streams/new/hybrid'    },
               ].map(m => (
                 <Link key={m.type} href={m.href} style={{ textDecoration: 'none' }}>
                   <Card style={{ padding: '18px 20px', display: 'flex', gap: 14, cursor: 'pointer', transition: 'border-color .15s', borderColor: `${m.col}22` }}>

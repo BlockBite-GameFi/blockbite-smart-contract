@@ -53,6 +53,16 @@ const TYPES = [
     traits:  ['Up to 4 gates', 'On-chain verify', 'Custom % per gate', 'Not time-based'],
     use:     'Best for: KPI-based incentives, product milestone bonuses, ecosystem grants',
   },
+  {
+    href:    '/streams/new/hybrid',
+    icon:    '◆',
+    label:   'Hybrid',
+    color:   C.purple,
+    tagline: 'Cliff + milestone + linear',
+    desc:    'The most flexible model. Combine cliff, milestone gates, and linear vesting into a single PDA vault contract.',
+    traits:  ['All mechanics', 'Custom split', 'Linear remainder', 'Max control'],
+    use:     'Best for: Protocol treasuries, complex incentive structures, multi-condition releases',
+  },
 ] as const;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
