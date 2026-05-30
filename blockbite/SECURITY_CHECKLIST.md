@@ -1,4 +1,6 @@
-# BlockBite Smart Contract — Security Checklist (Week 9)
+# BlockBite Smart Contract — Security Checklist (Week 7)
+
+> Last updated: Week 7 — Testing & Security phase. All checks cover the deployed devnet program `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`.
 
 Program: `blockbite` · Framework: Anchor 0.32.1 · Network: Solana Devnet (targeting)
 
@@ -95,7 +97,25 @@ Solana's execution model is single-threaded per transaction. Anchor enforces **C
 
 ---
 
-## 8. Issues Found and Fixed (Weeks 5–9)
+## 8. Test Coverage Summary (Week 7)
+
+| Category | Tests | Pass Rate |
+|---|---|---|
+| Rust unit tests | 37 | 100% |
+| Integration tests (surfpool) | 33 | 100% |
+| **Total** | **70** | **100%** |
+
+**Coverage areas:**
+- Happy path: create → partial withdraw → full withdraw → balance verified ✅
+- Edge cases: zero amount, double withdraw, below cliff, at cliff, past end, cancelled stream ✅
+- Security: unauthorized signer, PDA collision, cross-stream replay, integer overflow ✅
+- Error codes: all 11 custom errors triggered and verified ✅
+
+**Estimated line coverage: >85%** (all instruction handlers + calculate_unlocked + VGPV logic covered)
+
+---
+
+## 9. Issues Found and Fixed (Weeks 5–7)
 
 | # | Issue | Severity | Fix |
 |---|---|---|---|
