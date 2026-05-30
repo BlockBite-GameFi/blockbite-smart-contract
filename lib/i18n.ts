@@ -54,7 +54,7 @@ const streams = {
   en: {
     badge:       'TDP Protocol · Devnet',
     title:       'Token Streams',
-    subtitle:    'Cliff · linear · milestone vesting streams. Each stream is a PDA vault on Solana devnet.',
+    subtitle:    'Cliff · linear · milestone · hybrid vesting streams. Each stream is a PDA vault on Solana devnet.',
     createBtn:   '+ Create Stream',
     demoBtn:     '◈ View Demo',
     kpi: {
@@ -97,7 +97,7 @@ const streams = {
   id: {
     badge:       'Protokol TDP · Devnet',
     title:       'Stream Token',
-    subtitle:    'Stream vesting cliff · linear · milestone. Setiap stream adalah PDA vault di Solana devnet.',
+    subtitle:    'Stream vesting cliff · linear · milestone · hybrid. Setiap stream adalah PDA vault di Solana devnet.',
     createBtn:   '+ Buat Stream',
     demoBtn:     '◈ Lihat Demo',
     kpi: {
@@ -433,12 +433,12 @@ const protocol = {
   en: {
     badge:    'TDP · Protocol Overview',
     title:    'Token Distribution Protocol',
-    subtitle: 'A trustless, on-chain vesting engine for Solana. Automate token logistics — cliff, linear, and milestone.',
+    subtitle: 'A trustless, on-chain vesting engine for Solana. Automate token logistics — cliff, linear, milestone, hybrid.',
     launchApp: 'Launch App →',
     readDocs:  'Read Docs',
     features: [
       { title: 'Modular Verification Layers',    desc: 'Choose game-based, oracle, multisig, or manual verification per stream.' },
-      { title: 'Adaptive Tokenomics Logic',      desc: 'Cliff, linear, and milestone schedules — fully configurable on-chain.' },
+      { title: 'Adaptive Tokenomics Logic',      desc: 'Cliff, linear, milestone, and hybrid schedules — fully configurable on-chain.' },
       { title: 'Eliminate Manual Overhead',      desc: 'Automated release logic removes the need for manual token distributions.' },
       { title: 'Active Clawback Control',        desc: 'Cancel or claw back unvested tokens at any time via signed transaction.' },
       { title: 'Professional Standard Security', desc: 'PDA vaults with program-derived authority. No admin key required.' },
@@ -447,12 +447,12 @@ const protocol = {
   id: {
     badge:    'TDP · Ikhtisar Protokol',
     title:    'Protokol Distribusi Token',
-    subtitle: 'Mesin vesting trustless on-chain untuk Solana. Otomatisasi logistik token — cliff, linear, dan milestone.',
+    subtitle: 'Mesin vesting trustless on-chain untuk Solana. Otomatisasi logistik token — cliff, linear, milestone, hybrid.',
     launchApp: 'Buka Aplikasi →',
     readDocs:  'Baca Dokumentasi',
     features: [
       { title: 'Lapisan Verifikasi Modular',     desc: 'Pilih verifikasi berbasis game, oracle, multisig, atau manual per stream.' },
-      { title: 'Logika Tokenomics Adaptif',      desc: 'Jadwal cliff, linear, dan milestone — sepenuhnya dapat dikonfigurasi on-chain.' },
+      { title: 'Logika Tokenomics Adaptif',      desc: 'Jadwal cliff, linear, milestone, dan hybrid — sepenuhnya dapat dikonfigurasi on-chain.' },
       { title: 'Hilangkan Overhead Manual',      desc: 'Logika pelepasan otomatis menghilangkan kebutuhan distribusi token manual.' },
       { title: 'Kontrol Clawback Aktif',         desc: 'Batalkan atau tarik kembali token yang belum vesting kapan saja via transaksi bertanda tangan.' },
       { title: 'Keamanan Standar Profesional',   desc: 'PDA vault dengan otoritas program-derived. Tidak memerlukan admin key.' },
@@ -592,7 +592,7 @@ const waitlist = {
       title:  'The complete TDP toolkit',
       items: [
         { title: 'Modular Verification Layers',    desc: 'Game, oracle, multisig, or manual verification — pick the layer that fits your security model.' },
-        { title: 'Adaptive Tokenomics Logic',      desc: 'Linear, cliff, and milestone schedules that auto-execute on-chain without human intervention.' },
+        { title: 'Adaptive Tokenomics Logic',      desc: 'Linear, cliff, milestone, and hybrid schedules that auto-execute on-chain without human intervention.' },
         { title: 'Eliminate Manual Overhead',      desc: 'Replace spreadsheets and manual transfers with trustless smart-contract automation.' },
         { title: 'Active Clawback Control',        desc: 'Retain the right to reclaim unvested tokens via instant on-chain cancellation.' },
         { title: 'Professional Standard Security', desc: 'PDA vaults with program-derived authority — no admin keys, no custodial risk.' },
@@ -623,7 +623,7 @@ const waitlist = {
       title:  'Toolkit TDP lengkap',
       items: [
         { title: 'Lapisan Verifikasi Modular',     desc: 'Verifikasi game, oracle, multisig, atau manual — pilih lapisan yang sesuai model keamanan kamu.' },
-        { title: 'Logika Tokenomics Adaptif',      desc: 'Jadwal linear, cliff, dan milestone yang dieksekusi otomatis on-chain tanpa intervensi manusia.' },
+        { title: 'Logika Tokenomics Adaptif',      desc: 'Jadwal linear, cliff, milestone, dan hybrid yang dieksekusi otomatis on-chain tanpa intervensi manusia.' },
         { title: 'Hilangkan Overhead Manual',      desc: 'Ganti spreadsheet dan transfer manual dengan otomasi smart contract yang trustless.' },
         { title: 'Kontrol Clawback Aktif',         desc: 'Pertahankan hak untuk menarik kembali token yang belum vesting melalui pembatalan on-chain instan.' },
         { title: 'Keamanan Standar Profesional',   desc: 'PDA vault dengan otoritas program-derived — tanpa admin key, tanpa risiko kustodial.' },
@@ -648,7 +648,7 @@ const howToPlay = {
     subtitle: 'A step-by-step guide to vesting, claiming, and verification on Solana.',
     steps: [
       { title: 'Connect Your Wallet',       desc: 'Link your Solana wallet to sign transactions on devnet. Use Phantom, Backpack, or any Wallet Adapter-compatible wallet.' },
-      { title: 'Create a Vesting Stream',   desc: 'Lock tokens into a PDA vault by setting a recipient, cliff date, end date, and vesting type (linear, cliff, or milestone).' },
+      { title: 'Create a Vesting Stream',   desc: 'Lock tokens into a PDA vault by setting a recipient, cliff date, end date, and vesting type (linear, milestone, hybrid).' },
       { title: 'Choose Verification',       desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
       { title: 'Claim Vested Tokens',       desc: 'Once past the cliff, the beneficiary can withdraw unlocked tokens any time from the Claim Portal.' },
       { title: 'Manage & Audit',            desc: 'Cancel streams, verify milestones, and view the full immutable audit trail on-chain.' },
@@ -661,7 +661,7 @@ const howToPlay = {
     subtitle: 'Panduan langkah demi langkah untuk vesting, klaim, dan verifikasi di Solana.',
     steps: [
       { title: 'Hubungkan Wallet Kamu',         desc: 'Hubungkan wallet Solana kamu untuk menandatangani transaksi di devnet. Gunakan Phantom, Backpack, atau wallet kompatibel Wallet Adapter.' },
-      { title: 'Buat Stream Vesting',           desc: 'Kunci token ke PDA vault dengan mengatur penerima, tanggal cliff, tanggal berakhir, dan tipe vesting (linear, cliff, atau milestone).' },
+      { title: 'Buat Stream Vesting',           desc: 'Kunci token ke PDA vault dengan mengatur penerima, tanggal cliff, tanggal berakhir, dan tipe vesting (linear, milestone, hybrid).' },
       { title: 'Pilih Verifikasi',              desc: 'Pilih antara klaim langsung yang sederhana untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
       { title: 'Klaim Token Vesting',           desc: 'Setelah melewati cliff, penerima dapat menarik token yang terbuka kapan saja dari Portal Klaim.' },
       { title: 'Kelola & Audit',                desc: 'Batalkan stream, verifikasi milestone, dan lihat jejak audit penuh yang tidak berubah on-chain.' },
