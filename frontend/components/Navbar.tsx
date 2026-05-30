@@ -38,7 +38,7 @@ const TDP_LINKS = [
 // NAV_LINKS hrefs only — labels are derived from translations inside the component
 const NAV_HREFS = [
   { key: 'nav_product',      href: '/protocol'    },
-  { key: 'nav_how_it_works', href: '/how-to-play' },
+  { key: 'nav_how_it_works', href: '/protocol'    },
   { key: 'nav_play_game',    href: '/map/1'        },
   { key: 'nav_waitlist',     href: '/waitlist'     },
 ] as const;
