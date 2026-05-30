@@ -37,10 +37,9 @@ const TDP_LINKS = [
 
 // NAV_LINKS hrefs only — labels are derived from translations inside the component
 const NAV_HREFS = [
-  { key: 'nav_product',      href: '/protocol'    },
-  { key: 'nav_how_it_works', href: '/protocol'    },
-  { key: 'nav_play_game',    href: '/map/1'        },
-  { key: 'nav_waitlist',     href: '/waitlist'     },
+  { key: 'nav_product',      href: '/protocol' },
+  { key: 'nav_how_it_works', href: '/protocol' },
+  { key: 'nav_waitlist',     href: '/waitlist'  },
 ] as const;
 
 export default function Navbar() {
@@ -114,8 +113,7 @@ export default function Navbar() {
               <Link
                 href={link.href}
                 className={`${styles.link} ${
-                  (link.href === '/map/1' && (pathname?.startsWith('/map') || pathname?.startsWith('/tutorial') || pathname?.startsWith('/play')))
-                  || (link.href !== '/map/1' && (pathname === link.href || pathname?.startsWith(link.href + '/')))
+                  pathname === link.href || pathname?.startsWith(link.href + '/')
                     ? styles.active : ''
                 }`}
                 style={{ fontFamily: DS.font }}
@@ -160,19 +158,6 @@ export default function Navbar() {
           </div>
 
           <CustomWalletButton />
-
-          {/* Play Game CTA */}
-          <Link href="/map/1" style={{
-            padding: '8px 18px', borderRadius: 9999,
-            background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--p-cyan) 35%, transparent)',
-            color: 'var(--p-cyan)', fontWeight: 700, fontSize: 13,
-            textDecoration: 'none', letterSpacing: '.03em',
-            fontFamily: DS.font, whiteSpace: 'nowrap',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            {t('cta_play')}
-          </Link>
 
           {/* Launch App primary CTA */}
           <Link href="/streams/new" style={{
@@ -261,20 +246,6 @@ export default function Navbar() {
               <span className={styles.mobileLinkInner}>{link.name}</span>
             </Link>
           ))}
-
-          <Link
-            href="/map/1"
-            onClick={() => setMenuOpen(false)}
-            style={{
-              display: 'block', margin: '4px 16px 0',
-              padding: '12px 20px', borderRadius: 12, textAlign: 'center',
-              background: 'color-mix(in srgb, var(--p-cyan) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--p-cyan) 30%, transparent)',
-              color: 'var(--p-cyan)', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-              fontFamily: DS.font,
-            }}
-          >
-            {t('cta_play')}
-          </Link>
 
           <div className={styles.mobileWalletWrap}>
             <CustomWalletButton />
