@@ -7,6 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import TokenSelector from '@/components/TokenSelector';
+import DevnetFaucet from '@/components/DevnetFaucet';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -137,6 +138,9 @@ export default function LinearPage() {
         />
       }
     >
+      {/* Devnet faucet — shows when on devnet */}
+      <DevnetFaucet />
+
       <Section title="General Details">
         <div style={{ fontSize: 12, color: C.muted }}>Token and stream settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />

@@ -7,6 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import TokenSelector from '@/components/TokenSelector';
+import DevnetFaucet from '@/components/DevnetFaucet';
 import {
   C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
@@ -160,15 +161,19 @@ export default function MilestonePage() {
           txErr={txErr ? humanizeError(txErr) : null} />
       }
     >
+      <DevnetFaucet />
+
       <Section title="General Details">
         <div style={{ fontSize: 12, color: C.muted }}>Token and campaign settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token} onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[{ v: 'BBT', l: 'BBT — BlockBite Token' }, { v: 'USDC', l: 'USDC' }, { v: 'SOL', l: 'SOL (wrapped)' }]} />
-          <FieldError msg={fieldErrors.token} />
+          <Label required>Token — Any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={mintAddress}
+            onChange={(mint, dec, sym) => { setMintAddress(mint); setDecimals(dec); setToken(sym); setFieldErrors(p => ({ ...p, token: '' })); }}
+            isDevnet={true}
+            error={fieldErrors.token}
+          />
         </div>
         {mode === 'manual' && (
           <div>
@@ -227,5 +232,6 @@ export default function MilestonePage() {
     </StreamPageShell>
   );
 }
+
 
 
