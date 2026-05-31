@@ -43,10 +43,46 @@ const TYPE_COLORS: Record<string, string> = {
   linear: T.accent, milestone: T.blue, cliff: T.gold, hybrid: '#c084fc',
 };
 
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+
+/** Infer the correct decimal count from the stream's mint address. */
+function mintDecimals(s: StreamInfo): number {
+  try {
+    return s.mint.toBase58() === WSOL_MINT ? 9 : 6;
+  } catch { return 6; }
+}
+
+/**
+ * Stream type classification — based on timestamps, not milestoneCount.
+ *
+ * Rules:
+ *  cliff   = cliffTs > startTs AND endTs ≤ cliffTs + 60 s (instant full release)
+ *  hybrid  = cliffTs > startTs AND endTs >> cliffTs (cliff gate + linear decay)
+ *  milestone = milestoneCount > 0 (on-chain verified milestone gates)
+ *  linear  = no cliff (endTs - startTs is the full window)
+ *
+ * NOTE: requiredTier (game gate) does NOT change the vesting *type* — it only
+ * adds an unlock requirement on top. We show it as a separate badge in the row.
+ */
 function streamType(s: StreamInfo): string {
-  if (s.milestoneCount > 0 && Number(s.cliffTs.toString()) > Number(s.startTs.toString())) return 'hybrid';
+  const startTs = Number(s.startTs.toString());
+  const cliffTs = Number(s.cliffTs.toString());
+  const endTs   = Number(s.endTs.toString());
+  const hasCliff = cliffTs > startTs;
+
+  // Pure cliff: endTs is at most 60 seconds after cliffTs (instant full release)
+  if (hasCliff && endTs - cliffTs <= 60) return 'cliff';
+
+  // Hybrid: has a cliff gate AND a linear decay period after it
+  if (hasCliff && s.milestoneCount > 0) return 'hybrid';
+
+  // Milestone-only (no time cliff, but on-chain milestone percentage gates)
   if (s.milestoneCount > 0) return 'milestone';
-  if (Number(s.cliffTs.toString()) > Number(s.startTs.toString())) return 'cliff';
+
+  // Linear with cliff — cliff acts as a gate before linear decay begins
+  if (hasCliff) return 'hybrid';
+
+  // Pure linear
   return 'linear';
 }
 
@@ -78,18 +114,33 @@ function shortKey(pk: { toBase58(): string } | null): string {
   return `${s.slice(0, 4)}…${s.slice(-4)}`;
 }
 
-function fmtTokens(bn: BN): string {
-  const n = Number(bn.toString()) / 1e6;
+/** Format a BN amount using the correct decimal count for the stream's mint. */
+function fmtTokens(bn: BN, dec = 6): string {
+  const n = Number(bn.toString()) / 10 ** dec;
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-  return n.toFixed(2);
+  // Show up to 4 significant decimals, trim trailing zeros
+  return parseFloat(n.toFixed(4)).toString();
 }
 
-function fmtRaw(raw: number): string {
-  const n = raw / 1e6;
+function fmtRaw(raw: number, dec = 6): string {
+  const n = raw / 10 ** dec;
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-  return n.toFixed(2);
+  return parseFloat(n.toFixed(4)).toString();
+}
+
+/** Token symbol from mint address — fallback to generic label. */
+function mintSymbol(s: StreamInfo): string {
+  try {
+    const addr = s.mint.toBase58();
+    if (addr === WSOL_MINT) return 'SOL';
+    if (addr === 'ZLkYWYvM4ZEDcPcvmcxmcgTgvsWRCXqg9ZYyQuf7njU') return 'USDC';
+    if (addr === '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU') return 'USDC';
+    if (addr === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') return 'USDC';
+    if (addr === '9d4hVSzi4W6VoAp5dNgxsHNiFmZpq9RiK5vHtmip8asU') return 'BBT';
+    return addr.slice(0, 4) + '…';
+  } catch { return 'TOKEN'; }
 }
 
 function Badge({ label, color }: { label: string; color: string }) {
@@ -168,8 +219,15 @@ export default function StreamsPage() {
     return streamStatus(s, nowSec) === filter;
   });
 
-  const totalLocked    = streams.reduce((acc, s) => acc + Number(s.amountTotal.toString()), 0) / 1e6;
-  const totalWithdrawn = streams.reduce((acc, s) => acc + Number(s.amountWithdrawn.toString()), 0) / 1e6;
+  // Sum locked/withdrawn normalised to 6-decimal base for display (mixed mints = approximate)
+  const totalLocked    = streams.reduce((acc, s) => {
+    const dec = mintDecimals(s);
+    return acc + Number(s.amountTotal.toString()) / 10 ** dec;
+  }, 0);
+  const totalWithdrawn = streams.reduce((acc, s) => {
+    const dec = mintDecimals(s);
+    return acc + Number(s.amountWithdrawn.toString()) / 10 ** dec;
+  }, 0);
   const activeCount    = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
 
   return (
@@ -318,12 +376,16 @@ export default function StreamsPage() {
                 const type       = streamType(s);
                 const status     = streamStatus(s, nowSec);
                 const typeCol    = TYPE_COLORS[type] ?? T.accent;
+                const dec        = mintDecimals(s);
+                const sym        = mintSymbol(s);
                 const total      = Number(s.amountTotal.toString());
                 const withdrawn  = Number(s.amountWithdrawn.toString());
                 const claimable  = Number(computeUnlocked(s, nowSec));
                 const isCreator  = publicKey && s.authority.toBase58() === publicKey.toBase58();
                 const href       = `/streams/${s.pubkey.toBase58()}`;
                 const tLeft      = timeLeft(s, nowSec);
+                const hasGameGate = (s as unknown as { requiredTier?: number }).requiredTier != null
+                  && ((s as unknown as { requiredTier: number }).requiredTier > 0);
 
                 return (
                   <div
@@ -346,9 +408,11 @@ export default function StreamsPage() {
                         <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.text, marginBottom: 2 }}>
                           {shortKey(s.pubkey)}
                         </div>
-                        <div style={{ fontSize: 10, color: isCreator ? T.accent : T.green }}>
+                        <div style={{ fontSize: 10, color: isCreator ? T.accent : T.green, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                           {isCreator ? tx.youCreated : tx.youReceive}
                           {s.milestoneCount > 0 && <span style={{ color: T.blue }}> · {tx.milestone(s.milestoneCount)}</span>}
+                          {hasGameGate && <span style={{ color: '#c084fc' }}> · 🎮 Game Gate</span>}
+                          <span style={{ color: T.textDim, fontFamily: 'monospace', fontSize: 9 }}>· {sym}</span>
                         </div>
                       </div>
                       {/* On mobile, show type + status inline */}
@@ -365,25 +429,25 @@ export default function StreamsPage() {
                     <div className="sd-row-amounts">
                       <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text }}>
                         <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>TOTAL</div>
-                        {fmtTokens(s.amountTotal)}
+                        {fmtTokens(s.amountTotal, dec)} <span style={{ fontSize: 9, color: T.textDim }}>{sym}</span>
                       </div>
                       <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>
                         <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>CLAIMED</div>
-                        {fmtRaw(withdrawn)}
+                        {fmtRaw(withdrawn, dec)}
                       </div>
                       <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>
                         <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>UNLOCKED</div>
-                        {fmtRaw(claimable)}
+                        {fmtRaw(claimable, dec)}
                       </div>
                     </div>
 
                     {/* These 3 are hidden on mobile (merged into sd-row-amounts above) */}
                     <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>{fmtRaw(withdrawn)}</div>
+                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>{fmtRaw(withdrawn, dec)}</div>
                       <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>{total > 0 ? `${Math.round((withdrawn / total) * 100)}% withdrawn` : '—'}</div>
                     </div>
                     <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>{fmtRaw(claimable)}</div>
+                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>{fmtRaw(claimable, dec)}</div>
                       <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>claimable now</div>
                     </div>
 
