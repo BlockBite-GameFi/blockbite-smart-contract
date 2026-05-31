@@ -11,6 +11,7 @@ import {
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
   MultisigAuthorityField,
+  CsvUploader, CsvRow, parseCsv,
 } from '../_shared';
 import TokenSelector from '@/components/TokenSelector';
 
@@ -99,11 +100,22 @@ export default function LinearPage() {
   const [gameLevel,        setGameLevel]        = useState(10);
   const [multisigAuthority,setMultisigAuthority]= useState('');
   const [fieldErrors,      setFieldErrors]      = useState<Record<string, string>>({});
+  // CSV state
+  const [csvRows,  setCsvRows]  = useState<CsvRow[]>([]);
+  const [csvErrs,  setCsvErrs]  = useState<string[]>([]);
+  const [csvFile,  setCsvFile]  = useState<string | null>(null);
+  const [batchIdx, setBatchIdx] = useState(0);
+  const [batchDone,setBatchDone]= useState<string[]>([]);
+  const [batchFail,setBatchFail]= useState<string[]>([]);
 
   const COLOR   = C.accent;
   const deposit = Number(amount) || 0;
   const daily   = vestDays > 0 ? (deposit / vestDays).toFixed(2) : '0';
   const perSec  = vestDays > 0 ? (deposit / (vestDays * 86400)).toFixed(6) : '0';
+
+  const totalDeposit = mode === 'manual' ? (Number(amount) || 0)
+    : csvRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const recipientCount = mode === 'manual' ? (recipient ? 1 : 0) : csvRows.length;
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -116,6 +128,8 @@ export default function LinearPage() {
         catch { errs.recipient = 'Not a valid Solana address (check for typos)'; }
       }
       if (!amount || Number(amount) <= 0) errs.amount = 'Enter an amount greater than 0';
+    } else {
+      if (csvRows.length === 0) errs.csv = 'Upload a CSV file with wallet and amount columns';
     }
     if (!startDate) errs.startDate = 'Select a start date';
     setFieldErrors(errs);
@@ -130,17 +144,28 @@ export default function LinearPage() {
     const cliffTs = startTs + cliffDays * 86400;
     const endTs   = cliffTs + vestDays * 86400;
 
-    await submit({
-      beneficiary:  recipient,
-      mint:         tokenMint,
-      symbol:       tokenSymbol,
-      decimals:     tokenDecimals,
-      amount,
-      startTs,
-      cliffTs,
-      endTs,
-      requiredTier: gameGate ? levelToTier(gameLevel) : 0,
-    });
+    if (mode === 'manual') {
+      await submit({ beneficiary: recipient, mint: tokenMint, symbol: tokenSymbol,
+        decimals: tokenDecimals, amount, startTs, cliffTs, endTs,
+        requiredTier: gameGate ? levelToTier(gameLevel) : 0 });
+      return;
+    }
+    // CSV batch
+    const done: string[] = [...batchDone];
+    const fail: string[] = [...batchFail];
+    for (let i = batchIdx; i < csvRows.length; i++) {
+      setBatchIdx(i);
+      const row = csvRows[i];
+      const ok  = await submit({ beneficiary: row.wallet, mint: tokenMint, symbol: tokenSymbol,
+        decimals: tokenDecimals, amount: row.amount, startTs, cliffTs, endTs,
+        requiredTier: gameGate ? levelToTier(gameLevel) : 0 });
+      if (ok) { done.push(row.wallet); setBatchDone([...done]); }
+      else     { fail.push(row.wallet); setBatchFail([...fail]); }
+      reset();
+    }
+    setBatchIdx(csvRows.length);
+    // keep unused variable warning away
+    void parseCsv;
   };
 
   /* ─── Success screen ──────────────────────────────────────────────── */
@@ -187,8 +212,8 @@ export default function LinearPage() {
       sidebar={
         <StreamSidebar
           typeLabel="Linear" typeColor={COLOR} typeIcon="∿"
-          totalDeposit={deposit} token={tokenSymbol || 'TOKEN'}
-          recipientCount={recipient ? 1 : 0}
+          totalDeposit={totalDeposit} token={tokenSymbol || 'TOKEN'}
+          recipientCount={recipientCount}
           gameGate={gameGate} gameLevel={gameLevel}
           multisigAuthority={multisigAuthority}
           onSubmit={handleCreate}
@@ -242,14 +267,15 @@ export default function LinearPage() {
         )}
 
         {mode === 'csv' && (
-          <div style={{ padding: '20px', borderRadius: 11, border: `1px dashed ${C.border}`,
-            textAlign: 'center', color: C.muted }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-            <div style={{ fontWeight: 600, color: '#e8e1f8', marginBottom: 4 }}>Upload CSV</div>
-            <div style={{ fontSize: 11.5 }}>wallet,amount columns · one recipient per row</div>
-            <button style={{ marginTop: 12, padding: '8px 18px', borderRadius: 9,
-              border: `1px solid ${C.border}`, background: C.bg2,
-              color: C.muted, fontSize: 12, cursor: 'pointer', fontFamily: C.serif }}>Choose File</button>
+          <div>
+            <CsvUploader
+              rows={csvRows} errors={csvErrs} fileName={csvFile}
+              onParsed={(r, e, n) => { setCsvRows(r); setCsvErrs(e); setCsvFile(n); setBatchDone([]); setBatchFail([]); setBatchIdx(0); }}
+              tokenSymbol={tokenSymbol}
+              batchIdx={batchIdx} batchDone={batchDone} batchFail={batchFail}
+              isSubmitting={isSubmitting}
+            />
+            <FieldError msg={fieldErrors.csv} />
           </div>
         )}
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
+import { PublicKey } from '@solana/web3.js';
 
 // ─── Design tokens — ALL values are CSS custom-property references so that
 //     dark/light theme toggle propagates instantly to every inline style.
@@ -745,5 +746,195 @@ export function StreamPageShell({
         </div>
       </div>
     </main>
+  );
+}
+
+// ─── CSV Upload — shared across all stream creation pages ─────────────────────
+
+export interface CsvRow { wallet: string; amount: string; }
+
+/** Parse CSV/TSV text → rows. Header row auto-detected and skipped. */
+export function parseCsv(text: string): { rows: CsvRow[]; errors: string[] } {
+  const lines  = text.trim().split(/\r?\n/).filter(l => l.trim());
+  const errors: string[] = [];
+  const rows:   CsvRow[] = [];
+  let startIdx = 0;
+  const first = lines[0]?.toLowerCase().replace(/\s/g, '');
+  if (first?.includes('wallet') || first?.includes('address') || first?.startsWith('pubkey')) startIdx = 1;
+  for (let i = startIdx; i < lines.length; i++) {
+    const parts  = lines[i].split(/[,\t]/).map(s => s.trim().replace(/^"|"$/g, ''));
+    const wallet = parts[0] ?? '';
+    const amount = parts[1] ?? '';
+    if (!wallet) { errors.push(`Row ${i + 1}: missing wallet`); continue; }
+    try { new PublicKey(wallet); }
+    catch { errors.push(`Row ${i + 1}: invalid address — ${wallet.slice(0, 12)}…`); continue; }
+    const amt = Number(amount);
+    if (!amount || isNaN(amt) || amt <= 0) { errors.push(`Row ${i + 1}: invalid amount "${amount}"`); continue; }
+    rows.push({ wallet, amount });
+  }
+  return { rows, errors };
+}
+
+/** Sample CSV for download button */
+export const SAMPLE_CSV_CONTENT = `wallet,amount
+3LYTyVJ9pYjj9J3ZvMYkeX9V4rjsXt6s3EFaFjW9HujM,100
+9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,250
+EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v,500`;
+
+export function downloadSampleCsv(filename = 'blockbite-recipients.csv') {
+  const blob = new Blob([SAMPLE_CSV_CONTENT], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Reusable CSV upload section for all stream creation pages.
+ * Shows format guide, file picker, parsed rows preview, and error list.
+ */
+export function CsvUploader({
+  rows, errors, fileName, onParsed, tokenSymbol,
+  batchIdx, batchDone, batchFail, isSubmitting,
+}: {
+  rows:        CsvRow[];
+  errors:      string[];
+  fileName:    string | null;
+  onParsed:    (rows: CsvRow[], errors: string[], name: string) => void;
+  tokenSymbol: string;
+  batchIdx:    number;
+  batchDone:   string[];
+  batchFail:   string[];
+  isSubmitting:boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const { rows: r, errors: er } = parseCsv(text);
+      onParsed(r, er, file.name);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, [onParsed]);
+
+  return (
+    <div>
+      <input ref={fileRef} type="file" accept=".csv,.tsv,.txt"
+        style={{ display: 'none' }} onChange={handleFile} />
+
+      {/* Format guide */}
+      <div style={{ marginBottom: 10, padding: '10px 14px', borderRadius: 9,
+        background: 'color-mix(in srgb, var(--p-accent) 5%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--p-accent) 18%, transparent)', fontSize: 11.5 }}>
+        <div style={{ fontWeight: 700, color: 'var(--p-accent)', marginBottom: 6 }}>
+          📋 CSV Format — 2 columns (wallet, amount)
+        </div>
+        <pre style={{ margin: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
+          color: 'var(--p-muted)', lineHeight: 1.8 }}>{
+`wallet,amount
+3LYTyVJ9...HujM,100
+9WzDXwBb...AWWm,250`}
+        </pre>
+        <div style={{ marginTop: 6, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => downloadSampleCsv()}
+            style={{ padding: '4px 12px', borderRadius: 6,
+              border: '1px solid color-mix(in srgb, var(--p-accent) 35%, transparent)',
+              background: 'transparent', color: 'var(--p-accent)',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            ⬇ Download sample.csv
+          </button>
+          <span style={{ fontSize: 10, color: 'var(--p-muted)', alignSelf: 'center' }}>
+            Supports CSV / TSV / plain text · header row optional
+          </span>
+        </div>
+      </div>
+
+      {/* Drop zone */}
+      <div onClick={() => fileRef.current?.click()}
+        style={{ padding: '18px', borderRadius: 11,
+          border: `2px dashed ${fileName ? 'var(--p-gold)' : 'var(--p-border)'}`,
+          textAlign: 'center', cursor: 'pointer', transition: 'border-color .2s',
+          background: fileName ? 'color-mix(in srgb, var(--p-gold) 4%, transparent)' : 'transparent' }}>
+        <div style={{ fontSize: 26, marginBottom: 4 }}>{fileName ? '✅' : '📂'}</div>
+        {fileName ? (
+          <div style={{ fontWeight: 700, color: 'var(--p-gold)', fontSize: 13 }}>{fileName}</div>
+        ) : (
+          <div style={{ fontWeight: 600, color: '#e8e1f8', fontSize: 13 }}>Click to upload CSV file</div>
+        )}
+        <div style={{ fontSize: 11, color: 'var(--p-muted)', marginTop: 3 }}>
+          {fileName
+            ? `${rows.length} valid recipient${rows.length !== 1 ? 's' : ''} loaded`
+            : 'wallet,amount · one recipient per row'}
+        </div>
+        {!fileName && (
+          <button type="button" style={{ marginTop: 8, padding: '6px 16px', borderRadius: 8,
+            border: '1px solid var(--p-border)', background: 'var(--p-bg2)',
+            color: 'var(--p-muted)', fontSize: 12, cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif" }}>
+            Choose File
+          </button>
+        )}
+      </div>
+
+      {/* Rows preview */}
+      {rows.length > 0 && (
+        <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto',
+          borderRadius: 9, border: '1px solid var(--p-border)', fontSize: 11 }}>
+          <div style={{ padding: '5px 12px', background: 'rgba(255,255,255,.03)',
+            fontWeight: 700, color: 'var(--p-muted)', borderBottom: '1px solid var(--p-border)',
+            display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+            <span>WALLET</span><span>AMOUNT</span>
+          </div>
+          {rows.map((row, i) => (
+            <div key={i} style={{
+              padding: '4px 12px', display: 'grid', gridTemplateColumns: '1fr auto', gap: 8,
+              borderBottom: '1px solid color-mix(in srgb, var(--p-border) 40%, transparent)',
+              background: batchDone.includes(row.wallet) ? 'color-mix(in srgb, var(--p-green) 6%, transparent)'
+                        : batchFail.includes(row.wallet) ? 'color-mix(in srgb, var(--p-red) 6%, transparent)'
+                        : (batchIdx === i && isSubmitting)  ? 'color-mix(in srgb, var(--p-gold) 6%, transparent)'
+                        : 'transparent' }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--p-muted)', fontSize: 10 }}>
+                {batchDone.includes(row.wallet) ? '✓ ' : batchFail.includes(row.wallet) ? '✗ ' : `${i+1}. `}
+                {row.wallet.slice(0, 6)}…{row.wallet.slice(-6)}
+              </span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--p-text)', fontWeight: 700, fontSize: 10 }}>
+                {Number(row.amount).toLocaleString()} {tokenSymbol || 'TOKEN'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Parse errors */}
+      {errors.length > 0 && (
+        <div style={{ marginTop: 6, padding: '8px 12px', borderRadius: 8, fontSize: 11,
+          background: 'color-mix(in srgb, var(--p-red) 6%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--p-red) 25%, transparent)' }}>
+          <div style={{ fontWeight: 700, color: 'var(--p-red)', marginBottom: 3 }}>
+            ⚠ {errors.length} row{errors.length !== 1 ? 's' : ''} skipped
+          </div>
+          {errors.map((e, i) => <div key={i} style={{ color: 'var(--p-muted)' }}>{e}</div>)}
+        </div>
+      )}
+
+      {/* Batch progress */}
+      {batchDone.length > 0 && (
+        <div style={{ marginTop: 6, padding: '8px 12px', borderRadius: 8, fontSize: 11,
+          color: 'var(--p-green)', background: 'color-mix(in srgb, var(--p-green) 6%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--p-green) 25%, transparent)' }}>
+          ✓ {batchDone.length}/{rows.length} streams created
+          {batchFail.length > 0 && ` · ${batchFail.length} failed`}
+          {batchDone.length === rows.length && (
+            <Link href="/streams" style={{ marginLeft: 8, color: 'var(--p-green)', fontWeight: 700 }}>
+              View all →
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
