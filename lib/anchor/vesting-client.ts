@@ -85,6 +85,8 @@ export interface CreateStreamParams {
   endTs:         number;        // unix seconds
   requiredTier?: 0 | 1 | 2;    // oracle milestone gate; 0 = no gate
   sendTransaction: SendTx;
+  /** Optional extra instructions prepended to the tx (e.g. wSOL wrap) */
+  preInstructions?: import('@solana/web3.js').TransactionInstruction[];
 }
 
 /**
@@ -124,39 +126,63 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
     })
     .instruction();
 
-  // KEY FIX: Do NOT set recentBlockhash manually.
-  // When wallet adapter (Solflare/Phantom) calls sign(), it fetches the FRESHEST
-  // possible blockhash at that exact moment — eliminating expiry entirely.
-  // Any pre-set blockhash will be stale by the time the user approves (10-30s later).
-  const tx = new Transaction().add(ix);
-  tx.feePayer = p.authority;
-  // recentBlockhash intentionally NOT set — wallet fetches it at sign time
-
-  const MAX_RETRIES = 5;
+  // ── Retry loop: build a FRESH Transaction on every attempt so the wallet
+  //    always picks up a brand-new blockhash at signing time.
+  //    Never reuse a previously-signed tx object — the old signatures make it
+  //    invalid for a second blockhash.
+  const MAX_RETRIES = 10;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Build fresh transaction each attempt (new blockhash, no stale sigs)
+    const tx = new Transaction();
+    if (p.preInstructions?.length) {
+      p.preInstructions.forEach(ix2 => tx.add(ix2));
+    }
+    tx.add(ix);
+    tx.feePayer = p.authority;
+    // recentBlockhash intentionally NOT set — wallet fetches fresh blockhash
+    // at the exact moment the user taps "Approve", eliminating expiry entirely.
+
     try {
       const sig = await p.sendTransaction(tx, p.connection, { skipPreflight: true });
 
-      // Confirm by polling signature status (no blockhash dependency)
-      // This works regardless of which blockhash the wallet chose.
+      // Confirm by polling signature status (no blockhash dependency).
+      // Works regardless of which blockhash the wallet chose.
       await pollConfirmation(p.connection, sig, 90_000); // 90s timeout
       return sig;
     } catch (e: unknown) {
       const msg = ((e as Error)?.message ?? '').toLowerCase();
       const isRetryable =
-        msg.includes('429') || msg.includes('rate limit') ||
-        msg.includes('timeout') || msg.includes('timed out') ||
-        msg.includes('failed to fetch') || msg.includes('network') ||
-        msg.includes('503') || msg.includes('502');
-      // Don't retry user-rejected or on-chain errors
-      if (isRetryable && attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+        // RPC infra errors
+        msg.includes('429')                      || msg.includes('rate limit')     ||
+        msg.includes('failed to fetch')          || msg.includes('networkerror')   ||
+        msg.includes('503')                      || msg.includes('502')            ||
+        msg.includes('504')                      || msg.includes('522')            ||
+        msg.includes('load failed')              ||                                   // Safari
+        // Transaction-landing failures — blockhash expired, tx dropped, node lag
+        msg.includes('blockhash')                || msg.includes('block hash')     ||
+        msg.includes('expired')                  || msg.includes('not found')      ||
+        msg.includes('not confirmed')            || msg.includes('timed out')      ||
+        msg.includes('timeout')                  || msg.includes('check /streams') ||
+        msg.includes('transaction simulation')   ||
+        // Generic network noise
+        msg.includes('network')                  || msg.includes('fetch');
+
+      // Hard stops: user rejected or on-chain program error — don't retry
+      const isHardStop =
+        msg.includes('user rejected')            || msg.includes('user cancelled') ||
+        msg.includes('user denied')              || msg.includes('transaction rejected') ||
+        msg.includes('custom program error')     || msg.includes('anchor error')   ||
+        msg.includes('insufficient funds')       || msg.includes('zeroa mount');
+
+      if (!isHardStop && isRetryable && attempt < MAX_RETRIES - 1) {
+        const backoff = Math.min(800 * (attempt + 1), 3_000);
+        await new Promise(r => setTimeout(r, backoff));
         continue;
       }
       throw e;
     }
   }
-  throw new Error('Transaction failed after 5 attempts');
+  throw new Error('Transaction failed after 10 attempts — please try again later');
 }
 
 /** Poll for transaction confirmation by signature (no blockhash dependency). */

@@ -13,7 +13,7 @@ import {
 } from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
 import { resolveMintDecimals } from './useWalletTokens';
-import { withRpcFallback } from '@/lib/solana/rpc-manager';
+import { withRpcFallback, sendRawToManyRpcs } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
 
@@ -31,7 +31,7 @@ export interface StreamCreateInput {
 
 export function useStreamCreate() {
   const { connection }                            = useConnection();
-  const { publicKey, sendTransaction, connected } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, connected } = useWallet();
 
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
   const [txSig,    setTxSig]    = useState<string | null>(null);
@@ -193,7 +193,35 @@ export function useStreamCreate() {
         endTs:        p.endTs,
         requiredTier: p.requiredTier ?? 0,
         sendTransaction: async (tx, conn) => {
-          const s = await sendTransaction(tx, conn);
+          // ── Preferred path: sign once → blast to 20+ RPCs simultaneously ──────
+          // This eliminates "Transaction expired" by getting the tx on-chain fast
+          // without requiring the user to approve again on each retry.
+          if (signTransaction) {
+            try {
+              // Get freshest possible blockhash right before signing
+              const { blockhash } = await conn.getLatestBlockhash('finalized');
+              tx.recentBlockhash = blockhash;
+              tx.feePayer = publicKey;
+
+              // One wallet prompt — user approves here
+              const signedTx = await signTransaction(tx);
+              const rawTx    = signedTx.serialize();
+
+              setTxStatus('confirming');
+
+              // Blast to many RPCs simultaneously — first success wins
+              const sig = await sendRawToManyRpcs(rawTx);
+              return sig;
+            } catch (signErr: unknown) {
+              // If user rejected, propagate immediately
+              const m = ((signErr as Error)?.message ?? '').toLowerCase();
+              if (m.includes('reject') || m.includes('cancel') || m.includes('denied')) throw signErr;
+              // Signing/network error — fall through to standard sendTransaction
+            }
+          }
+
+          // ── Fallback: standard wallet adapter sendTransaction (single RPC) ────
+          const s = await sendTransaction(tx, conn, { skipPreflight: true });
           setTxStatus('confirming');
           return s;
         },
