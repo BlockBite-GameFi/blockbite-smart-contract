@@ -29,15 +29,25 @@ import { IS_DEVNET } from './config';
 // ── Candidate endpoints ─────────────────────────────────────────────────────
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
-// NOTE: api.devnet.solana.com is FIRST because drpc.org free-tier blocks
-// getBalance and getTokenAccountsByOwner (error code 35 "method not available
-// on freetier"). api.devnet.solana.com supports all basic reads; it only
-// blocks getProgramAccounts which withRpcFallback() handles by trying drpc.org.
+// Devnet public RPC endpoints — tried in order.
+// api.devnet.solana.com first (supports getBalance + getTokenAccountsByOwner).
+// drpc.org second (supports getProgramAccounts but blocks getBalance on free tier).
+// Additional public nodes as fallbacks.
 const DEVNET_ENDPOINTS = [
-  'https://api.devnet.solana.com',      // ← primary: supports getBalance/getTokenAccounts
-  'https://solana-devnet.drpc.org',     // ← fallback: supports getProgramAccounts
-  'https://rpc.ankr.com/solana_devnet',
-  'https://rpc.surfpool.run',
+  // ── Tier 1: support all basic reads ──────────────────────────────────────
+  'https://api.devnet.solana.com',          // Official Solana devnet (best for reads)
+  'https://rpc.ankr.com/solana_devnet',     // Ankr public devnet — no key required
+  'https://rpc.surfpool.run',               // Surfpool devnet fork
+  // ── Tier 2: partial support ───────────────────────────────────────────────
+  'https://solana-devnet.drpc.org',         // drpc.org (blocks getBalance free tier)
+  // ── Tier 3: community / alternative nodes ─────────────────────────────────
+  'https://devnet.rpcpool.com',             // RPCPool devnet
+  'https://mango.devnet.rpcpool.com',       // Mango RPCPool devnet
+  'https://solana-devnet.g.alchemy.com/v2/demo', // Alchemy demo key
+  // ── Tier 4: backup mirrors ────────────────────────────────────────────────
+  'https://api.devnet.solana.com',          // retry official (added twice intentionally)
+  'https://devnet.genesysgo.net',           // GenesysGo devnet
+  'https://testnet.rpcpool.com',            // testnet RPCPool (similar setup)
 ];
 
 const MAINNET_ENDPOINTS = [

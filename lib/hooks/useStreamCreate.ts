@@ -13,6 +13,7 @@ import {
 } from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
 import { resolveMintDecimals } from './useWalletTokens';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
 
@@ -60,7 +61,7 @@ export function useStreamCreate() {
     catch { setTxErr('Invalid token mint address'); setTxStatus('error'); return false; }
 
     // Resolve decimals (from input or on-chain)
-    const decimals = p.decimals ?? await resolveMintDecimals(connection, mintAddr);
+    const decimals = p.decimals ?? await resolveMintDecimals(mintAddr);
     const rawAmount = BigInt(Math.round(Number(p.amount) * 10 ** decimals));
     if (rawAmount <= 0n) { setTxErr('Amount must be greater than 0'); setTxStatus('error'); return false; }
 
