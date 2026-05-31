@@ -141,14 +141,46 @@ function TokenRow({ tok, selected, onClick }: {
 }
 
 export default function TokenSelector({ value, onChange, disabled }: Props) {
-  const { connection }              = useConnection();
+  const { connection }               = useConnection();
+  const { publicKey }                = useWallet();
   const { tokens, loading, refresh } = useWalletTokens();
-  const [open,    setOpen]   = useState(false);
-  const [search,  setSearch] = useState('');
-  const [custom,  setCustom] = useState('');
-  const [cusErr,  setCusErr] = useState('');
-  const [cusLoad, setCusLoad]= useState(false);
+  const [open,       setOpen]    = useState(false);
+  const [search,     setSearch]  = useState('');
+  const [custom,     setCustom]  = useState('');
+  const [cusErr,     setCusErr]  = useState('');
+  const [cusLoad,    setCusLoad] = useState(false);
+  const [airdropMsg, setAirdropMsg] = useState('');
+  const [airdropBusy,setAirdropBusy]= useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Inline airdrop — called from the warning chip when SOL balance = 0
+  const doAirdrop = useCallback(async (mint: string, symbol: string) => {
+    if (!publicKey) { setAirdropMsg('Connect wallet first'); return; }
+    setAirdropBusy(true); setAirdropMsg('Requesting airdrop…');
+    try {
+      const isSOL = mint === 'SOL' || mint === 'So11111111111111111111111111111111111111112';
+      const body: Record<string,string> = { wallet: publicKey.toBase58() };
+      body.mint = isSOL ? 'SOL' : mint;
+      const res  = await fetch('/api/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.fallback?.length) {
+          window.open(data.fallback[0], '_blank');
+          setAirdropMsg(`✗ API blocked — opened ${data.fallback[0]}`);
+        } else {
+          setAirdropMsg(`✗ ${data.error}`);
+        }
+      } else {
+        setAirdropMsg(isSOL ? `✓ 2 SOL airdropped! Refresh to see balance.` : `✓ 10,000 ${symbol} sent!`);
+        setTimeout(() => { refresh(); setAirdropMsg(''); }, 3000);
+      }
+    } catch { setAirdropMsg('✗ Network error — try again'); }
+    finally { setAirdropBusy(false); }
+  }, [publicKey, refresh]);
 
   // Close on outside click
   useEffect(() => {
@@ -217,20 +249,46 @@ export default function TokenSelector({ value, onChange, disabled }: Props) {
         <span style={{ color: 'var(--p-muted)', fontSize: 10 }}>{open ? '▲' : '▼'}</span>
       </button>
 
-      {/* Balance chip */}
+      {/* Inline airdrop/faucet strip — shows when selected token has 0 balance */}
       {current && current.balance === 0 && (
-        <div style={{ marginTop: 4, fontSize: 11, color: 'var(--p-gold)' }}>
-          ⚠ No {current.symbol} balance —{' '}
-          <button type="button" onClick={async (e) => {
-            e.preventDefault();
-            // trigger faucet inline
-            const { publicKey } = { publicKey: null } as any; // just link
-            window.open(FAUCET_SOL, '_blank');
-          }}
-            style={{ background: 'none', border: 'none', color: 'var(--p-accent)', cursor: 'pointer', fontSize: 11, padding: 0, textDecoration: 'underline' }}>
-            get devnet SOL
-          </button>
-          {' '}or use the faucet button below
+        <div style={{
+          marginTop: 6, padding: '8px 12px', borderRadius: 8, fontSize: 11,
+          background: 'color-mix(in srgb, var(--p-gold) 8%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--p-gold) 25%, transparent)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
+        }}>
+          <span style={{ color: 'var(--p-gold)' }}>
+            ⚠ No {current.symbol} balance on devnet
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              disabled={airdropBusy}
+              onClick={() => doAirdrop(current.mint, current.symbol)}
+              style={{
+                padding: '4px 12px', borderRadius: 6, border: 'none', cursor: airdropBusy ? 'wait' : 'pointer',
+                background: 'var(--p-gold)', color: '#000', fontSize: 11, fontWeight: 800,
+                opacity: airdropBusy ? 0.6 : 1,
+              }}
+            >
+              {airdropBusy ? 'Sending…' : current.isNative ? '⚡ Airdrop 2 SOL' : `⚡ Get ${current.symbol}`}
+            </button>
+            <a href={FAUCET_SOL} target="_blank" rel="noreferrer"
+              style={{ fontSize: 10, color: 'var(--p-muted)', textDecoration: 'underline' }}>
+              faucet.solana.com ↗
+            </a>
+          </div>
+        </div>
+      )}
+      {airdropMsg && (
+        <div style={{
+          marginTop: 4, fontSize: 11, padding: '4px 10px', borderRadius: 6,
+          color: airdropMsg.startsWith('✓') ? 'var(--p-green)' : 'var(--p-red)',
+          background: airdropMsg.startsWith('✓')
+            ? 'color-mix(in srgb, var(--p-green) 10%, transparent)'
+            : 'color-mix(in srgb, var(--p-red) 10%, transparent)',
+        }}>
+          {airdropMsg}
         </div>
       )}
 
