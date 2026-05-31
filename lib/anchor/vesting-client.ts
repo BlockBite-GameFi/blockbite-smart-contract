@@ -124,49 +124,68 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
     })
     .instruction();
 
-  const MAX_RETRIES = 5;
+  // KEY FIX: Do NOT set recentBlockhash manually.
+  // When wallet adapter (Solflare/Phantom) calls sign(), it fetches the FRESHEST
+  // possible blockhash at that exact moment — eliminating expiry entirely.
+  // Any pre-set blockhash will be stale by the time the user approves (10-30s later).
+  const tx = new Transaction().add(ix);
+  tx.feePayer = p.authority;
+  // recentBlockhash intentionally NOT set — wallet fetches it at sign time
 
+  const MAX_RETRIES = 5;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // Fresh 'confirmed' blockhash each attempt (shorter lag than 'finalized')
-      const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
-
-      const tx = new Transaction().add(ix);
-      tx.feePayer        = p.authority;
-      tx.recentBlockhash = blockhash;
-
-      // skipPreflight=true: bypass simulation on Solflare's potentially-stale RPC node.
-      // Simulation failures ("blockhash not found") happen when Solflare's node hasn't
-      // received our fresh blockhash yet. Skipping lets the tx go through directly.
       const sig = await p.sendTransaction(tx, p.connection, { skipPreflight: true });
 
-      // Poll for confirmation — signature-based (not blockhash-dependent)
-      const result = await p.connection.confirmTransaction(
-        { signature: sig, blockhash, lastValidBlockHeight },
-        'confirmed',
-      );
-
-      if (result.value.err) {
-        throw new Error(`On-chain error: ${JSON.stringify(result.value.err)}`);
-      }
-
+      // Confirm by polling signature status (no blockhash dependency)
+      // This works regardless of which blockhash the wallet chose.
+      await pollConfirmation(p.connection, sig, 90_000); // 90s timeout
       return sig;
     } catch (e: unknown) {
       const msg = ((e as Error)?.message ?? '').toLowerCase();
       const isRetryable =
-        msg.includes('blockhash') || msg.includes('expired') ||
-        msg.includes('timeout')   || msg.includes('429')     ||
-        msg.includes('timed out') || msg.includes('failed to fetch');
-
+        msg.includes('429') || msg.includes('rate limit') ||
+        msg.includes('timeout') || msg.includes('timed out') ||
+        msg.includes('failed to fetch') || msg.includes('network') ||
+        msg.includes('503') || msg.includes('502');
+      // Don't retry user-rejected or on-chain errors
       if (isRetryable && attempt < MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, 600 * (attempt + 1))); // 600, 1200, 1800ms
+        await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
         continue;
       }
       throw e;
     }
   }
+  throw new Error('Transaction failed after 5 attempts');
+}
 
-  throw new Error('Transaction failed after 5 attempts — please try again');
+/** Poll for transaction confirmation by signature (no blockhash dependency). */
+async function pollConfirmation(
+  connection: Connection,
+  signature: string,
+  timeoutMs: number,
+): Promise<void> {
+  const start    = Date.now();
+  const interval = 2_000; // poll every 2s
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const { value } = await connection.getSignatureStatuses([signature]);
+      const status    = value[0];
+      if (status) {
+        if (status.err) throw new Error(`On-chain error: ${JSON.stringify(status.err)}`);
+        if (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized') {
+          return;
+        }
+      }
+    } catch (e) {
+      // network error → keep polling
+      const msg = ((e as Error)?.message ?? '').toLowerCase();
+      if (!msg.includes('fetch') && !msg.includes('network') && !msg.includes('429')) throw e;
+    }
+    await new Promise(r => setTimeout(r, interval));
+  }
+  throw new Error(`Transaction not confirmed after ${timeoutMs / 1000}s — check /streams for status`);
 }
 
 export interface WithdrawParams {

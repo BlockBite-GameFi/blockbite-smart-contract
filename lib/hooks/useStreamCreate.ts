@@ -119,39 +119,31 @@ export function useStreamCreate() {
 
         setTxStatus('approving'); setTxErr(null);
 
-        // Auto-retry wSOL wrap on blockhash expiry (up to 3 attempts)
-        let wrapOk = false;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            // Fresh blockhash each attempt
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-            wrapTx.recentBlockhash = blockhash;
-            wrapTx.feePayer = publicKey;
+        // KEY FIX: Do NOT set recentBlockhash.
+        // Solflare fetches a FRESH blockhash at the exact moment the user signs.
+        // Any pre-set blockhash will be stale by the time the user approves (10-60s).
+        wrapTx.feePayer = publicKey;
+        // wrapTx.recentBlockhash intentionally NOT set
 
-            // skipPreflight=true: Solflare uses its own RPC for simulation which may
-            // not have our fresh blockhash yet → preflight fails immediately.
-            // Skipping sends directly; confirmation uses our known-good endpoint.
-            const wrapSig = await sendTransaction(wrapTx, connection, {
-              skipPreflight: true,
-              maxRetries:    3,
-            });
-            setTxStatus('confirming');
-            const res = await connection.confirmTransaction(
-              { signature: wrapSig, blockhash, lastValidBlockHeight }, 'confirmed'
-            );
-            if (res.value.err) throw new Error(`Wrap on-chain error: ${JSON.stringify(res.value.err)}`);
-            wrapOk = true;
-            break;
-          } catch (e: unknown) {
-            const msg = ((e as Error)?.message ?? '').toLowerCase();
-            if ((msg.includes('blockhash') || msg.includes('expired')) && attempt < 2) {
-              await new Promise(r => setTimeout(r, 800));
-              continue; // retry with fresh blockhash
+        const wrapSig = await sendTransaction(wrapTx, connection, { skipPreflight: true });
+        setTxStatus('confirming');
+
+        // Poll for confirmation by signature (no blockhash dependency)
+        const wrapDeadline = Date.now() + 90_000;
+        while (Date.now() < wrapDeadline) {
+          try {
+            const { value } = await connection.getSignatureStatuses([wrapSig]);
+            const st = value[0];
+            if (st) {
+              if (st.err) throw new Error(`wSOL wrap error: ${JSON.stringify(st.err)}`);
+              if (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized') break;
             }
-            throw e;
+          } catch (pollErr: unknown) {
+            const m = ((pollErr as Error)?.message ?? '').toLowerCase();
+            if (!m.includes('fetch') && !m.includes('429')) throw pollErr;
           }
+          await new Promise(r => setTimeout(r, 2_000));
         }
-        if (!wrapOk) throw new Error('wSOL wrap failed after 3 attempts');
       } catch (e: unknown) {
         setTxErr(`SOL wrap failed: ${(e as Error)?.message ?? 'unknown'}`);
         setTxStatus('error'); return false;
