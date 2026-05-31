@@ -62,9 +62,13 @@ function FaucetButton({ mint, symbol }: { mint: string; symbol: string }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        // Show fallback links if airdrop failed
-        if (data.fallback) setMsg(`✗ Blocked — try: ${data.fallback[0]}`);
-        else setMsg(`✗ ${data.error ?? 'Faucet failed'}`);
+        if (data.fallback && data.fallback.length > 0) {
+          // Open first fallback in new tab and show message
+          window.open(data.fallback[0], '_blank');
+          setMsg(`↗ Opened: ${data.fallback[0].replace('https://', '')}`);
+        } else {
+          setMsg(`✗ ${data.error ?? 'Faucet failed'}`);
+        }
       } else {
         setMsg(isSOL ? `✓ 2 SOL airdropped!` : `✓ 10,000 ${symbol} sent!`);
       }

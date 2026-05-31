@@ -33,6 +33,7 @@ const DEVNET_ENDPOINTS = [
   'https://solana-devnet.drpc.org',
   'https://api.devnet.solana.com',
   'https://rpc.ankr.com/solana_devnet',
+  'https://rpc.surfpool.run',
 ];
 
 const MAINNET_ENDPOINTS = [

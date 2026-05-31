@@ -89,15 +89,14 @@ export async function POST(req: NextRequest) {
   // ── SPL token mint path — requires FAUCET_KEYPAIR ─────────────────────────
   const keypairEnv = process.env.FAUCET_KEYPAIR;
   if (!keypairEnv) {
+    // Return fallback[] so FaucetButton shows clickable links instead of a raw error
     return NextResponse.json(
       {
-        error: 'Token faucet not configured (FAUCET_KEYPAIR missing). Use SOL airdrop instead.',
-        tip:   'To get test USDC: use the "Airdrop 2 SOL" button then swap SOL→USDC via Jupiter at jup.ag',
-        external: {
-          sol:  'https://faucet.solana.com',
-          usdc: 'https://faucet.circle.com',
-          jupiter_swap: 'https://jup.ag/swap/SOL-USDC',
-        },
+        error: 'In-app USDC faucet not configured. Get devnet USDC from the links below:',
+        fallback: [
+          'https://faucet.circle.com',
+          'https://jup.ag/swap/SOL-USDC',
+        ],
       },
       { status: 503 },
     );
