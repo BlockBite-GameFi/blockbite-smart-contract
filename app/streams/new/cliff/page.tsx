@@ -80,6 +80,7 @@ export default function CliffPage() {
   const [batchIdx,  setBatchIdx]  = useState(0);
   const [batchDone, setBatchDone] = useState<string[]>([]);
   const [batchFail, setBatchFail] = useState<string[]>([]);
+  const [debugMsg,  setDebugMsg]  = useState<string | null>(null);
 
   const COLOR   = C.gold;
 
@@ -136,38 +137,73 @@ export default function CliffPage() {
 
   // ── Create handler — supports single (manual) + batch (csv) ─────────────────
   const handleCreate = async () => {
-    if (!connected) { setVisible(true); return; }
-    if (!validate()) return;
+    setDebugMsg(null);
+    try {
+      if (!connected) { setVisible(true); return; }
+      if (!validate()) {
+        setDebugMsg('❌ Validation failed — check the form fields above');
+        return;
+      }
 
-    const startTs = Math.floor(Date.now() / 1000);
-    const cliffTs = Math.floor(new Date(cliffDate).getTime() / 1000);
-    const endTs   = cliffTs + 1; // instant full release at cliff
+      const startTs = Math.floor(Date.now() / 1000);
+      const cliffTs = Math.floor(new Date(cliffDate).getTime() / 1000);
+      const endTs   = cliffTs + 1; // instant full release at cliff
 
-    if (mode === 'manual') {
-      await submit({
-        beneficiary: recipient, mint: tokenMint, symbol: tokenSymbol,
-        decimals: tokenDecimals, amount, startTs, cliffTs, endTs,
-        requiredTier: gameGate ? levelToTier(gameLevel) : 0,
-      });
-      return;
+      if (mode === 'manual') {
+        setDebugMsg('⏳ Approve in Solflare wallet…');
+        const ok = await submit({
+          beneficiary: recipient, mint: tokenMint, symbol: tokenSymbol,
+          decimals: tokenDecimals, amount, startTs, cliffTs, endTs,
+          requiredTier: gameGate ? levelToTier(gameLevel) : 0,
+        });
+        if (ok) setDebugMsg('✅ Stream created!');
+        return;
+      }
+
+      // ── CSV batch mode — create streams one by one ───────────────────────
+      // Always start from 0 on a fresh batch click (re-upload to retry failures)
+      const startFrom = batchDone.length + batchFail.length;
+      const remaining = csvRows.slice(startFrom);
+      if (remaining.length === 0) {
+        setDebugMsg('✅ All streams already processed! Re-upload CSV to start over.');
+        return;
+      }
+
+      const done: string[] = [...batchDone];
+      const fail: string[] = [...batchFail];
+
+      for (let i = 0; i < remaining.length; i++) {
+        const globalIdx = startFrom + i;
+        setBatchIdx(globalIdx);
+        const row = remaining[i];
+        setDebugMsg(`⏳ Creating stream ${globalIdx + 1}/${csvRows.length} — approve in Solflare wallet…`);
+
+        const ok = await submit({
+          beneficiary: row.wallet, mint: tokenMint, symbol: tokenSymbol,
+          decimals: tokenDecimals, amount: row.amount, startTs, cliffTs, endTs,
+          requiredTier: gameGate ? levelToTier(gameLevel) : 0,
+        });
+
+        if (ok) {
+          done.push(row.wallet);
+          setBatchDone([...done]);
+          setDebugMsg(`✅ Stream ${globalIdx + 1}/${csvRows.length} created!`);
+        } else {
+          fail.push(row.wallet);
+          setBatchFail([...fail]);
+          setDebugMsg(`⚠ Stream ${globalIdx + 1}/${csvRows.length} failed — continuing…`);
+        }
+        reset();
+        // Brief pause so React can re-render between streams
+        await new Promise(r => setTimeout(r, 400));
+      }
+
+      setBatchIdx(csvRows.length);
+      setDebugMsg(`✅ Batch complete: ${done.length} created, ${fail.length} failed`);
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message ?? String(err);
+      setDebugMsg(`❌ Error: ${msg}`);
     }
-
-    // ── CSV batch mode — create one stream per row ─────────────────────────
-    const done: string[] = [...batchDone];
-    const fail: string[] = [...batchFail];
-    for (let i = batchIdx; i < csvRows.length; i++) {
-      setBatchIdx(i);
-      const row = csvRows[i];
-      const ok = await submit({
-        beneficiary: row.wallet, mint: tokenMint, symbol: tokenSymbol,
-        decimals: tokenDecimals, amount: row.amount, startTs, cliffTs, endTs,
-        requiredTier: gameGate ? levelToTier(gameLevel) : 0,
-      });
-      if (ok) { done.push(row.wallet); setBatchDone([...done]); }
-      else     { fail.push(row.wallet); setBatchFail([...fail]); }
-      reset();
-    }
-    setBatchIdx(csvRows.length);
   };
 
   // ── Success screen ──────────────────────────────────────────────────────────
@@ -414,9 +450,26 @@ EPjFWdd5...t1v,500`}
         border: '1px solid color-mix(in srgb, var(--p-gold) 20%, transparent)',
         fontSize: 12, color: C.gold }}>
         {mode === 'csv' && csvRows.length > 1
-          ? `⚠ CSV batch mode: will create ${csvRows.length} separate cliff streams — approve each in your wallet`
-          : '⚠ Cliff streams lock tokens until the specified date. Connect your wallet to proceed.'}
+          ? `⚠ CSV batch: ${csvRows.length} streams — each needs wallet approval in Solflare`
+          : '⚠ Cliff streams lock tokens until cliff date. Connect wallet to proceed.'}
       </div>
+
+      {/* Debug / progress message — shows what's happening after button clicked */}
+      {debugMsg && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+          background: debugMsg.startsWith('✅') ? 'color-mix(in srgb, var(--p-green) 8%, transparent)'
+                    : debugMsg.startsWith('❌') ? 'color-mix(in srgb, var(--p-red) 8%, transparent)'
+                    : 'color-mix(in srgb, var(--p-accent) 8%, transparent)',
+          border: debugMsg.startsWith('✅') ? '1px solid color-mix(in srgb, var(--p-green) 30%, transparent)'
+                : debugMsg.startsWith('❌') ? '1px solid color-mix(in srgb, var(--p-red) 30%, transparent)'
+                : '1px solid color-mix(in srgb, var(--p-accent) 30%, transparent)',
+          color: debugMsg.startsWith('✅') ? 'var(--p-green)'
+               : debugMsg.startsWith('❌') ? 'var(--p-red)'
+               : 'var(--p-accent)',
+        }}>
+          {debugMsg}
+        </div>
+      )}
     </StreamPageShell>
   );
 }
