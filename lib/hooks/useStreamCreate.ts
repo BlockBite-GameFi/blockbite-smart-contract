@@ -118,9 +118,36 @@ export function useStreamCreate() {
         );
 
         setTxStatus('approving'); setTxErr(null);
-        const wrapSig = await sendTransaction(wrapTx, connection);
-        setTxStatus('confirming');
-        await connection.confirmTransaction(wrapSig, 'confirmed');
+
+        // Auto-retry wSOL wrap on blockhash expiry (up to 3 attempts)
+        let wrapOk = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            // Fresh blockhash each attempt
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            wrapTx.recentBlockhash = blockhash;
+            wrapTx.feePayer = publicKey;
+
+            const wrapSig = await sendTransaction(wrapTx, connection, {
+              skipPreflight: false, preflightCommitment: 'confirmed', maxRetries: 3,
+            });
+            setTxStatus('confirming');
+            const res = await connection.confirmTransaction(
+              { signature: wrapSig, blockhash, lastValidBlockHeight }, 'confirmed'
+            );
+            if (res.value.err) throw new Error(`Wrap on-chain error: ${JSON.stringify(res.value.err)}`);
+            wrapOk = true;
+            break;
+          } catch (e: unknown) {
+            const msg = ((e as Error)?.message ?? '').toLowerCase();
+            if ((msg.includes('blockhash') || msg.includes('expired')) && attempt < 2) {
+              await new Promise(r => setTimeout(r, 800));
+              continue; // retry with fresh blockhash
+            }
+            throw e;
+          }
+        }
+        if (!wrapOk) throw new Error('wSOL wrap failed after 3 attempts');
       } catch (e: unknown) {
         setTxErr(`SOL wrap failed: ${(e as Error)?.message ?? 'unknown'}`);
         setTxStatus('error'); return false;

@@ -124,17 +124,45 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
     })
     .instruction();
 
-  const tx = new Transaction().add(ix);
-  tx.feePayer = p.authority;
-  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
-  tx.recentBlockhash = blockhash;
+  const MAX_RETRIES = 3;
 
-  const sig = await p.sendTransaction(tx, p.connection);
-  await p.connection.confirmTransaction(
-    { signature: sig, blockhash, lastValidBlockHeight },
-    'confirmed',
-  );
-  return sig;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Use 'confirmed' (not 'finalized') for a fresher blockhash = more time before expiry.
+    // Re-fetch on every attempt so retries always have a valid blockhash.
+    const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
+
+    const tx = new Transaction().add(ix);
+    tx.feePayer = p.authority;
+    tx.recentBlockhash = blockhash;
+
+    try {
+      const sig = await p.sendTransaction(tx, p.connection);
+
+      // Confirm — use signature poll (not blockhash-dependent) for resilience
+      const result = await p.connection.confirmTransaction(
+        { signature: sig, blockhash, lastValidBlockHeight },
+        'confirmed',
+      );
+
+      if (result.value.err) {
+        throw new Error(`Transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
+      }
+
+      return sig;
+    } catch (e: unknown) {
+      const msg = ((e as Error)?.message ?? '').toLowerCase();
+      const isExpired = msg.includes('blockhash') || msg.includes('expired') || msg.includes('timeout');
+
+      if (isExpired && attempt < MAX_RETRIES - 1) {
+        // Brief pause then retry with a fresh blockhash
+        await new Promise(r => setTimeout(r, 800));
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw new Error('Transaction failed after 3 attempts — please try again');
 }
 
 export interface WithdrawParams {
