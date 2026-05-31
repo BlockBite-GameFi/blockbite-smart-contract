@@ -3,19 +3,26 @@
 /**
  * useStreamCreate — Universal stream creator.
  * Supports ANY SPL token (custom mint, auto-fetch decimals).
+ * Supports native SOL — auto-wraps to wSOL before creating stream.
  * Works on mainnet, devnet, testnet.
  */
 
 import { useState } from 'react';
-import { PublicKey } from '@solana/web3.js';
+import {
+  PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
+import {
+  getAssociatedTokenAddress, getAccount,
+  NATIVE_MINT, createAssociatedTokenAccountInstruction,
+  createSyncNativeInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
 
-export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+export type TxStatus = 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';
 
 export interface StreamCreateInput {
-  mintAddress: string;   // any SPL mint (custom or known)
+  mintAddress: string;   // any SPL mint OR native SOL mint (So111...112)
   decimals:    number;   // fetched from chain or known registry
   symbol:      string;   // display symbol
   beneficiary: string;   // recipient wallet address
@@ -26,6 +33,9 @@ export interface StreamCreateInput {
   requiredTier?: 0 | 1 | 2;
 }
 
+// Native SOL mint address — used for wSOL wrapping flow
+const NATIVE_MINT_ADDR = NATIVE_MINT.toBase58(); // So11111111111111111111111111111111111111112
+
 export function useStreamCreate() {
   const { connection }                              = useConnection();
   const { publicKey, sendTransaction, connected }   = useWallet();
@@ -34,7 +44,7 @@ export function useStreamCreate() {
   const [txSig,     setTxSig]     = useState<string | null>(null);
   const [txErr,     setTxErr]     = useState<string | null>(null);
 
-  const isSubmitting = txStatus === 'approving' || txStatus === 'confirming';
+  const isSubmitting = txStatus === 'wrapping' || txStatus === 'approving' || txStatus === 'confirming';
 
   const submit = async (p: StreamCreateInput): Promise<boolean> => {
     if (!publicKey || !connected) {
@@ -74,29 +84,103 @@ export function useStreamCreate() {
 
     const rawAmount = BigInt(Math.round(amountNum * 10 ** p.decimals));
 
-    // Pre-flight: verify creator token account exists and has enough balance
-    try {
-      const creatorTA = await getAssociatedTokenAddress(mintPk, publicKey);
-      const acct = await getAccount(connection, creatorTA);
-      if (acct.amount < rawAmount) {
-        const have = (Number(acct.amount) / 10 ** p.decimals).toLocaleString();
-        const need = amountNum.toLocaleString();
-        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need}`);
+    // ── Native SOL path: auto-wrap SOL → wSOL ────────────────────────────────
+    // Triggered when user selects SOL/wSOL (mint = So11111…112).
+    // The Anchor program only accepts SPL token accounts, so we must wrap first.
+    const isNativeSol = p.mintAddress === NATIVE_MINT_ADDR;
+
+    if (isNativeSol) {
+      // 1. Check native SOL balance (wallet has SOL, not wSOL)
+      const lamportsNeeded = rawAmount + BigInt(20_000_000); // +0.02 SOL fee buffer
+      let solBalance: number;
+      try { solBalance = await connection.getBalance(publicKey); }
+      catch { setTxErr('RPC error checking SOL balance. Try again.'); setTxStatus('error'); return false; }
+
+      if (BigInt(solBalance) < lamportsNeeded) {
+        const have = (solBalance / LAMPORTS_PER_SOL).toFixed(4);
+        const need = (Number(lamportsNeeded) / LAMPORTS_PER_SOL).toFixed(4);
+        setTxErr(
+          `Insufficient SOL: wallet has ${have} SOL, need ${need} SOL.\n` +
+          `Use Devnet Tools → "0.5 SOL" to get more devnet SOL.`
+        );
         setTxStatus('error');
         return false;
       }
-    } catch {
-      setTxErr(`No ${p.symbol} token account found. Use Devnet Tools to fund your wallet, then retry.`);
-      setTxStatus('error');
-      return false;
+
+      // 2. Build wrap transaction
+      try {
+        const wsolAta = await getAssociatedTokenAddress(
+          NATIVE_MINT, publicKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+        );
+        const wrapTx = new Transaction();
+
+        // Create wSOL ATA if it doesn't exist
+        let ataExists = false;
+        try { await getAccount(connection, wsolAta); ataExists = true; }
+        catch { /* ATA doesn't exist — will create it */ }
+
+        if (!ataExists) {
+          wrapTx.add(createAssociatedTokenAccountInstruction(
+            publicKey, wsolAta, publicKey, NATIVE_MINT,
+            TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+          ));
+        }
+
+        // Transfer SOL lamports into the wSOL ATA then sync
+        wrapTx.add(
+          SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: wsolAta, lamports: rawAmount }),
+          createSyncNativeInstruction(wsolAta),
+        );
+
+        // 3. Sign + send wrap transaction
+        setTxStatus('wrapping');
+        setTxErr(null);
+        setTxSig(null);
+        const wrapSig = await sendTransaction(wrapTx, connection);
+
+        // 4. Wait for wrap to confirm before creating stream
+        setTxStatus('confirming');
+        await connection.confirmTransaction(wrapSig, 'confirmed');
+
+        // Wrap done — fall through to createStream below
+        setTxStatus('approving');
+
+      } catch (e: unknown) {
+        const msg = humanizeError(e);
+        setTxErr(`SOL wrap failed: ${msg}`);
+        setTxStatus('error');
+        return false;
+      }
+
+    } else {
+      // ── SPL token path: verify ATA exists and has enough balance ─────────────
+      try {
+        const creatorTA = await getAssociatedTokenAddress(mintPk, publicKey);
+        const acct = await getAccount(connection, creatorTA);
+        if (acct.amount < rawAmount) {
+          const have = (Number(acct.amount) / 10 ** p.decimals).toLocaleString();
+          const need = amountNum.toLocaleString();
+          setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need}`);
+          setTxStatus('error');
+          return false;
+        }
+      } catch {
+        setTxErr(
+          `No ${p.symbol} token account found.\n` +
+          `Use Devnet Tools → "Get ${p.symbol}" to fund your wallet first.`
+        );
+        setTxStatus('error');
+        return false;
+      }
+
+      // For SPL tokens: set approving state before createStream
+      setTxStatus('approving');
+      setTxErr(null);
+      setTxSig(null);
     }
 
-    // Unique stream seed
+    // ── Create the vesting stream on-chain ────────────────────────────────────
     const streamId = BigInt(Date.now());
-
-    setTxStatus('approving');
-    setTxErr(null);
-    setTxSig(null);
 
     try {
       const sig = await createStream({
@@ -132,7 +216,7 @@ export function useStreamCreate() {
   return { submit, txStatus, txSig, txErr, isSubmitting, reset };
 }
 
-function humanizeError(e: unknown): string {
+export function humanizeError(e: unknown): string {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
   if (msg.includes('user rejected') || msg.includes('user cancelled') || msg.includes('user denied'))
     return 'Transaction cancelled — you rejected the wallet prompt.';
@@ -146,5 +230,7 @@ function humanizeError(e: unknown): string {
     return 'Amount must be greater than 0.';
   if (msg.includes('invalidtimestamp') || msg.includes('6001'))
     return 'Invalid dates — check start/end/cliff times.';
-  return (e instanceof Error ? e.message : String(e)).slice(0, 160);
+  if (msg.includes('invalidcliff') || msg.includes('6003'))
+    return 'Cliff date must be between start and end dates.';
+  return (e instanceof Error ? e.message : String(e)).slice(0, 200);
 }

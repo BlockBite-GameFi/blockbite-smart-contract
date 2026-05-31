@@ -293,7 +293,7 @@ export function StreamSidebar({
   /** Squads vault address when the creator opts into multisig cancel protection */
   multisigAuthority?: string;
   onSubmit: () => void;
-  txStatus?: 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+  txStatus?: 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';
   txErr?: string | null;
   isSubmitting?: boolean;
 }) {
@@ -360,8 +360,9 @@ export function StreamSidebar({
           boxShadow: isSubmitting ? 'none' : `0 0 20px color-mix(in srgb, ${typeColor} 27%, transparent)`,
           transition: 'all .15s',
         }}>
-          {txStatus === 'approving'  ? '◈ Approve in wallet…'
-           : txStatus === 'confirming' ? '▶ Confirming…'
+          {txStatus === 'wrapping'   ? '⟳ Approve SOL wrap (1/2)…'
+           : txStatus === 'approving'  ? '◈ Approve stream (2/2)…'
+           : txStatus === 'confirming' ? '▶ Confirming on Solana…'
            : `Create ${recipientCount > 1 ? `${recipientCount} ` : ''}${typeLabel} Stream${recipientCount > 1 ? 's' : ''}`}
         </button>
         {txErr && (
@@ -400,7 +401,7 @@ export function StreamSidebar({
 }
 
 // ─── Tx status type (mirrors useStreamCreate) ────────────────────────────────
-export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
+export type TxStatus = 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';
 
 // ─── Inline field validation error ───────────────────────────────────────────
 export function FieldError({ msg }: { msg?: string }) {
@@ -414,6 +415,7 @@ export function FieldError({ msg }: { msg?: string }) {
 
 // ─── 3-stage transaction progress bar ────────────────────────────────────────
 const TX_STAGES: { key: TxStatus; label: string; icon: string }[] = [
+  { key: 'wrapping',   label: 'Wrap SOL',            icon: '⟳' },
   { key: 'approving',  label: 'Wallet Approval',     icon: '◈' },
   { key: 'confirming', label: 'Sending to Solana',   icon: '▶' },
   { key: 'done',       label: 'Confirmed On-Chain',  icon: '✓' },
@@ -429,9 +431,11 @@ export function TxProgress({
 }) {
   if (status === 'idle') return null;
 
-  const activeIdx = status === 'done' ? 2
-    : status === 'confirming' ? 1
-    : 0;
+  // wrapping=0, approving=1, confirming=2, done=3
+  const activeIdx = status === 'done' ? 3
+    : status === 'confirming' ? 2
+    : status === 'approving'  ? 1
+    : 0; // wrapping
 
   return (
     <div style={{
@@ -481,6 +485,11 @@ export function TxProgress({
       </div>
 
       {/* Status message */}
+      {status === 'wrapping' && (
+        <div style={{ fontSize: 12.5, color: C.gold, textAlign: 'center' }}>
+          ⟳ Step 1/2 — Approve SOL → wSOL wrap in your wallet…
+        </div>
+      )}
       {status === 'approving' && (
         <div style={{ fontSize: 12.5, color: C.accent, textAlign: 'center' }}>
           Open your wallet and approve the transaction…

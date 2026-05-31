@@ -36,45 +36,76 @@ export interface WalletToken {
   isKnown:  boolean;
 }
 
-/** Fetch ALL SPL token accounts owned by wallet from chain */
+/** Native SOL mint address (wSOL) — used for auto-wrap flow */
+export const NATIVE_SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+/** Fetch ALL SPL token accounts owned by wallet from chain.
+ *  ALSO prepends native SOL as a first entry so users see their actual SOL balance.
+ *  When user selects native SOL (mint = NATIVE_SOL_MINT), useStreamCreate auto-wraps it.
+ */
 export async function fetchWalletTokens(
   connection: Connection,
   wallet: PublicKey,
   isDevnet = true,
 ): Promise<WalletToken[]> {
   const knownTokens = isDevnet ? KNOWN_DEVNET_TOKENS : KNOWN_MAINNET_TOKENS;
-
-  const parsed = await connection.getParsedTokenAccountsByOwner(wallet, {
-    programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-  });
-
   const tokens: WalletToken[] = [];
 
-  for (const { pubkey, account } of parsed.value) {
-    const data = account.data as ParsedAccountData;
-    const info = data.parsed?.info;
-    if (!info) continue;
-
-    const mint     = info.mint as string;
-    const decimals = info.tokenAmount?.decimals ?? 0;
-    const rawAmt   = BigInt(info.tokenAmount?.amount ?? '0');
-    const uiAmt    = info.tokenAmount?.uiAmount ?? 0;
-
-    const known = knownTokens[mint];
+  // 1. Native SOL — always first, shows actual wallet balance
+  try {
+    const lamports    = await connection.getBalance(wallet);
+    const balanceUI   = lamports / 1e9;
     tokens.push({
-      mint,
-      symbol:    known?.symbol ?? mint.slice(0, 6) + '…',
-      name:      known?.name   ?? 'Unknown Token',
-      decimals,
-      balance:   rawAmt,
-      balanceUI: uiAmt,
-      ata:       pubkey.toBase58(),
-      isKnown:   !!known,
+      mint:      NATIVE_SOL_MINT,
+      symbol:    'SOL',
+      name:      'Solana (native) — auto-wraps to wSOL for vesting',
+      decimals:  9,
+      balance:   BigInt(lamports),
+      balanceUI,
+      ata:       '', // native SOL has no ATA
+      isKnown:   true,
     });
-  }
+  } catch { /* non-fatal */ }
 
-  // Sort: known tokens first, then by balance desc
+  // 2. All SPL token accounts
+  try {
+    const parsed = await connection.getParsedTokenAccountsByOwner(wallet, {
+      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+    });
+
+    const seenMints = new Set<string>([NATIVE_SOL_MINT]);
+
+    for (const { pubkey, account } of parsed.value) {
+      const data = account.data as ParsedAccountData;
+      const info = data.parsed?.info;
+      if (!info) continue;
+
+      const mint     = info.mint as string;
+      const decimals = info.tokenAmount?.decimals ?? 0;
+      const rawAmt   = BigInt(info.tokenAmount?.amount ?? '0');
+      const uiAmt    = info.tokenAmount?.uiAmount ?? 0;
+
+      if (seenMints.has(mint)) continue;
+      seenMints.add(mint);
+
+      const known = knownTokens[mint];
+      tokens.push({
+        mint,
+        symbol:    known?.symbol ?? mint.slice(0, 6) + '…',
+        name:      known?.name   ?? 'Unknown Token',
+        decimals,
+        balance:   rawAmt,
+        balanceUI: uiAmt,
+        ata:       pubkey.toBase58(),
+        isKnown:   !!known,
+      });
+    }
+  } catch { /* non-fatal — return at least native SOL */ }
+
+  // Sort: native first, then known tokens by balance desc, then unknown
   return tokens.sort((a, b) => {
+    if (a.mint === NATIVE_SOL_MINT) return -1;
+    if (b.mint === NATIVE_SOL_MINT) return 1;
     if (a.isKnown !== b.isKnown) return a.isKnown ? -1 : 1;
     return Number(b.balance - a.balance);
   });
