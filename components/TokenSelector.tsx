@@ -40,11 +40,12 @@ function TokenLogo({ logoURI, symbol, size = 22 }: { logoURI?: string; symbol: s
   );
 }
 
-// Faucet button for devnet tokens
+// Faucet button for devnet tokens (SOL + any SPL)
 function FaucetButton({ mint, symbol }: { mint: string; symbol: string }) {
   const { publicKey } = useWallet();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const isSOL = mint === 'SOL' || mint === 'So11111111111111111111111111111111111111112';
 
   const get = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,18 +53,24 @@ function FaucetButton({ mint, symbol }: { mint: string; symbol: string }) {
     setLoading(true); setMsg('');
     try {
       const body: Record<string,string> = { wallet: publicKey.toBase58() };
-      if (mint !== 'SOL') body.mint = mint;
+      // For SOL: use 'SOL' as special mint key to trigger devnet airdrop
+      body.mint = isSOL ? 'SOL' : mint;
       const res = await fetch('/api/faucet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) setMsg(`✗ ${data.error ?? 'Faucet failed'}`);
-      else setMsg(`✓ 10,000 ${symbol} sent!`);
+      if (!res.ok) {
+        // Show fallback links if airdrop failed
+        if (data.fallback) setMsg(`✗ Blocked — try: ${data.fallback[0]}`);
+        else setMsg(`✗ ${data.error ?? 'Faucet failed'}`);
+      } else {
+        setMsg(isSOL ? `✓ 2 SOL airdropped!` : `✓ 10,000 ${symbol} sent!`);
+      }
     } catch { setMsg('✗ Request failed'); }
     finally { setLoading(false); }
-  }, [publicKey, mint, symbol]);
+  }, [publicKey, mint, symbol, isSOL]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
@@ -73,7 +80,7 @@ function FaucetButton({ mint, symbol }: { mint: string; symbol: string }) {
         border: '1px solid color-mix(in srgb, var(--p-green) 35%, transparent)',
         color: 'var(--p-green)', whiteSpace: 'nowrap',
       }}>
-        {loading ? '…' : `Get ${symbol}`}
+        {loading ? '…' : isSOL ? 'Airdrop 2 SOL' : `Get ${symbol}`}
       </button>
       {msg && <span style={{ fontSize: 9, color: msg.startsWith('✓') ? 'var(--p-green)' : 'var(--p-red)' }}>{msg}</span>}
     </div>
@@ -107,10 +114,17 @@ function TokenRow({ tok, selected, onClick }: {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
-        {hasBalance ? (
+        {hasBalance && !tok.isNative ? (
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--p-green)' }}>
             {tok.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })}
           </span>
+        ) : tok.isNative ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: tok.balance > 0 ? 'var(--p-green)' : 'var(--p-muted)' }}>
+              {tok.balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL
+            </span>
+            <FaucetButton mint={tok.mint} symbol={tok.symbol} />
+          </div>
         ) : (
           <FaucetButton mint={tok.mint} symbol={tok.symbol} />
         )}

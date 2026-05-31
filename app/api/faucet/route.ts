@@ -44,6 +44,30 @@ export async function POST(req: NextRequest) {
   try { walletPk = new PublicKey(wallet); }
   catch { return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 }); }
 
+  // Special case: SOL airdrop via Solana RPC devnet faucet
+  // Used when faucet.solana.com is blocked (e.g., restricted network at courthouse)
+  if (mintOverride === 'SOL') {
+    try {
+      const conn = new Connection(RPC_URL, 'confirmed');
+      const sig = await conn.requestAirdrop(walletPk, 2_000_000_000); // 2 SOL
+      await conn.confirmTransaction(sig, 'confirmed');
+      return NextResponse.json({
+        success:   true,
+        amount:    2,
+        decimals:  9,
+        mint:      'SOL',
+        signature: sig,
+        explorer:  `https://explorer.solana.com/tx/${sig}?cluster=devnet`,
+      });
+    } catch (e: unknown) {
+      // Airdrop may be rate-limited — return helpful fallback
+      return NextResponse.json({
+        error:    `SOL airdrop failed: ${(e as Error)?.message}. Try https://faucet.solana.com or https://faucet.quicknode.com/solana/devnet`,
+        fallback: ['https://faucet.solana.com', 'https://faucet.quicknode.com/solana/devnet'],
+      }, { status: 503 });
+    }
+  }
+
   const mintAddr = mintOverride ?? USDC_MINT.toBase58();
   let mintPk: PublicKey;
   try { mintPk = new PublicKey(mintAddr); }
