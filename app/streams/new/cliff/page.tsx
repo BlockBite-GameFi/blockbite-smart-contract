@@ -160,23 +160,26 @@ export default function CliffPage() {
         return;
       }
 
-      // ── CSV batch mode — create streams one by one ───────────────────────
-      // Always start from 0 on a fresh batch click (re-upload to retry failures)
-      const startFrom = batchDone.length + batchFail.length;
-      const remaining = csvRows.slice(startFrom);
-      if (remaining.length === 0) {
-        setDebugMsg('✅ All streams already processed! Re-upload CSV to start over.');
+      // ── CSV batch mode — retry ALL rows on each click (fresh attempt)
+      // Skip only successfully created streams (batchDone). Always retry failed ones.
+      const alreadyDone = new Set(batchDone);
+      const toCreate    = csvRows.filter(r => !alreadyDone.has(r.wallet));
+
+      if (toCreate.length === 0) {
+        setDebugMsg(`✅ All ${csvRows.length} streams already created! View at /streams`);
         return;
       }
 
+      // Reset fail state so rows don't show ✗ before new attempt
+      setBatchFail([]);
       const done: string[] = [...batchDone];
-      const fail: string[] = [...batchFail];
+      const fail: string[] = [];
 
-      for (let i = 0; i < remaining.length; i++) {
-        const globalIdx = startFrom + i;
+      for (let i = 0; i < toCreate.length; i++) {
+        const row       = toCreate[i];
+        const globalIdx = csvRows.indexOf(row);
         setBatchIdx(globalIdx);
-        const row = remaining[i];
-        setDebugMsg(`⏳ Creating stream ${globalIdx + 1}/${csvRows.length} — approve in Solflare wallet…`);
+        setDebugMsg(`⏳ Stream ${i + 1}/${toCreate.length} — approve in Solflare wallet…`);
 
         const ok = await submit({
           beneficiary: row.wallet, mint: tokenMint, symbol: tokenSymbol,
@@ -187,11 +190,11 @@ export default function CliffPage() {
         if (ok) {
           done.push(row.wallet);
           setBatchDone([...done]);
-          setDebugMsg(`✅ Stream ${globalIdx + 1}/${csvRows.length} created!`);
+          setDebugMsg(`✅ Stream ${i + 1}/${toCreate.length} created! (${done.length} total)`);
         } else {
           fail.push(row.wallet);
           setBatchFail([...fail]);
-          setDebugMsg(`⚠ Stream ${globalIdx + 1}/${csvRows.length} failed — continuing…`);
+          setDebugMsg(`⚠ Stream ${i + 1}/${toCreate.length} failed — will retry on next click…`);
         }
         reset();
         // Brief pause so React can re-render between streams
@@ -199,7 +202,10 @@ export default function CliffPage() {
       }
 
       setBatchIdx(csvRows.length);
-      setDebugMsg(`✅ Batch complete: ${done.length} created, ${fail.length} failed`);
+      const msg = fail.length === 0
+        ? `✅ All ${done.length} cliff streams created! View at /streams`
+        : `⚠ ${done.length}/${toCreate.length} created. ${fail.length} failed — click Create again to retry.`;
+      setDebugMsg(msg);
     } catch (err: unknown) {
       const msg = (err as Error)?.message ?? String(err);
       setDebugMsg(`❌ Error: ${msg}`);
