@@ -112,6 +112,12 @@ async function fetchMintMeta(
   }
 }
 
+// Reliable devnet endpoint for basic reads (getBalance, getTokenAccountsByOwner).
+// drpc.org free-tier blocks these methods (error code 35), so we use the
+// official devnet node which supports all basic read methods.
+import { Connection as SolanaConnection } from '@solana/web3.js';
+const BALANCE_RPC = new SolanaConnection('https://api.devnet.solana.com', 'confirmed');
+
 export function useWalletTokens() {
   const { connection }  = useConnection();
   const { publicKey }   = useWallet();
@@ -129,8 +135,9 @@ export function useWalletTokens() {
       const results: WalletToken[] = [];
       const seenMints = new Set<string>();
 
-      // 1. Native SOL — always first
-      const lamports = await connection.getBalance(publicKey);
+      // 1. Native SOL — use BALANCE_RPC (api.devnet.solana.com) which reliably
+      //    supports getBalance; drpc.org free-tier blocks this method.
+      const lamports = await BALANCE_RPC.getBalance(publicKey);
       results.push({
         mint: 'SOL', symbol: 'SOL', name: 'Solana (devnet)', decimals: 9,
         balance: lamports / LAMPORTS_PER_SOL, isNative: true, isKnown: true,
@@ -183,7 +190,7 @@ export function useWalletTokens() {
     } catch {
       // RPC error — still show native SOL balance if possible, plus devnet defaults
       try {
-        const lamports = await connection.getBalance(publicKey).catch(() => 0);
+        const lamports = await BALANCE_RPC.getBalance(publicKey).catch(() => 0);
         setTokens([
           {
             mint: 'SOL', symbol: 'SOL', name: 'Solana (devnet)', decimals: 9,

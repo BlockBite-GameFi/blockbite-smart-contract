@@ -28,10 +28,14 @@ export const IS_DEVNET = ACTIVE_NETWORK === WalletAdapterNetwork.Devnet;
 // For higher throughput set NEXT_PUBLIC_RPC_URL to a dedicated node, e.g.:
 //   Helius devnet: https://devnet.helius-rpc.com/?api-key=YOUR_KEY  (free tier)
 //   QuickNode:     https://YOUR_SLUG.solana-devnet.quiknode.pro/YOUR_KEY/
+// drpc.org free-tier BLOCKS getBalance and getTokenAccountsByOwner (error code 35
+// "method not available on freetier"). Switch to api.devnet.solana.com which
+// supports all basic read methods. getProgramAccounts is still blocked on the
+// public node but withRpcFallback() in rpc-manager handles that separately.
 export const RPC_URL =
   process.env.NEXT_PUBLIC_RPC_URL ??
   (IS_DEVNET
-    ? 'https://solana-devnet.drpc.org'
+    ? 'https://api.devnet.solana.com'
     : 'https://solana-mainnet.drpc.org');
 
 // ── USDC SPL Mint addresses ────────────────────────────────────────

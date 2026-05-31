@@ -29,9 +29,13 @@ import { IS_DEVNET } from './config';
 // ── Candidate endpoints ─────────────────────────────────────────────────────
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
+// NOTE: api.devnet.solana.com is FIRST because drpc.org free-tier blocks
+// getBalance and getTokenAccountsByOwner (error code 35 "method not available
+// on freetier"). api.devnet.solana.com supports all basic reads; it only
+// blocks getProgramAccounts which withRpcFallback() handles by trying drpc.org.
 const DEVNET_ENDPOINTS = [
-  'https://solana-devnet.drpc.org',
-  'https://api.devnet.solana.com',
+  'https://api.devnet.solana.com',      // ← primary: supports getBalance/getTokenAccounts
+  'https://solana-devnet.drpc.org',     // ← fallback: supports getProgramAccounts
   'https://rpc.ankr.com/solana_devnet',
   'https://rpc.surfpool.run',
 ];
@@ -90,6 +94,9 @@ function isInfraError(err: Error): boolean {
     m.includes('api key is not allowed') || // ankr explicit message
     m.includes('method not found')      ||
     m.includes('method not supported')  ||
+    m.includes('not available on freetier') || // drpc.org free-tier block (code 35)
+    m.includes('upgrade to paid tier')  ||  // drpc.org free-tier message
+    m.includes('freetier')              ||
     m.includes('getprogramaccounts')       // explicit getProgramAccounts block message
   );
 }
