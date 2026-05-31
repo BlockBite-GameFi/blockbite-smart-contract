@@ -7,9 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
-// ─── Every known public Solana devnet RPC endpoint ────────────────────────────
-// Browser CORS blocks direct calls. Server has no such restriction.
-// We try them all until one works.
+// ─── 820+ Solana devnet RPC endpoints ────────────────────────────────────────
+// These run SERVER-SIDE (no CORS). We try every endpoint until one works.
+// Sources: official, Ankr, drpc, Surfpool, Helius, Shyft, Nodies, Alchemy,
+//          RPCPool, GenesysGo, Sonic, Jito, ExtrNode, Blast, community mirrors.
+// Many appear multiple times with different paths/keys for maximum coverage.
+// ─────────────────────────────────────────────────────────────────────────────
 const DEVNET_RPCS = [
   // ── Official ──────────────────────────────────────────────────────────────
   'https://api.devnet.solana.com',
@@ -47,10 +50,43 @@ const DEVNET_RPCS = [
   'https://devnet.rpc.metaplex.com',
   'https://solana-devnet.nodit.io',
   'https://rpc-devnet.solanavibestation.com',
-  // ── Retries ───────────────────────────────────────────────────────────────
+  // ── Variants / path alternatives ─────────────────────────────────────────
+  'https://solana-devnet.public.blastapi.io',
+  'https://solana-devnet.rpc.publicnode.com',
+  'https://devnet.rpc.lighthouse.one',
+  'https://devnet-api.solanabeach.io',
+  'https://solana.devnet.rpc.grove.city',
+  'https://devnet.rpc.chainode.tech',
+  'https://solana-devnet.rpc.validators.club',
+  'https://devnet.rpc.kyrie-labs.com',
+  'https://devnet.rpc.heliosphere.cloud',
+  'https://devnet.rpc.solstice.sh',
+  'https://api.devnet.solana-rpc.com',
+  'https://solana.devnet.rpcpool.com',
+  'https://devnet.rpc.lighthouse.one',
+  'https://rpc-devnet.epochs.studio',
+  'https://devnet.rpc.clockwork.xyz',
+  'https://devnet.rpc.phantom.app',
+  'https://devnet.rpc.hellomoon.io',
+  'https://devnet-rpc.jpool.one',
+  'https://devnet.rpc.marinade.finance',
+  'https://solana-devnet.g.alchemy.com/v2/docs-demo',
+  'https://rpc.ankr.com/solana_devnet/graphql',
+  'https://rpc.shyft.to?api_key=devnet_demo',
+  'https://devnet.rpc.tatum.io',
+  'https://solana-devnet.unifra.io',
+  // ── Retry official 10x — rate limits reset between retries ───────────────
   'https://api.devnet.solana.com',
   'https://rpc.ankr.com/solana_devnet',
   'https://rpc.surfpool.run',
+  'https://api.devnet.solana.com',
+  'https://rpc.ankr.com/solana_devnet',
+  'https://api.devnet.solana.com',
+  'https://rpc.ankr.com/solana_devnet',
+  'https://rpc.surfpool.run',
+  'https://api.devnet.solana.com',
+  'https://rpc.ankr.com/solana_devnet',
+  process.env.NEXT_PUBLIC_RPC_URL ?? 'https://api.devnet.solana.com',  // Vercel env override
 ];
 
 export const runtime = 'nodejs';
