@@ -524,7 +524,7 @@ export function humanizeError(e: unknown): string {
   if (msg.includes('insufficient funds') || msg.includes('insufficient balance') || msg.includes('insufficient lamports'))
     return 'Insufficient balance — not enough tokens or SOL for fees.';
   if (msg.includes('blockhash') || msg.includes('expired'))
-    return 'Transaction expired — please try again.';
+    return 'Transaction expired — clicking Create again will retry automatically (up to 5x).';
   if (msg.includes('already in use') || msg.includes('already exists'))
     return 'Stream account already exists at this address.';
   if (msg.includes('invalid account data') || msg.includes('incorrect program id'))

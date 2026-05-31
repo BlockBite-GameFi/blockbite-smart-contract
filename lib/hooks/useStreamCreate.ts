@@ -128,8 +128,12 @@ export function useStreamCreate() {
             wrapTx.recentBlockhash = blockhash;
             wrapTx.feePayer = publicKey;
 
+            // skipPreflight=true: Solflare uses its own RPC for simulation which may
+            // not have our fresh blockhash yet → preflight fails immediately.
+            // Skipping sends directly; confirmation uses our known-good endpoint.
             const wrapSig = await sendTransaction(wrapTx, connection, {
-              skipPreflight: false, preflightCommitment: 'confirmed', maxRetries: 3,
+              skipPreflight: true,
+              maxRetries:    3,
             });
             setTxStatus('confirming');
             const res = await connection.confirmTransaction(
