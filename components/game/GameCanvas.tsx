@@ -635,7 +635,7 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
         <span className={styles.hintKey}>1-3</span> SELECT PIECE · <span className={styles.hintKey}>CLICK</span> BOARD TO PLACE · <span className={styles.hintKey}>ESC</span> DESELECT
       </div>
 
-      {(state.isGameOver || (!hasStartedGame && (connected ? (ticketBalance !== null && ticketBalance > 0) : true))) && (
+      {!hasStartedGame && (state.isGameOver || (connected ? (ticketBalance !== null && ticketBalance > 0) : true)) && (
         <div className={styles.gameOverActions}>
           <button type="button" className="btn btn-primary btn-lg" onClick={handleStartGame}>
             {state.isGameOver

@@ -119,8 +119,7 @@ export function useStreamCreate() {
         }
       } catch {
         setTxErr(
-          `No ${p.symbol} token account found on devnet.\n` +
-          `Use the "Get ${p.symbol}" button in the token selector, or switch to SOL (native) which wraps automatically.`
+          `No ${p.symbol} token account found — click "Get ${p.symbol}" in the token selector to fund your wallet, then retry.`
         );
         setTxStatus('error'); return false;
       }

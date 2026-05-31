@@ -534,6 +534,8 @@ export function humanizeError(e: unknown): string {
     return 'Arithmetic overflow — reduce the stream amount.';
   if (msg.includes('wallet not connected') || msg.includes('not connected'))
     return 'Wallet not connected — connect Phantom or Solflare first.';
+  if (msg.includes('no sol token account') || msg.includes('no usdc token account') || msg.includes('no.*token account found'))
+    return 'Token account not found — use "Get Test Tokens" button, or airdrop SOL via faucet.solana.com then retry.';
   if (msg.includes('403') || msg.includes('forbidden'))
     return 'RPC blocked this request — switching endpoint automatically.';
   if (msg.includes('timeout') || msg.includes('timed out'))
