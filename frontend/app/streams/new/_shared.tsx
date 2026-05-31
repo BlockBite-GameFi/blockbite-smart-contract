@@ -517,6 +517,18 @@ export function TxProgress({
           ✗ {humanizeError(error)}
         </div>
       )}
+      {status === 'error' && (
+        <div style={{ textAlign: 'center' }}>
+          <span style={{
+            display: 'inline-block', fontSize: 11, color: C.muted, cursor: 'pointer',
+            textDecoration: 'underline', padding: '2px 4px',
+          }}
+            onClick={() => window.location.reload()}
+          >
+            ↺ Reload page to try again
+          </span>
+        </div>
+      )}
 
       {/* Spin keyframes injected inline */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -545,6 +557,10 @@ export function humanizeError(e: unknown): string {
     return 'Wallet not connected — connect Phantom or Solflare first.';
   if (msg.includes('403') || msg.includes('forbidden'))
     return 'RPC blocked this request — switching endpoint automatically.';
+  if (msg.includes('unauthorized') || msg.includes('api key') || msg.includes('authenticate'))
+    return 'RPC requires API key (Ankr free tier ended). Switching to backup endpoint — please try again.';
+  if (msg.includes('freetier') || msg.includes('paid tier') || msg.includes('not available on freetier'))
+    return 'RPC free tier blocked. Switching to backup endpoint — please try again.';
   if (msg.includes('timeout') || msg.includes('timed out'))
     return 'Network timeout — Solana devnet may be slow. Retry in a moment.';
   if (msg.includes('failed to fetch') || msg.includes('network'))
