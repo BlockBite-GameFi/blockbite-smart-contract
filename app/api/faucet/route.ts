@@ -18,10 +18,25 @@ import { USDC_MINT, RPC_URL } from '@/lib/solana/config';
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const lastDrop    = new Map<string, number>();
 
-// ── SOL airdrop alternatives (tried in order) ─────────────────────────────
+// ── SOL airdrop RPC chain — all public devnet endpoints that support requestAirdrop
+// Tried in order until one succeeds. requestAirdrop is only available on devnet/testnet.
 const SOL_FAUCET_RPCS = [
-  RPC_URL,                               // primary (drpc.org)
-  'https://api.devnet.solana.com',       // official devnet
+  'https://api.devnet.solana.com',              // official Solana devnet (primary)
+  'https://rpc.ankr.com/solana_devnet',         // Ankr public devnet
+  'https://rpc.surfpool.run',                   // Surfpool devnet fork
+  'https://devnet.rpcpool.com',                 // RPCPool devnet
+  'https://solana-devnet.drpc.org',             // dRPC devnet
+  'https://devnet.helius-rpc.com',              // Helius devnet
+  'https://rpc-devnet.helius.xyz',              // Helius alt
+  'https://devnet.sonic.game',                  // Sonic devnet
+  'https://mango.devnet.rpcpool.com',           // Mango RPCPool
+  'https://solana.devnet.nodies.app',           // Nodies devnet
+  'https://devnet.shyft.to',                    // Shyft devnet
+  'https://devnet.rpc.extrnode.com',            // ExtrNode devnet
+  'https://devnet.genesysgo.net',               // GenesysGo devnet
+  'https://solana-devnet.g.alchemy.com/v2/demo',// Alchemy demo
+  'https://api.devnet.solana.com',              // official retry
+  RPC_URL,                                      // Vercel env override
 ];
 
 export async function POST(req: NextRequest) {
