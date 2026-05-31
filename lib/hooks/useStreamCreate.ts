@@ -119,7 +119,8 @@ export function useStreamCreate() {
         }
       } catch {
         setTxErr(
-          `No ${p.symbol} token account found — click "Get ${p.symbol}" in the token selector to fund your wallet, then retry.`
+          `No ${p.symbol} token account on devnet. ` +
+          `Select SOL (auto-wraps) OR use "Airdrop 2 SOL" → then swap to ${p.symbol} via jup.ag`
         );
         setTxStatus('error'); return false;
       }

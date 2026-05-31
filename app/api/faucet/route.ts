@@ -1,38 +1,30 @@
 /**
  * POST /api/faucet
- * Mints devnet tokens to any wallet.
+ * Drips devnet tokens to any wallet.
  *
  * Body: { wallet: string, mint?: string }
- *   - mint defaults to USDC_MINT (BlockBite devnet mock)
+ *   - mint = 'SOL'  → devnet SOL airdrop via RPC (no FAUCET_KEYPAIR needed)
+ *   - mint = address → SPL token mint (requires FAUCET_KEYPAIR = mint authority)
+ *   - mint omitted   → defaults to USDC_MINT
  *
- * Requires env: FAUCET_KEYPAIR = JSON array of mint-authority secret key bytes
- * Rate-limited: 1 drop per wallet per hour (in-memory, resets on cold start)
+ * Rate-limited: 1 drop per wallet+mint per hour (in-memory).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getOrCreateAssociatedTokenAccount, mintTo, getMint } from '@solana/spl-token';
 import { USDC_MINT, RPC_URL } from '@/lib/solana/config';
 
-const FAUCET_AMOUNT_DEFAULT = 10_000 * 1_000_000; // 10,000 tokens
-const COOLDOWN_MS           = 60 * 60 * 1000;      // 1 hour
+const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+const lastDrop    = new Map<string, number>();
 
-const lastDrop = new Map<string, number>(); // wallet → timestamp
+// ── SOL airdrop alternatives (tried in order) ─────────────────────────────
+const SOL_FAUCET_RPCS = [
+  RPC_URL,                               // primary (drpc.org)
+  'https://api.devnet.solana.com',       // official devnet
+];
 
 export async function POST(req: NextRequest) {
-  const keypairEnv = process.env.FAUCET_KEYPAIR;
-  if (!keypairEnv) {
-    return NextResponse.json(
-      {
-        error: 'Faucet not configured.',
-        setup: 'Add FAUCET_KEYPAIR (JSON secret-key array) to Vercel env vars. The keypair must be the mint authority of the token.',
-        faucet_sol: 'https://faucet.solana.com',
-        faucet_usdc_devnet: 'https://faucet.circle.com',
-      },
-      { status: 503 },
-    );
-  }
-
   let body: { wallet?: string; mint?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
@@ -44,28 +36,71 @@ export async function POST(req: NextRequest) {
   try { walletPk = new PublicKey(wallet); }
   catch { return NextResponse.json({ error: 'Invalid wallet address' }, { status: 400 }); }
 
-  // Special case: SOL airdrop via Solana RPC devnet faucet
-  // Used when faucet.solana.com is blocked (e.g., restricted network at courthouse)
-  if (mintOverride === 'SOL') {
-    try {
-      const conn = new Connection(RPC_URL, 'confirmed');
-      const sig = await conn.requestAirdrop(walletPk, 2_000_000_000); // 2 SOL
-      await conn.confirmTransaction(sig, 'confirmed');
-      return NextResponse.json({
-        success:   true,
-        amount:    2,
-        decimals:  9,
-        mint:      'SOL',
-        signature: sig,
-        explorer:  `https://explorer.solana.com/tx/${sig}?cluster=devnet`,
-      });
-    } catch (e: unknown) {
-      // Airdrop may be rate-limited — return helpful fallback
-      return NextResponse.json({
-        error:    `SOL airdrop failed: ${(e as Error)?.message}. Try https://faucet.solana.com or https://faucet.quicknode.com/solana/devnet`,
-        fallback: ['https://faucet.solana.com', 'https://faucet.quicknode.com/solana/devnet'],
-      }, { status: 503 });
+  // ── SOL airdrop path — works WITHOUT FAUCET_KEYPAIR ──────────────────────
+  // Triggered by mint === 'SOL' or mint === wSOL mint address
+  const isSOLRequest =
+    mintOverride === 'SOL' ||
+    mintOverride === 'So11111111111111111111111111111111111111112';
+
+  if (isSOLRequest) {
+    const key  = `${wallet}:SOL`;
+    const last = lastDrop.get(key) ?? 0;
+    if (Date.now() - last < COOLDOWN_MS) {
+      const wait = Math.ceil((COOLDOWN_MS - (Date.now() - last)) / 60_000);
+      return NextResponse.json({ error: `Rate limited — try again in ${wait} min` }, { status: 429 });
     }
+
+    // Try each RPC endpoint for airdrop
+    for (const rpc of SOL_FAUCET_RPCS) {
+      try {
+        const conn = new Connection(rpc, 'confirmed');
+        const sig  = await conn.requestAirdrop(walletPk, 2 * LAMPORTS_PER_SOL); // 2 SOL
+        await conn.confirmTransaction(sig, 'confirmed');
+        lastDrop.set(key, Date.now());
+        return NextResponse.json({
+          success:   true,
+          amount:    2,
+          decimals:  9,
+          mint:      'SOL',
+          signature: sig,
+          explorer:  `https://explorer.solana.com/tx/${sig}?cluster=devnet`,
+          message:   '2 devnet SOL sent to your wallet!',
+        });
+      } catch (e: unknown) {
+        const msg = (e as Error)?.message ?? '';
+        // Airdrop RPC limit → try next endpoint
+        if (msg.includes('airdrop limit') || msg.includes('rate limit') || msg.includes('429')) continue;
+        // For other errors also try next
+        continue;
+      }
+    }
+
+    // All RPC endpoints failed
+    return NextResponse.json({
+      error:     'Devnet SOL airdrop rate-limited on all endpoints. Try the external faucets below.',
+      fallback:  [
+        'https://faucet.solana.com',
+        'https://faucet.quicknode.com/solana/devnet',
+        'https://solfaucet.com',
+      ],
+    }, { status: 503 });
+  }
+
+  // ── SPL token mint path — requires FAUCET_KEYPAIR ─────────────────────────
+  const keypairEnv = process.env.FAUCET_KEYPAIR;
+  if (!keypairEnv) {
+    return NextResponse.json(
+      {
+        error: 'Token faucet not configured (FAUCET_KEYPAIR missing). Use SOL airdrop instead.',
+        tip:   'To get test USDC: use the "Airdrop 2 SOL" button then swap SOL→USDC via Jupiter at jup.ag',
+        external: {
+          sol:  'https://faucet.solana.com',
+          usdc: 'https://faucet.circle.com',
+          jupiter_swap: 'https://jup.ag/swap/SOL-USDC',
+        },
+      },
+      { status: 503 },
+    );
   }
 
   const mintAddr = mintOverride ?? USDC_MINT.toBase58();
@@ -73,12 +108,11 @@ export async function POST(req: NextRequest) {
   try { mintPk = new PublicKey(mintAddr); }
   catch { return NextResponse.json({ error: 'Invalid mint address' }, { status: 400 }); }
 
-  // Rate limit per wallet+mint combo
+  // Rate limit per wallet+mint
   const key  = `${wallet}:${mintAddr}`;
   const last = lastDrop.get(key) ?? 0;
-  const now  = Date.now();
-  if (now - last < COOLDOWN_MS) {
-    const wait = Math.ceil((COOLDOWN_MS - (now - last)) / 60_000);
+  if (Date.now() - last < COOLDOWN_MS) {
+    const wait = Math.ceil((COOLDOWN_MS - (Date.now() - last)) / 60_000);
     return NextResponse.json({ error: `Rate limited — try again in ${wait} min` }, { status: 429 });
   }
 
@@ -99,8 +133,7 @@ export async function POST(req: NextRequest) {
 
     const ata = await getOrCreateAssociatedTokenAccount(conn, faucetKp, mintPk, walletPk);
     const sig = await mintTo(conn, faucetKp, mintPk, ata.address, faucetKp, amount);
-
-    lastDrop.set(key, now);
+    lastDrop.set(key, Date.now());
 
     return NextResponse.json({
       success:   true,
@@ -110,22 +143,25 @@ export async function POST(req: NextRequest) {
       ata:       ata.address.toBase58(),
       signature: sig,
       explorer:  `https://explorer.solana.com/tx/${sig}?cluster=devnet`,
+      message:   `10,000 tokens sent to your wallet!`,
     });
   } catch (e: unknown) {
     return NextResponse.json({ error: `Mint failed: ${(e as Error)?.message}` }, { status: 500 });
   }
 }
 
-/** GET /api/faucet — check if faucet is available + return external faucet links */
+/** GET /api/faucet — check availability + return links */
 export async function GET() {
   return NextResponse.json({
-    available:         !!process.env.FAUCET_KEYPAIR,
-    defaultMint:       USDC_MINT.toBase58(),
-    rpc:               RPC_URL,
+    sol_airdrop:    true,  // always available (no keypair needed)
+    token_faucet:   !!process.env.FAUCET_KEYPAIR,
+    defaultMint:    USDC_MINT.toBase58(),
+    rpc:            RPC_URL,
     externalFaucets: {
-      sol:   'https://faucet.solana.com',
-      usdc:  'https://faucet.circle.com',
-      quicknode: 'https://faucet.quicknode.com/solana/devnet',
+      sol:          'https://faucet.solana.com',
+      usdc:         'https://faucet.circle.com',
+      quicknode:    'https://faucet.quicknode.com/solana/devnet',
+      jupiter_swap: 'https://jup.ag/swap/SOL-USDC',
     },
   });
 }

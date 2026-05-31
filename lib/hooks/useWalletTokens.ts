@@ -180,7 +180,22 @@ export function useWalletTokens() {
       });
 
       setTokens(results);
-    } catch { setTokens(DEVNET_DEFAULT_TOKENS); }
+    } catch {
+      // RPC error — still show native SOL balance if possible, plus devnet defaults
+      try {
+        const lamports = await connection.getBalance(publicKey).catch(() => 0);
+        setTokens([
+          {
+            mint: 'SOL', symbol: 'SOL', name: 'Solana (devnet)', decimals: 9,
+            balance: lamports / LAMPORTS_PER_SOL, isNative: true, isKnown: true,
+            logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+          },
+          ...DEVNET_DEFAULT_TOKENS,
+        ]);
+      } catch {
+        setTokens(DEVNET_DEFAULT_TOKENS);
+      }
+    }
     finally { setLoading(false); }
   }, [connection, publicKey]);
 
