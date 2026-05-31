@@ -30,8 +30,10 @@ import { IS_DEVNET } from './config';
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
 const DEVNET_ENDPOINTS = [
-  'https://api.devnet.solana.com',
   'https://rpc.ankr.com/solana_devnet',
+  'https://solana-devnet.drpc.org',
+  'https://api.devnet.solana.com',
+  'https://rpc.surfpool.run',
 ];
 
 const MAINNET_ENDPOINTS = [

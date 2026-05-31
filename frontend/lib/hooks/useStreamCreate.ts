@@ -18,6 +18,7 @@ import {
   createSyncNativeInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';
 
@@ -91,10 +92,16 @@ export function useStreamCreate() {
 
     if (isNativeSol) {
       // 1. Check native SOL balance (wallet has SOL, not wSOL)
+      // Uses withRpcFallback so a rate-limited Ankr endpoint auto-switches
       const lamportsNeeded = rawAmount + BigInt(20_000_000); // +0.02 SOL fee buffer
       let solBalance: number;
-      try { solBalance = await connection.getBalance(publicKey); }
-      catch { setTxErr('RPC error checking SOL balance. Try again.'); setTxStatus('error'); return false; }
+      try {
+        solBalance = await withRpcFallback(conn => conn.getBalance(publicKey));
+      } catch {
+        setTxErr('RPC error checking SOL balance. Try again.');
+        setTxStatus('error');
+        return false;
+      }
 
       if (BigInt(solBalance) < lamportsNeeded) {
         const have = (solBalance / LAMPORTS_PER_SOL).toFixed(4);
@@ -154,21 +161,41 @@ export function useStreamCreate() {
 
     } else {
       // ── SPL token path: verify ATA exists and has enough balance ─────────────
+      // withRpcFallback auto-switches RPC if Ankr rate-limits — prevents false
+      // "account not found" errors when the RPC is temporarily unavailable.
+      let acctAmount: bigint;
       try {
         const creatorTA = await getAssociatedTokenAddress(mintPk, publicKey);
-        const acct = await getAccount(connection, creatorTA);
-        if (acct.amount < rawAmount) {
-          const have = (Number(acct.amount) / 10 ** p.decimals).toLocaleString();
-          const need = amountNum.toLocaleString();
-          setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need}`);
-          setTxStatus('error');
-          return false;
+        const acct = await withRpcFallback(conn => getAccount(conn, creatorTA));
+        acctAmount = acct.amount;
+      } catch (e: unknown) {
+        const errMsg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+        // Distinguish "account truly not found" from RPC failures
+        const isNotFound =
+          errMsg.includes('could not find account') ||
+          errMsg.includes('account does not exist') ||
+          errMsg.includes('invalid account data') ||
+          errMsg.includes('tokenaccountnotfound');
+        if (isNotFound) {
+          setTxErr(
+            `No ${p.symbol} token account found.\n` +
+            `Open Devnet Tools ▼ above and click "${p.symbol === 'USDC' ? '100 USDC' : p.symbol}" to fund your wallet, then retry.`
+          );
+        } else {
+          // RPC error — all endpoints failed
+          setTxErr(
+            `RPC error reading ${p.symbol} balance. Devnet may be slow — wait 10 seconds and retry.\n` +
+            `(${errMsg.slice(0, 100)})`
+          );
         }
-      } catch {
-        setTxErr(
-          `No ${p.symbol} token account found.\n` +
-          `Use Devnet Tools → "Get ${p.symbol}" to fund your wallet first.`
-        );
+        setTxStatus('error');
+        return false;
+      }
+
+      if (acctAmount < rawAmount) {
+        const have = (Number(acctAmount) / 10 ** p.decimals).toLocaleString();
+        const need = amountNum.toLocaleString();
+        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need}`);
         setTxStatus('error');
         return false;
       }
