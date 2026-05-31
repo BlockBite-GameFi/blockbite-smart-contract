@@ -68,14 +68,24 @@ export function useStreamCreate() {
     // ── Native SOL path: check balance + auto-wrap to wSOL ───────────────────
     if (isNativeSol) {
       const lamportsNeeded = rawAmount + BigInt(10_000_000); // +0.01 SOL fee buffer
-      const solBalance = await connection.getBalance(publicKey);
+
+      // Use server-side proxy for balance check — browser CORS blocks direct RPC
+      let solBalance = 0;
+      try {
+        const res  = await fetch(`/api/solana/balance?wallet=${publicKey.toBase58()}`, { cache: 'no-store' });
+        const data = await res.json() as { lamports?: number; sol?: number };
+        solBalance = data.lamports ?? Math.round((data.sol ?? 0) * 1e9);
+      } catch {
+        // Proxy failed — try direct connection as last resort
+        try { solBalance = await connection.getBalance(publicKey); } catch { solBalance = 0; }
+      }
 
       if (BigInt(solBalance) < lamportsNeeded) {
         const have = (solBalance / LAMPORTS_PER_SOL).toFixed(4);
         const need = (Number(lamportsNeeded) / LAMPORTS_PER_SOL).toFixed(4);
         setTxErr(
-          `Insufficient SOL: wallet has ${have} SOL, need ${need} SOL.\n` +
-          `Get devnet SOL: https://faucet.solana.com`
+          `Insufficient SOL: wallet has ${have} SOL, need ${need} SOL. ` +
+          `Use the "Airdrop 2 SOL" button in the token selector.`
         );
         setTxStatus('error'); return false;
       }
@@ -84,8 +94,19 @@ export function useStreamCreate() {
         const wsolAta = await getAssociatedTokenAddress(NATIVE_MINT, publicKey);
         const wrapTx  = new Transaction();
 
-        try { await getAccount(connection, wsolAta); }
-        catch {
+        // Check if wSOL ATA exists — CORS failure = ATA doesn't exist → create it
+        let wsolExists = false;
+        try {
+          // First try server proxy
+          const res = await fetch(`/api/solana/tokens?wallet=${publicKey.toBase58()}`, { cache: 'no-store' });
+          const data = await res.json() as { accounts?: { mint: string }[] };
+          wsolExists = (data.accounts ?? []).some(a => a.mint === NATIVE_MINT.toBase58());
+        } catch {
+          // Proxy failed — try direct (will fail on CORS too, caught below)
+          try { await getAccount(connection, wsolAta); wsolExists = true; } catch { wsolExists = false; }
+        }
+
+        if (!wsolExists) {
           wrapTx.add(createAssociatedTokenAccountInstruction(
             publicKey, wsolAta, publicKey, NATIVE_MINT,
             TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -105,25 +126,30 @@ export function useStreamCreate() {
         setTxStatus('error'); return false;
       }
     } else {
-      // ── SPL token path: verify ATA balance ─────────────────────────────────
+      // ── SPL token path: verify ATA balance via server proxy ────────────────
       try {
-        const ata  = await getAssociatedTokenAddress(mintPk, publicKey);
-        const acct = await getAccount(connection, ata);
-        if (acct.amount < rawAmount) {
-          const have = (Number(acct.amount) / 10 ** decimals).toLocaleString();
-          const need = Number(p.amount).toLocaleString();
+        const res  = await fetch(`/api/solana/tokens?wallet=${publicKey.toBase58()}`, { cache: 'no-store' });
+        const data = await res.json() as { accounts?: { mint: string; amount: string }[] };
+        const acct = (data.accounts ?? []).find(a => a.mint === mintAddr);
+
+        if (!acct) {
           setTxErr(
-            `Insufficient ${p.symbol}: wallet has ${have}, need ${need}.\n` +
-            `Get devnet tokens via "Get Test Tokens" or fund via faucet.`
+            `No ${p.symbol} token account on devnet. ` +
+            `Use "Airdrop 2 SOL" then swap to ${p.symbol} via jup.ag`
           );
           setTxStatus('error'); return false;
         }
+
+        const haveRaw = BigInt(acct.amount);
+        if (haveRaw < rawAmount) {
+          const have = (Number(haveRaw) / 10 ** decimals).toLocaleString();
+          const need = Number(p.amount).toLocaleString();
+          setTxErr(`Insufficient ${p.symbol}: have ${have}, need ${need}. Use faucet to get more.`);
+          setTxStatus('error'); return false;
+        }
       } catch {
-        setTxErr(
-          `No ${p.symbol} token account on devnet. ` +
-          `Select SOL (auto-wraps) OR use "Airdrop 2 SOL" → then swap to ${p.symbol} via jup.ag`
-        );
-        setTxStatus('error'); return false;
+        // Server proxy failed — skip balance check and try the tx (wallet will reject if insufficient)
+        // Better UX than blocking with a false negative
       }
     }
 
