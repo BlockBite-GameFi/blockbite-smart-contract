@@ -7,10 +7,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
-  C, Label, SInput, SSelect, SToggle, ManualCsvToggle,
+  C, Label, SInput, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
 } from '../_shared';
+import TokenSelector from '@/components/TokenSelector';
 
 export default function CliffPage() {
   const { connected }  = useWallet();
@@ -18,7 +19,9 @@ export default function CliffPage() {
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
-  const [token,      setToken]      = useState('');
+  const [tokenMint, setTokenMint] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [tokenDecimals, setTokenDecimals] = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [cliffDate,  setCliffDate]  = useState('');
@@ -32,7 +35,7 @@ export default function CliffPage() {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!token) errs.token = 'Select a token';
+    if (!tokenMint) errs.token = 'Select a token';
     if (mode === 'manual') {
       if (!recipient) {
         errs.recipient = 'Enter recipient wallet address';
@@ -57,7 +60,7 @@ export default function CliffPage() {
     const startTs = Math.floor(Date.now() / 1000);
     const cliffTs = Math.floor(new Date(cliffDate).getTime() / 1000);
     const endTs   = cliffTs + 1; // instant full release at cliff
-    await submit({ beneficiary: recipient, token, amount, startTs, cliffTs, endTs,
+    await submit({ beneficiary: recipient, mint: tokenMint, symbol: tokenSymbol, decimals: tokenDecimals, amount, startTs, cliffTs, endTs,
       requiredTier: gameGate ? levelToTier(gameLevel) : 0 });
   };
 
@@ -98,7 +101,7 @@ export default function CliffPage() {
       subtitle="All tokens lock until cliff date. Nothing before, everything after."
       sidebar={
         <StreamSidebar typeLabel="Cliff" typeColor={COLOR} typeIcon="⌐"
-          totalDeposit={deposit} token={token || 'TOKEN'} recipientCount={recipient ? 1 : 0}
+          totalDeposit={deposit} token={tokenSymbol || 'TOKEN'} recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel} onSubmit={handleCreate}
           isSubmitting={isSubmitting} txStatus={txStatus}
           txErr={txErr ? humanizeError(txErr) : null} />
@@ -108,10 +111,18 @@ export default function CliffPage() {
         <div style={{ fontSize: 12, color: C.muted }}>Token and stream settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token} onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[{ v: 'BBT', l: 'BBT — BlockBite Token' }, { v: 'USDC', l: 'USDC' }, { v: 'SOL', l: 'SOL (wrapped)' }]} />
+          <Label required>Token — any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={tokenMint}
+            onChange={(mint, sym, dec) => {
+              setTokenMint(mint); setTokenSymbol(sym); setTokenDecimals(dec);
+              setFieldErrors(p => ({ ...p, token: '' }));
+            }}
+            disabled={isSubmitting}
+          />
+          {tokenMint && <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontFamily: C.mono }}>
+            Mint: {tokenMint.slice(0, 20)}… · {tokenDecimals} decimals
+          </div>}
           <FieldError msg={fieldErrors.token} />
         </div>
         {mode === 'manual' && (<>
@@ -148,7 +159,7 @@ export default function CliffPage() {
         {cliffDate && deposit > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
-              { l: 'Locked amount', v: `${deposit.toLocaleString()} ${token || 'TOKEN'}`, c: COLOR  },
+              { l: 'Locked amount', v: `${deposit.toLocaleString()} ${tokenSymbol || 'TOKEN'}`, c: COLOR  },
               { l: 'Unlocks on',    v: new Date(cliffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), c: C.muted },
               { l: 'Lock type',     v: 'Full cliff — instant release', c: C.muted },
               { l: 'Stream type',   v: 'Cliff vesting',                c: COLOR   },

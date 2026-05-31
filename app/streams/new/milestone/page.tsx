@@ -7,10 +7,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useStreamCreate } from '@/lib/hooks/useStreamCreate';
 import {
-  C, Label, SInput, SSelect, SSlider, SToggle, ManualCsvToggle,
+  C, Label, SInput, SSlider, SToggle, ManualCsvToggle,
   GameGateCard, StreamSidebar, StreamPageShell, Section,
   FieldError, TxProgress, humanizeError, levelToTier,
 } from '../_shared';
+import TokenSelector from '@/components/TokenSelector';
 
 // ─── Milestone row ────────────────────────────────────────────────────────────
 interface MS { label: string; amount: string; pct: number; }
@@ -54,7 +55,9 @@ export default function MilestonePage() {
   const { submit, txStatus, txSig, txErr, isSubmitting, reset } = useStreamCreate();
 
   const [mode,       setMode]       = useState<'manual' | 'csv'>('manual');
-  const [token,      setToken]      = useState('');
+  const [tokenMint, setTokenMint] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [tokenDecimals, setTokenDecimals] = useState(6);
   const [recipient,  setRecipient]  = useState('');
   const [cancelable, setCancelable] = useState(false);
   const [milestones, setMilestones] = useState<MS[]>([
@@ -78,7 +81,7 @@ export default function MilestonePage() {
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!token) errs.token = 'Select a token';
+    if (!tokenMint) errs.token = 'Select a token';
     if (mode === 'manual') {
       if (!recipient) {
         errs.recipient = 'Enter recipient wallet address';
@@ -104,7 +107,9 @@ export default function MilestonePage() {
 
     await submit({
       beneficiary:  recipient,
-      token,
+      mint:         tokenMint,
+      symbol:       tokenSymbol,
+      decimals:     tokenDecimals,
       amount:       String(deposit),
       startTs,
       cliffTs,
@@ -149,7 +154,7 @@ export default function MilestonePage() {
       subtitle="Tokens unlock when the creator triggers each milestone. Not time-based."
       sidebar={
         <StreamSidebar typeLabel="Milestone" typeColor={COLOR} typeIcon="◎"
-          totalDeposit={deposit} token={token || 'TOKEN'} recipientCount={recipient ? 1 : 0}
+          totalDeposit={deposit} token={tokenSymbol || 'TOKEN'} recipientCount={recipient ? 1 : 0}
           gameGate={gameGate} gameLevel={gameLevel} onSubmit={handleCreate}
           isSubmitting={isSubmitting} txStatus={txStatus}
           txErr={txErr ? humanizeError(txErr) : null} />
@@ -159,10 +164,18 @@ export default function MilestonePage() {
         <div style={{ fontSize: 12, color: C.muted }}>Token and campaign settings</div>
         <ManualCsvToggle mode={mode} onChange={setMode} />
         <div>
-          <Label required>Token</Label>
-          <SSelect value={token} onChange={v => { setToken(v); setFieldErrors(p => ({ ...p, token: '' })); }}
-            placeholder="Select Token"
-            options={[{ v: 'BBT', l: 'BBT — BlockBite Token' }, { v: 'USDC', l: 'USDC' }, { v: 'SOL', l: 'SOL (wrapped)' }]} />
+          <Label required>Token — any SPL (devnet · mainnet · testnet · wrapped)</Label>
+          <TokenSelector
+            value={tokenMint}
+            onChange={(mint, sym, dec) => {
+              setTokenMint(mint); setTokenSymbol(sym); setTokenDecimals(dec);
+              setFieldErrors(p => ({ ...p, token: '' }));
+            }}
+            disabled={isSubmitting}
+          />
+          {tokenMint && <div style={{ fontSize: 10, color: C.muted, marginTop: 4, fontFamily: C.mono }}>
+            Mint: {tokenMint.slice(0, 20)}… · {tokenDecimals} decimals
+          </div>}
           <FieldError msg={fieldErrors.token} />
         </div>
         {mode === 'manual' && (
