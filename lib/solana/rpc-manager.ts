@@ -180,49 +180,78 @@ function sleep(ms: number): Promise<void> {
  * Tries every endpoint in RPC_CHAIN (50+ devnet nodes). On infra error,
  * moves to the next. On success, caches the working URL in localStorage.
  */
+// ── Circuit breaker (client-side, in-memory) ──────────────────────────────────
+const clientCb = new Map<string, { fails: number; ts: number }>();
+const cbIsOpen = (u: string) => { const s = clientCb.get(u); return !!(s && s.fails >= 3 && Date.now() - s.ts < 60_000); };
+const cbFail   = (u: string) => { const s = clientCb.get(u) ?? { fails: 0, ts: 0 }; clientCb.set(u, { fails: s.fails + 1, ts: Date.now() }); };
+const cbOk     = (u: string) => clientCb.delete(u);
+
+/**
+ * Execute fn(connection) with PARALLEL race across all RPC endpoints.
+ * Races top N simultaneously — first to succeed wins (~200-500ms).
+ * Falls back to sequential batches if first batch all fail.
+ */
 export async function withRpcFallback<T>(
   fn: (conn: Connection) => Promise<T>,
   commitment: Commitment = 'confirmed',
 ): Promise<T> {
-  const cached =
-    typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) : null;
+  // Prefer cached working URL
+  const cached = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY) : null;
 
-  const ordered: string[] =
-    cached && RPC_CHAIN.includes(cached)
-      ? [cached, ...RPC_CHAIN.filter(r => r !== cached)]
-      : [...RPC_CHAIN];
+  const all = [...new Set([
+    ...(cached && RPC_CHAIN.includes(cached) ? [cached] : []),
+    ...RPC_CHAIN,
+  ])];
 
-  let lastErr: Error = new Error('No RPC endpoints configured');
+  const active   = all.filter(u => !cbIsOpen(u));
+  const inactive = all.filter(u =>  cbIsOpen(u)); // try last resort
 
-  for (const url of ordered) {
+  const PARALLEL = 8;   // race N at a time
+  const TIMEOUT  = 10_000; // ms per request
+
+  const tryFn = async (url: string): Promise<T> => {
+    const conn = new Connection(url, {
+      commitment,
+      confirmTransactionInitialTimeout: 45_000,
+      disableRetryOnRateLimit: true,
+    });
     try {
-      const conn = new Connection(url, {
-        commitment,
-        confirmTransactionInitialTimeout: 45_000,
-        disableRetryOnRateLimit: true,  // we handle retry ourselves
-      });
-      const result = await fn(conn);
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LS_KEY, url);
-      }
-      return result;
+      const result = await Promise.race([
+        fn(conn),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), TIMEOUT)),
+      ]);
+      cbOk(url);
+      if (typeof window !== 'undefined') localStorage.setItem(LS_KEY, url);
+      return result as T;
     } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
+      const err = e instanceof Error ? e : new Error(String(e));
+      if (isInfraError(err)) cbFail(url);
+      throw err;
+    }
+  };
 
-      if (!isInfraError(lastErr)) throw lastErr;
-
-      if (
-        lastErr.message.includes('429') ||
-        lastErr.message.toLowerCase().includes('rate limit') ||
-        lastErr.message.toLowerCase().includes('too many requests')
-      ) {
-        await sleep(300);
+  // Race in batches
+  for (let i = 0; i < active.length; i += PARALLEL) {
+    const batch = active.slice(i, i + PARALLEL);
+    try {
+      return await Promise.any(batch.map(url => tryFn(url).then(r => r).catch((e: Error) => { if (!isInfraError(e)) throw e; throw e; })));
+    } catch (aggErr: unknown) {
+      // If AggregateError contains a non-infra error, throw it immediately
+      if (aggErr && typeof aggErr === 'object' && 'errors' in aggErr) {
+        const errs = (aggErr as { errors: Error[] }).errors;
+        const app  = errs.find(e => !isInfraError(e));
+        if (app) throw app;
       }
+      // All infra errors → next batch
     }
   }
 
-  throw lastErr;
+  // Last resort: try inactive (circuit-open) endpoints
+  for (const url of inactive) {
+    try { return await tryFn(url); } catch { /* continue */ }
+  }
+
+  throw new Error('All RPC endpoints failed — check network connection');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
