@@ -41,7 +41,7 @@ const TDP_LINKS = [
 const NAV_HREFS = [
   { key: 'nav_product',      href: '/protocol'      },
   { key: 'nav_how_it_works', href: '/#how-it-works' }, // HARDCODED — homepage section
-  { key: 'nav_waitlist',     href: '/waitlist'      },
+  { key: 'nav_faq',          href: '/#faq'          }, // HARDCODED — homepage FAQ section
 ] as const;
 
 export default function Navbar() {
