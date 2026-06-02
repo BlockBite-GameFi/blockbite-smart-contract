@@ -632,22 +632,6 @@ export default function Home() {
             })}
           </div>
 
-          {/* ── Comparison — standalone page under /demo for Pasal 207 compliance ── */}
-          <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, letterSpacing: '2px', color: D.accent, fontWeight: 700, marginBottom: 10 }}>
-              {T.whyKicker}
-            </div>
-            <p style={{ color: D.muted, fontSize: 13, marginBottom: 14 }}>
-              {T.whyDesc}
-            </p>
-            <Link href="/demo/comparison" style={{
-              display: 'inline-block', padding: '9px 22px', borderRadius: 10,
-              border: `1px solid ${D.border}`, color: D.accent,
-              fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            }}>
-              {T.whyLink}
-            </Link>
-          </div>
         </div>
       </section>
 
