@@ -21,7 +21,8 @@ export const metadata: Metadata = {
     siteName: 'BlockBite TDP',
     images: [
       {
-        url: '/opengraph-image',
+        // Static PNG — instantly accessible by Twitter/X bots, no cold start
+        url: 'https://blockbite.vercel.app/og.png',
         width: 1200,
         height: 630,
         alt: 'BlockBite TDP — Token Distribution Protocol on Solana',
@@ -34,7 +35,8 @@ export const metadata: Metadata = {
     description: 'Stop distributing tokens blindly. Programmable vesting streams with milestone & gamified verification. Anti-dump by default. 100% on-chain.',
     site: '@BlockBite_Sol',
     creator: '@BlockBite_Sol',
-    images: ['/opengraph-image'],
+    // Absolute URL required — Twitter ignores relative paths
+    images: ['https://blockbite.vercel.app/og.png'],
   },
 };
 
