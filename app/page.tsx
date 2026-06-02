@@ -141,10 +141,10 @@ const COPY = {
     ],
     /* ── How it works ── */
     howItems: [
-      { num: '01', title: 'Upload Recipient List',  desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.' },
-      { num: '02', title: 'Set Unlock Schedule',    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.' },
-      { num: '03', title: 'Set Verification Layer', desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
-      { num: '04', title: 'Update or Cancel',       desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.' },
+      { num: '01', title: 'Connect & Import Data',    desc: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
+      { num: '02', title: 'Define Tokenomics',         desc: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
+      { num: '03', title: 'Set Verification Layer',    desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
+      { num: '04', title: 'Lock, Launch & Manage',     desc: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
     ],
     /* ── Verify methods ── */
     verifyMethods: [
@@ -200,10 +200,10 @@ const COPY = {
     ],
     /* ── How it works ── */
     howItems: [
-      { num: '01', title: 'Upload Daftar Penerima', desc: 'Import alamat wallet dan jumlah token dari CSV. Program mengkompresi menjadi satu root 32-byte on-chain — tidak perlu akun per penerima.' },
-      { num: '02', title: 'Atur Jadwal Unlock',     desc: 'Pilih cliff, linear, atau milestone vesting untuk seluruh kampanye atau per penerima. Program menerapkan kurva on-chain — tidak ada yang bisa klaim lebih awal.' },
-      { num: '03', title: 'Atur Lapisan Verifikasi',desc: 'Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
-      { num: '04', title: 'Perbarui atau Batalkan', desc: 'Perlu memperbaiki alokasi atau mencabut token masa depan? Rotasi Merkle root, atau batalkan kampanye — penerima menyimpan yang sudah vesting dengan grace period 7 hari.' },
+      { num: '01', title: 'Hubungkan & Import Data',  desc: 'Hubungkan wallet kamu dan upload daftar penerima via CSV atau entri manual dalam hitungan detik.' },
+      { num: '02', title: 'Tentukan Tokenomics',       desc: 'Sesuaikan strategi rilis menggunakan linear vesting, cliff periods, atau distribusi berbasis milestone.' },
+      { num: '03', title: 'Atur Lapisan Verifikasi',   desc: 'Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
+      { num: '04', title: 'Kunci, Luncurkan & Kelola', desc: 'Kunci aset untuk mengotomatiskan klaim pengguna. Pantau distribusi secara real-time dengan kontrol Clawback penuh.' },
     ],
     /* ── Verify methods ── */
     verifyMethods: [
