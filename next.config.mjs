@@ -5,13 +5,6 @@ const require = createRequire(import.meta.url);
 const nextConfig = {
   reactStrictMode: true,
 
-  // Include font + logo in the /api/og serverless function bundle
-  outputFileTracingIncludes: {
-    '/api/og': [
-      './app/api/og/montserrat-900.woff2',
-      './app/api/og/logo.png',
-    ],
-  },
 
   // ESLint errors must not block production builds — linting is a CI step,
   // not a deploy gate. TypeScript errors still block builds.
