@@ -54,7 +54,7 @@ const streams = {
   en: {
     badge:       'TDP Protocol · Devnet',
     title:       'Token Streams',
-    subtitle:    'Cliff · linear · milestone · hybrid vesting streams. Each stream is a PDA vault on Solana devnet.',
+    subtitle:    'Cliff · linear · milestone vesting streams. Each stream is a PDA vault on Solana devnet.',
     createBtn:   '+ Create Stream',
     demoBtn:     '◈ View Demo',
     kpi: {
@@ -97,7 +97,7 @@ const streams = {
   id: {
     badge:       'Protokol TDP · Devnet',
     title:       'Stream Token',
-    subtitle:    'Stream vesting cliff · linear · milestone · hybrid. Setiap stream adalah PDA vault di Solana devnet.',
+    subtitle:    'Stream vesting cliff · linear · milestone. Setiap stream adalah PDA vault di Solana devnet.',
     createBtn:   '+ Buat Stream',
     demoBtn:     '◈ Lihat Demo',
     kpi: {

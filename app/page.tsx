@@ -738,9 +738,7 @@ export default function Home() {
       }}>
         <div>{T.footer}</div>
         <div className="m-footer-links" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Twitter / X</a>
-          <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Discord</a>
-          <a href="https://github.com/nayrbryanGaming/blockblast" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>GitHub</a>
+          <a href="https://x.com/BlockBite_Sol" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Twitter / X</a>
         </div>
       </footer>
 

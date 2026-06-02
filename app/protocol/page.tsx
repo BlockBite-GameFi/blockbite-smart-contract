@@ -182,7 +182,7 @@ export default function ProtocolPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,200px),1fr))', gap: 14 }}>
               {[
-                { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
+                { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, or milestone. Set amounts and schedule.' },
                 { step: '02', title: 'Deploy',     icon: '▲', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
                 { step: '03', title: 'Verify',     icon: '✦', desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
                 { step: '04', title: 'Claim',      icon: '◎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
@@ -201,56 +201,6 @@ export default function ProtocolPage() {
             </div>
           </div>
 
-          {/* ── Protocol comparison note ── */}
-          <Card style={{ padding: '20px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: T.textDim, marginBottom: 12 }}>
-              Comparative feature data between BlockBite TDP and other protocols
-              is available in the demo section to maintain factual accuracy on production pages.
-            </div>
-            <Link href="/demo/comparison" style={{
-              display: 'inline-block', padding: '8px 18px', borderRadius: 8,
-              border: `1px solid ${T.border}`, color: T.accent,
-              fontSize: 12, fontWeight: 600, textDecoration: 'none',
-            }}>
-              View feature comparison →
-            </Link>
-          </Card>
-
-          {/* ── Bottom CTA ── */}
-          <div style={{
-            padding: 'clamp(24px,4vw,32px)', textAlign: 'center',
-            border: `1.5px solid ${T.accentA4}`,
-            borderRadius: 20,
-            background: `linear-gradient(135deg,${T.bg1},${T.bg2})`,
-          }}>
-            <div style={{ fontFamily: T.serif, fontSize: 20, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-              Ready to stream your tokens?
-            </div>
-            <p style={{ fontSize: 13, color: T.textDim, maxWidth: 400, margin: '0 auto 18px', lineHeight: 1.7 }}>
-              Set up your first vesting stream in under 3 minutes.
-              No code required — full smart contract coverage.
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link href="/streams/new" style={{
-                padding: '12px 28px', borderRadius: 10,
-                background: T.grad,
-                color: T.text, fontSize: 14, fontWeight: 700,
-                textDecoration: 'none', fontFamily: T.serif,
-                boxShadow: `0 0 20px ${T.accent}44`,
-              }}>
-                {tx.launchApp}
-              </Link>
-              <Link href="/streams" style={{
-                padding: '12px 28px', borderRadius: 10,
-                border: `1px solid ${T.border}`,
-                background: 'rgba(255,255,255,.04)',
-                color: T.textDim, fontSize: 14,
-                textDecoration: 'none', fontFamily: T.serif,
-              }}>
-                View Dashboard
-              </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>
