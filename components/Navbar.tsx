@@ -42,7 +42,8 @@ const TDP_LINKS = [
 const NAV_HREFS = [
   { key: 'nav_product',       href: '/protocol'      },
   { key: 'nav_how_it_works',  href: '/#how-it-works' }, // HARDCODED — homepage section
-  { key: 'nav_token_streams', href: '/streams'       }, // NEW — public global dashboard
+  { key: 'nav_token_streams', href: '/streams'       }, // Public global dashboard
+  { key: 'nav_my_campaign',   href: '/my-campaign'   }, // User claim & interaction portal
   { key: 'nav_faq',           href: '/#faq'          }, // HARDCODED — homepage FAQ section
 ] as const;
 

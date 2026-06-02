@@ -75,6 +75,9 @@ const nextConfig = {
       { source: '/how-to-play/:path*', destination: '/#how-it-works', permanent: true },
       // /waitlist nav replaced by FAQ — redirect to homepage FAQ section
       { source: '/waitlist', destination: '/#faq', permanent: true },
+      // /streams/new/hybrid DELETED — redirect to stream type picker
+      { source: '/streams/new/hybrid', destination: '/streams/new', permanent: true },
+      { source: '/streams/new/hybrid/:path*', destination: '/streams/new', permanent: true },
       ...upper.map((seg) => ({
         source: `/${seg}/:path*`,
         destination: `/${seg.toLowerCase()}/:path*`,
