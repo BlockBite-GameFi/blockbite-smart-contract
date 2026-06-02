@@ -28,7 +28,7 @@ function streamType(s: StreamInfo): string {
   const start  = Number(s.startTs.toString());
   const hasMilestone = (s.milestoneCount ?? 0) > 0;
   const hasCliff     = cliff > start;
-  if (hasMilestone && hasCliff) return 'hybrid';
+  // Hybrid (milestone+cliff) reclassified as milestone — hybrid type removed
   if (hasMilestone) return 'milestone';
   if (hasCliff) return 'cliff';
   return 'linear';
@@ -228,7 +228,7 @@ export default function ClaimPage() {
               {streams.map((s, i) => {
                 const c = Number(computeUnlocked(s, nowSec));
                 const type = streamType(s);
-                const typeCol = ({ linear: T.accent, milestone: T.blue, cliff: T.gold, hybrid: '#c084fc' } as Record<string, string>)[type] ?? T.accent;
+                const typeCol = ({ linear: T.accent, milestone: T.blue, cliff: T.gold } as Record<string, string>)[type] ?? T.accent;
                 return (
                   <button
                     key={s.pubkey.toBase58()}

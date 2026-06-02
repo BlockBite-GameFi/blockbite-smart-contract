@@ -88,10 +88,9 @@ const DEMO_MILESTONES = [
 // ─── Simulated Analytics ──────────────────────────────────────────────────────
 const DEMO_ANALYTICS = {
   tvl: '2.4M', active: 6, total: 15, distributed: '3.8M', claimableNow: '88K',
-  byType:   [{ label: 'Linear',    pct: 40, col: C.blue   },
+  byType:   [{ label: 'Linear',    pct: 50, col: C.blue   },
              { label: 'Milestone', pct: 35, col: C.gold   },
-             { label: 'Cliff',     pct: 15, col: C.accent },
-             { label: 'Hybrid',    pct: 10, col: C.purple }],
+             { label: 'Cliff',     pct: 15, col: C.accent }],
   byStatus: [{ label: 'Active',    pct: 53, col: C.green  },
              { label: 'Completed', pct: 27, col: C.muted  },
              { label: 'Cancelled', pct: 20, col: C.red    }],

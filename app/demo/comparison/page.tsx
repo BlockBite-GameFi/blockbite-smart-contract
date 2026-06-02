@@ -27,7 +27,6 @@ const PROTO_3 = [
   { feat: 'Linear Vesting',   bb: true, sab: true,  sf: true  },
   { feat: 'Cliff Schedule',   bb: true, sab: true,  sf: false },
   { feat: 'Milestone Unlock', bb: true, sab: false, sf: false },
-  { feat: 'Hybrid Model',     bb: true, sab: false, sf: false },
   { feat: 'In-game Rewards',  bb: true, sab: false, sf: false },
   { feat: 'NFT Stream Proof', bb: true, sab: true,  sf: false },
   { feat: 'Multi-token',      bb: true, sab: false, sf: true  },
