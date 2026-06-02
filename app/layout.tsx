@@ -8,9 +8,12 @@ import { PageTracker } from '@/components/PageTracker';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite.vercel.app';
 
+// app/opengraph-image.png + app/twitter-image.png are static PNG files.
+// Next.js App Router auto-serves them and injects correct absolute URLs.
+// No Edge runtime, no cold start — Twitter/X bots get the image instantly.
 export const metadata: Metadata = {
   title: 'BlockBite TDP — Token Distribution Protocol on Solana',
-  description: 'BlockBite TDP: Programmable cliff, linear, and milestone vesting streams with gamified anti-bot verification. Stop distributing tokens blindly. Built for Web3 projects on Solana.',
+  description: 'Stop distributing tokens blindly. Programmable cliff, linear, and milestone vesting with gamified anti-bot verification. 100% on-chain on Solana.',
   keywords: ['BlockBite', 'TDP', 'Token Distribution Protocol', 'Vesting', 'Solana', 'Web3', 'Cliff', 'Milestone', 'Streaming', 'Anti-bot'],
   metadataBase: new URL(APP_URL),
   openGraph: {
@@ -19,24 +22,15 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'BlockBite TDP',
-    images: [
-      {
-        // Static PNG — instantly accessible by Twitter/X bots, no cold start
-        url: 'https://blockbite.vercel.app/og.png',
-        width: 1200,
-        height: 630,
-        alt: 'BlockBite TDP — Token Distribution Protocol on Solana',
-      },
-    ],
+    // Next.js auto-resolves opengraph-image.png → absolute URL via metadataBase
   },
   twitter: {
     card: 'summary_large_image',
     title: 'BlockBite TDP — Token Distribution Protocol',
-    description: 'Stop distributing tokens blindly. Programmable vesting streams with milestone & gamified verification. Anti-dump by default. 100% on-chain.',
+    description: 'Stop distributing tokens blindly. Programmable vesting streams with gamified anti-bot verification. Anti-dump by default. 100% on-chain.',
     site: '@BlockBite_Sol',
     creator: '@BlockBite_Sol',
-    // Absolute URL required — Twitter ignores relative paths
-    images: ['https://blockbite.vercel.app/og.png'],
+    // Next.js auto-resolves twitter-image.png → absolute URL via metadataBase
   },
 };
 
