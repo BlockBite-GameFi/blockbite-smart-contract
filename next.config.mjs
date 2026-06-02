@@ -73,8 +73,7 @@ const nextConfig = {
       // /how-to-play is DELETED — redirect to homepage HOW IT WORKS section
       { source: '/how-to-play', destination: '/#how-it-works', permanent: true },
       { source: '/how-to-play/:path*', destination: '/#how-it-works', permanent: true },
-      // /waitlist nav replaced by FAQ — redirect to homepage FAQ section
-      { source: '/waitlist', destination: '/#faq', permanent: true },
+      // waitlist page RESTORED — do NOT redirect /waitlist
       // /streams/new/hybrid DELETED — redirect to stream type picker
       { source: '/streams/new/hybrid', destination: '/streams/new', permanent: true },
       { source: '/streams/new/hybrid/:path*', destination: '/streams/new', permanent: true },
