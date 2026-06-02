@@ -70,6 +70,9 @@ const nextConfig = {
       'GAME', 'PLAY', 'CLAIM',
     ];
     return [
+      // /how-to-play is DELETED — redirect permanently to the homepage HOW IT WORKS section
+      { source: '/how-to-play', destination: '/#how-it-works', permanent: true },
+      { source: '/how-to-play/:path*', destination: '/#how-it-works', permanent: true },
       ...upper.map((seg) => ({
         source: `/${seg}/:path*`,
         destination: `/${seg.toLowerCase()}/:path*`,
