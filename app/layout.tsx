@@ -40,15 +40,15 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* ── Hard-coded OG tags — fallback so Twitter/X crawlers NEVER miss them ── */}
-        <meta property="og:image" content="https://blockbite.vercel.app/og.png" />
+        {/* ── Hard-coded OG tags — Twitterbot reads these directly ── */}
+        <meta property="og:image" content="https://blockbite.vercel.app/opengraph-image" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content="https://blockbite.vercel.app/og.png" />
+        <meta name="twitter:image" content="https://blockbite.vercel.app/opengraph-image" />
         <meta name="twitter:site" content="@BlockBite_Sol" />
-        {/* ─────────────────────────────────────────────────────────────────────── */}
+        {/* ────────────────────────────────────────────────────────── */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
