@@ -13,15 +13,16 @@ import { NextRequest } from 'next/server';
 // nodejs runtime — full Node.js API available
 export const runtime = 'nodejs';
 
-// Load font from public/ at module initialisation (cold start, not per-request)
+// Load font + logo from the same directory as this route file.
+// Files placed next to route.ts are included in the Vercel function bundle.
+// __dirname = /var/task/app/api/og/ on Vercel serverless
 const FONT_DATA: ArrayBuffer = (() => {
-  const buf = readFileSync(path.join(process.cwd(), 'public', 'montserrat-900.woff2'));
-  // Convert Buffer to ArrayBuffer (required by ImageResponse fonts API)
+  const buf = readFileSync(path.join(__dirname, 'montserrat-900.woff2'));
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 })();
 
 const LOGO_DATA: string = (() => {
-  const buf = readFileSync(path.join(process.cwd(), 'public', 'logo.png'));
+  const buf = readFileSync(path.join(__dirname, 'logo.png'));
   return `data:image/png;base64,${buf.toString('base64')}`;
 })();
 
