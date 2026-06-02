@@ -6,20 +6,35 @@ import { AppProvider } from '@/lib/useApp';
 import { Analytics } from '@vercel/analytics/next';
 import { PageTracker } from '@/components/PageTracker';
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite.vercel.app';
+
 export const metadata: Metadata = {
   title: 'BlockBite TDP — Token Distribution Protocol on Solana',
-  description: 'BlockBite TDP: Programmable cliff, linear, and milestone vesting streams with game-based, oracle, multisig, and manual verification. Built for Web3 projects that take anti-dump seriously.',
-  keywords: ['BlockBite', 'TDP', 'Token Distribution Protocol', 'Vesting', 'Solana', 'Web3', 'Cliff', 'Milestone', 'Streaming'],
+  description: 'BlockBite TDP: Programmable cliff, linear, and milestone vesting streams with gamified anti-bot verification. Stop distributing tokens blindly. Built for Web3 projects on Solana.',
+  keywords: ['BlockBite', 'TDP', 'Token Distribution Protocol', 'Vesting', 'Solana', 'Web3', 'Cliff', 'Milestone', 'Streaming', 'Anti-bot'],
+  metadataBase: new URL(APP_URL),
   openGraph: {
-    title: 'BlockBite TDP — Programmable Token Distribution Protocol',
-    description: 'Cliff, linear, and milestone vesting streams with optional game-based or oracle verification. Built for Web3 projects on Solana.',
+    title: 'BlockBite TDP — Token Distribution Protocol',
+    description: 'Stop distributing tokens blindly. Cliff, linear, and milestone vesting with gamified anti-bot verification. 100% on-chain on Solana.',
     type: 'website',
-    url: process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite-game.vercel.app',
+    url: APP_URL,
+    siteName: 'BlockBite TDP',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'BlockBite TDP — Token Distribution Protocol on Solana',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'BlockBite TDP — Token Distribution Protocol',
-    description: 'Programmable vesting streams with milestone verification. Anti-dump by default. 100% on-chain on Solana.',
+    description: 'Stop distributing tokens blindly. Programmable vesting streams with milestone & gamified verification. Anti-dump by default. 100% on-chain.',
+    site: '@BlockBite_Sol',
+    creator: '@BlockBite_Sol',
+    images: ['/opengraph-image'],
   },
 };
 

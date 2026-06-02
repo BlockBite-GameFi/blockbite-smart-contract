@@ -74,14 +74,14 @@ const HOW_IT_WORKS = [
   {
     num: '01',
     color: '#ff7a3a',
-    title: 'Upload Recipient List',
-    desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.',
+    title: 'Connect & Import Data',
+    desc: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.',
   },
   {
     num: '02',
     color: DS.blue,
-    title: 'Set Unlock Schedule',
-    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.',
+    title: 'Define Tokenomics',
+    desc: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.',
   },
   {
     num: '03',
@@ -92,8 +92,8 @@ const HOW_IT_WORKS = [
   {
     num: '04',
     color: DS.green,
-    title: 'Update or Cancel',
-    desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.',
+    title: 'Lock, Launch & Manage',
+    desc: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.',
   },
 ];
 
