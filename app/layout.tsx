@@ -8,9 +8,8 @@ import { PageTracker } from '@/components/PageTracker';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite.vercel.app';
 
-// app/opengraph-image.png + app/twitter-image.png are static PNG files.
-// Next.js App Router auto-serves them and injects correct absolute URLs.
-// No Edge runtime, no cold start — Twitter/X bots get the image instantly.
+// og.png in public/ is served directly by Vercel CDN — zero processing.
+// Hardcoded absolute URL = 100% reliable for Twitter/X crawlers.
 export const metadata: Metadata = {
   title: 'BlockBite TDP — Token Distribution Protocol on Solana',
   description: 'Stop distributing tokens blindly. Programmable cliff, linear, and milestone vesting with gamified anti-bot verification. 100% on-chain on Solana.',
@@ -22,7 +21,12 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'BlockBite TDP',
-    // Next.js auto-resolves opengraph-image.png → absolute URL via metadataBase
+    images: [{
+      url: 'https://blockbite.vercel.app/og.png',
+      width: 1200,
+      height: 630,
+      alt: 'BlockBite TDP — Token Distribution Protocol on Solana',
+    }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -30,7 +34,7 @@ export const metadata: Metadata = {
     description: 'Stop distributing tokens blindly. Programmable vesting streams with gamified anti-bot verification. Anti-dump by default. 100% on-chain.',
     site: '@BlockBite_Sol',
     creator: '@BlockBite_Sol',
-    // Next.js auto-resolves twitter-image.png → absolute URL via metadataBase
+    images: ['https://blockbite.vercel.app/og.png'],
   },
 };
 
@@ -43,6 +47,15 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* ── Hard-coded OG tags — fallback so Twitter/X crawlers NEVER miss them ── */}
+        <meta property="og:image" content="https://blockbite.vercel.app/og.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://blockbite.vercel.app/og.png" />
+        <meta name="twitter:site" content="@BlockBite_Sol" />
+        {/* ─────────────────────────────────────────────────────────────────────── */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
