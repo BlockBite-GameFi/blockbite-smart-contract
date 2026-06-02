@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
+  getAllStreams,
   getStreamsByAuthority,
   getStreamsByBeneficiary,
   computeUnlocked,
@@ -19,11 +20,14 @@ import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
 import { useApp } from '@/lib/useApp';
 
-// ── Stream fetch helper ──────────────────────────────────────────────────────
-async function fetchAndDedup(
-  conn: Connection,
-  walletKey: PublicKey,
-): Promise<StreamInfo[]> {
+// ── Global: all streams on-chain ────────────────────────────────────────────
+async function fetchAllGlobal(conn: Connection): Promise<StreamInfo[]> {
+  const all = await getAllStreams(conn);
+  return all.sort((a, b) => Number(b.startTs.toString()) - Number(a.startTs.toString()));
+}
+
+// ── User-specific: deduplicated by pubkey ────────────────────────────────────
+async function fetchAndDedup(conn: Connection, walletKey: PublicKey): Promise<StreamInfo[]> {
   const [asCreator, asRecipient] = await Promise.all([
     getStreamsByAuthority(conn, walletKey),
     getStreamsByBeneficiary(conn, walletKey),
@@ -34,17 +38,16 @@ async function fetchAndDedup(
     const key = s.pubkey.toBase58();
     if (!seen.has(key)) { seen.add(key); all.push(s); }
   }
-  all.sort((a, b) => Number(b.endTs.toString()) - Number(a.endTs.toString()));
-  return all;
+  return all.sort((a, b) => Number(b.startTs.toString()) - Number(a.startTs.toString()));
 }
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 const TYPE_COLORS: Record<string, string> = {
-  linear: T.accent, milestone: T.blue, cliff: T.gold, hybrid: '#c084fc',
+  linear: T.accent, milestone: T.blue, cliff: T.gold,
 };
 
 function streamType(s: StreamInfo): string {
-  if (s.milestoneCount > 0 && Number(s.cliffTs.toString()) > Number(s.startTs.toString())) return 'hybrid';
+  // Hybrid (milestone+cliff) is reclassified as milestone for display
   if (s.milestoneCount > 0) return 'milestone';
   if (Number(s.cliffTs.toString()) > Number(s.startTs.toString())) return 'cliff';
   return 'linear';
@@ -111,8 +114,9 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
-// ─── Column layout (7 cols on desktop, card on mobile) ───────────────────────
-const GRID = '1.8fr 90px 130px 130px 120px 110px 90px';
+// ─── Column layout — sesuai perintah hakim ───────────────────────────────────
+// Stream/Role | Type | Total Tokens | Creator/Team | Date Created | Status
+const GRID = '2fr 90px 120px 140px 110px 90px';
 
 const MOBILE_CSS = `
 @media (max-width: 768px) {
@@ -147,11 +151,24 @@ export default function StreamsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!publicKey) return;
     setLoading(true);
     try {
-      const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
-      setStreams(all);
+      // Public global dashboard: load ALL streams. If wallet connected, also
+      // highlight user's streams. Falls back to empty if RPC blocks getProgramAccounts.
+      if (publicKey) {
+        const [all, mine] = await Promise.all([
+          withRpcFallback(conn => fetchAllGlobal(conn)).catch(() => [] as StreamInfo[]),
+          withRpcFallback(conn => fetchAndDedup(conn, publicKey)).catch(() => [] as StreamInfo[]),
+        ]);
+        // Merge: put user's streams first, then rest of global
+        const myKeys = new Set(mine.map(s => s.pubkey.toBase58()));
+        const rest   = all.filter(s => !myKeys.has(s.pubkey.toBase58()));
+        setStreams([...mine, ...rest]);
+      } else {
+        // No wallet — show all public streams
+        const all = await withRpcFallback(conn => fetchAllGlobal(conn)).catch(() => [] as StreamInfo[]);
+        setStreams(all);
+      }
     } catch {
       setStreams([]);
     } finally {
@@ -228,29 +245,15 @@ export default function StreamsPage() {
           ))}
         </div>
 
-        {/* ── Wallet gate ── */}
+        {/* ── Connect wallet CTA (soft, non-blocking) ── */}
         {!connected && (
-          <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>◈</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>{tx.walletTitle}</div>
-            <div style={{ fontSize: 13, color: T.textDim, marginBottom: 20 }}>
-              {tx.walletSub}
-            </div>
-            <button
-              onClick={() => setVisible(true)}
-              style={{
-                padding: '11px 28px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: T.grad, color: T.text,
-                fontWeight: 700, fontSize: 13,
-              }}
-            >
-              {tx.connectBtn}
+          <div style={{ background: 'color-mix(in srgb, var(--p-accent) 5%, transparent)', border: `1px solid color-mix(in srgb, var(--p-accent) 18%, transparent)`, borderRadius: 12, padding: '14px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <span style={{ fontSize: 13, color: T.textDim }}>
+              Connect wallet to see your streams highlighted + create new streams
+            </span>
+            <button onClick={() => setVisible(true)} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: T.grad, color: T.text, fontWeight: 700, fontSize: 12 }}>
+              Connect Wallet
             </button>
-            <div style={{ marginTop: 14 }}>
-              <Link href="/demo" style={{ fontSize: 12, color: T.accent, textDecoration: 'none' }}>
-                {tx.orDemo}
-              </Link>
-            </div>
           </div>
         )}
 
@@ -263,8 +266,8 @@ export default function StreamsPage() {
           </div>
         )}
 
-        {/* ── Streams table ── */}
-        {connected && !loading && (
+        {/* ── Streams table — public, no wallet gate ── */}
+        {!loading && (
           <>
             {/* Filter tabs */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -333,60 +336,45 @@ export default function StreamsPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = T.accentA1)}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 ? 'rgba(255,255,255,.01)' : 'transparent')}
                   >
-                    {/* Stream PDA + role — always visible */}
+                    {/* Col 1: Stream/Role — Project Name & Address */}
                     <div className="sd-row-meta">
                       <div>
-                        <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.text, marginBottom: 2 }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.text, marginBottom: 2, fontWeight: 600 }}>
                           {shortKey(s.pubkey)}
+                          {isCreator && <span style={{ marginLeft: 6, fontSize: 9, background: 'color-mix(in srgb, var(--p-accent) 15%, transparent)', color: T.accent, padding: '1px 5px', borderRadius: 4 }}>YOU</span>}
                         </div>
-                        <div style={{ fontSize: 10, color: isCreator ? T.accent : T.green }}>
-                          {isCreator ? tx.youCreated : tx.youReceive}
-                          {s.milestoneCount > 0 && <span style={{ color: T.blue }}> · {tx.milestone(s.milestoneCount)}</span>}
+                        <div style={{ fontFamily: T.mono, fontSize: 9.5, color: T.textDim }}>
+                          → {shortKey(s.beneficiary)}
+                          {s.milestoneCount > 0 && <span style={{ color: T.blue, marginLeft: 6 }}>· {s.milestoneCount} milestones</span>}
                         </div>
                       </div>
-                      {/* On mobile, show type + status inline */}
+                      {/* Mobile: type + status inline */}
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <Badge label={type.toUpperCase()} color={typeCol} />
                         <StatusDot status={status} />
                       </div>
                     </div>
 
-                    {/* Type — hidden on mobile (shown above) */}
+                    {/* Col 2: Type */}
                     <div className="sd-col-hide"><Badge label={type.toUpperCase()} color={typeCol} /></div>
 
-                    {/* Amounts row — shown as grid on mobile */}
-                    <div className="sd-row-amounts">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>TOTAL</div>
-                        {fmtTokens(s.amountTotal)}
-                      </div>
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>CLAIMED</div>
-                        {fmtRaw(withdrawn)}
-                      </div>
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>UNLOCKED</div>
-                        {fmtRaw(claimable)}
-                      </div>
+                    {/* Col 3: Total Tokens */}
+                    <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text, fontWeight: 600 }}>
+                      {fmtTokens(s.amountTotal)}
                     </div>
 
-                    {/* These 3 are hidden on mobile (merged into sd-row-amounts above) */}
-                    <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>{fmtRaw(withdrawn)}</div>
-                      <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>{total > 0 ? `${Math.round((withdrawn / total) * 100)}% withdrawn` : '—'}</div>
-                    </div>
-                    <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>{fmtRaw(claimable)}</div>
-                      <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>claimable now</div>
+                    {/* Col 4: Creator / Team */}
+                    <div style={{ fontFamily: T.mono, fontSize: 10, color: isCreator ? T.accent : T.textDim }}>
+                      {shortKey(s.authority)}
                     </div>
 
-                    {/* Time left */}
-                    <div style={{ fontFamily: T.mono, fontSize: 11, color: status === 'active' ? T.blue : T.textDim }}>
-                      {tLeft}
+                    {/* Col 5: Date Created (derived from startTs) */}
+                    <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim }}>
+                      {new Date(Number(s.startTs.toString()) * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </div>
 
-                    {/* Status — hidden on mobile (shown in meta row above) */}
-                    <div className="sd-col-hide"><StatusDot status={status} /></div>
+                    {/* Col 6: Status */}
+                    <div><StatusDot status={status} /></div>
                   </div>
                 );
               })}
@@ -404,34 +392,6 @@ export default function StreamsPage() {
           </>
         )}
 
-        {/* ── Quick Actions ── */}
-        <div style={{ marginTop: 24, background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '20px 22px' }}>
-          <div style={{ fontFamily: T.serif, fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 14 }}>{tx.quickTitle}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {([
-              { ...tx.quickItems[0], col: T.accent },
-              { ...tx.quickItems[1], col: T.green  },
-              { ...tx.quickItems[2], col: T.blue   },
-              { ...tx.quickItems[3], col: T.gold   },
-              { ...tx.quickItems[4], col: T.textDim },
-            ] as Array<{ label: string; desc: string; href: string; col: string }>).map(a => (
-              <Link key={a.href} href={a.href} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px',
-                background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.06)',
-                borderRadius: 10, textDecoration: 'none', flex: '1 1 180px',
-              }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = `color-mix(in srgb, ${a.col} 27%, transparent)`; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,.06)'; }}
-              >
-                <div style={{ width: 7, height: 7, borderRadius: '50%', background: a.col, flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{a.label}</div>
-                  <div style={{ fontSize: 10.5, color: T.textDim }}>{a.desc}</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
     </main>
   );

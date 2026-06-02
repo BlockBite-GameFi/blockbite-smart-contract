@@ -25,6 +25,7 @@ const DS = {
 
 const TDP_LINKS = [
   { name: 'Streams Dashboard', href: '/streams',     desc: 'All active vesting streams',        icon: '◈' },
+  { name: 'Demo',              href: '/demo',        desc: 'Interactive protocol walkthrough',  icon: '◇' },
   { name: 'Create Stream',     href: '/streams/new', desc: 'Lock tokens into a PDA vault',      icon: '＋' },
   { name: 'Claim Portal',      href: '/claim',       desc: 'Withdraw vested tokens',            icon: '◎' },
   { name: 'Milestones',        href: '/milestones',  desc: 'Verify milestone unlocks on-chain', icon: '◉' },
@@ -39,9 +40,10 @@ const TDP_LINKS = [
 // HOW IT WORKS → /#how-it-works (homepage section anchor)
 // /how-to-play  → game guide page (DIFFERENT PAGE — not this nav item)
 const NAV_HREFS = [
-  { key: 'nav_product',      href: '/protocol'      },
-  { key: 'nav_how_it_works', href: '/#how-it-works' }, // HARDCODED — homepage section
-  { key: 'nav_faq',          href: '/#faq'          }, // HARDCODED — homepage FAQ section
+  { key: 'nav_product',       href: '/protocol'      },
+  { key: 'nav_how_it_works',  href: '/#how-it-works' }, // HARDCODED — homepage section
+  { key: 'nav_token_streams', href: '/streams'       }, // NEW — public global dashboard
+  { key: 'nav_faq',           href: '/#faq'          }, // HARDCODED — homepage FAQ section
 ] as const;
 
 export default function Navbar() {
