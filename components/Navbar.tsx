@@ -35,11 +35,13 @@ const TDP_LINKS = [
   { name: 'Partners',          href: '/partners',    desc: 'Partnership program & tiers',       icon: '◆' },
 ];
 
-// NAV_LINKS hrefs only — labels are derived from translations inside the component
+// NAV_LINKS hrefs — HARDCODED. DO NOT change how-it-works to /how-to-play.
+// HOW IT WORKS → /#how-it-works (homepage section anchor)
+// /how-to-play  → game guide page (DIFFERENT PAGE — not this nav item)
 const NAV_HREFS = [
-  { key: 'nav_product',      href: '/protocol'     },
-  { key: 'nav_how_it_works', href: '/how-to-play' },
-  { key: 'nav_waitlist',     href: '/waitlist'     },
+  { key: 'nav_product',      href: '/protocol'      },
+  { key: 'nav_how_it_works', href: '/#how-it-works' }, // HARDCODED — homepage section
+  { key: 'nav_waitlist',     href: '/waitlist'      },
 ] as const;
 
 export default function Navbar() {
