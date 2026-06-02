@@ -8,8 +8,8 @@ import { PageTracker } from '@/components/PageTracker';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite.vercel.app';
 
-// og.png in public/ is served directly by Vercel CDN — zero processing.
-// Hardcoded absolute URL = 100% reliable for Twitter/X crawlers.
+// NOTE: og:image and twitter:image are injected as raw <meta> tags in <head> below.
+// Do NOT add images here — that would create duplicate tags and confuse Twitter parsers.
 export const metadata: Metadata = {
   title: 'BlockBite TDP — Token Distribution Protocol on Solana',
   description: 'Stop distributing tokens blindly. Programmable cliff, linear, and milestone vesting with gamified anti-bot verification. 100% on-chain on Solana.',
@@ -21,12 +21,6 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'BlockBite TDP',
-    images: [{
-      url: 'https://blockbite.vercel.app/og.png',
-      width: 1200,
-      height: 630,
-      alt: 'BlockBite TDP — Token Distribution Protocol on Solana',
-    }],
   },
   twitter: {
     card: 'summary_large_image',
@@ -34,7 +28,6 @@ export const metadata: Metadata = {
     description: 'Stop distributing tokens blindly. Programmable vesting streams with gamified anti-bot verification. Anti-dump by default. 100% on-chain.',
     site: '@BlockBite_Sol',
     creator: '@BlockBite_Sol',
-    images: ['https://blockbite.vercel.app/og.png'],
   },
 };
 
