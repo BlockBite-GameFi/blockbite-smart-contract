@@ -484,9 +484,6 @@ export default function Home() {
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>{T.featItalic}</span>
             </h2>
-            <p style={{ fontFamily: DS.sora, fontSize: 15, color: D.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
-              {T.featSub}
-            </p>
           </div>
 
           {/* ── 5 core features — bilingual via T.features ── */}
