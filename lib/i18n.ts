@@ -433,7 +433,7 @@ const protocol = {
   en: {
     badge:    'TDP · Protocol Overview',
     title:    'Token Distribution Protocol',
-    subtitle: 'A trustless, on-chain vesting engine for Solana. Automate token logistics — cliff, linear, milestone, hybrid.',
+    subtitle: 'BlockBite is the unified engine for automated token logistics — cliff, linear, and milestone.',
     launchApp: 'Launch App →',
     readDocs:  'Read Docs',
     features: [
@@ -447,7 +447,7 @@ const protocol = {
   id: {
     badge:    'TDP · Ikhtisar Protokol',
     title:    'Protokol Distribusi Token',
-    subtitle: 'Mesin vesting trustless on-chain untuk Solana. Otomatisasi logistik token — cliff, linear, milestone, hybrid.',
+    subtitle: 'BlockBite adalah mesin terpadu untuk logistik token otomatis — cliff, linear, dan milestone.',
     launchApp: 'Buka Aplikasi →',
     readDocs:  'Baca Dokumentasi',
     features: [

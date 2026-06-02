@@ -42,6 +42,7 @@ function fmt(n: bigint): string {
 export default function ProtocolPage() {
   const { lang } = useApp();
   const tx = I18N.protocol[lang];
+  const id = lang === 'id';
 
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
 
@@ -98,9 +99,9 @@ export default function ProtocolPage() {
               Stop Distributing Tokens Blindly
             </h2>
             <p style={{ fontSize: 14, color: T.textDim, maxWidth: 520, lineHeight: 1.7, margin: '0 0 24px' }}>
-              BlockBite TDP is a programmable token distribution protocol.
-              Create configurable vesting streams with cliff, milestone, linear,
-              and hybrid schedules — backed by audited smart contracts.
+              Reclaim your time and eliminate the risk of manual errors.
+              Replace manual spreadsheets with an automated system that handles
+              vesting, streaming, distribution, and verification in one place.
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <Link href="/streams/new" style={{
@@ -145,10 +146,12 @@ export default function ProtocolPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap: 12 }}>
               {[
-                { type: 'Linear',    col: T.accent,  icon: '∿',  desc: tx.features[0].desc, href: '/streams/new/linear'    },
-                { type: 'Cliff',     col: T.gold,    icon: '◇',  desc: tx.features[1].desc, href: '/streams/new/cliff'     },
-                { type: 'Milestone', col: T.blue,    icon: '◉',  desc: tx.features[2].desc, href: '/streams/new/milestone' },
-                { type: 'Hybrid',    col: '#c084fc', icon: '⬡',  desc: tx.features[3].desc, href: '/streams/new/hybrid'    },
+                { type: id ? 'Linear'    : 'Linear',    col: T.accent, icon: '∿', href: '/streams/new/linear',
+                  desc: id ? 'Token terbuka secara terus-menerus dan merata selama periode tertentu.' : 'Tokens unlock continuously and evenly over a set period.' },
+                { type: id ? 'Cliff'     : 'Cliff',     col: T.gold,   icon: '◇', href: '/streams/new/cliff',
+                  desc: id ? 'Periode penguncian sebelum distribusi token dimulai.' : 'A timed lockup period before any token distribution begins.' },
+                { type: id ? 'Milestone' : 'Milestone', col: T.blue,   icon: '◉', href: '/streams/new/milestone',
+                  desc: id ? 'Token terbuka hanya saat target proyek tertentu tercapai.' : 'Token releases triggered strictly by achieving specific project targets.' },
               ].map(m => (
                 <Link key={m.type} href={m.href} style={{ textDecoration: 'none' }}>
                   <Card style={{ padding: '18px 20px', display: 'flex', gap: 14, cursor: 'pointer', transition: 'border-color .15s', borderColor: `${m.col}22` }}>
@@ -181,7 +184,7 @@ export default function ProtocolPage() {
               {[
                 { step: '01', title: 'Configure',  icon: '◈', desc: 'Choose stream type: linear, cliff, milestone, or hybrid. Set amounts and schedule.' },
                 { step: '02', title: 'Deploy',     icon: '▲', desc: 'Tokens lock into a PDA vault on Solana. Smart contract enforces all rules on-chain.'  },
-                { step: '03', title: 'Verify',     icon: '✦', desc: 'Milestone gates unlock via oracle, multi-sig, or game state verification.'            },
+                { step: '03', title: 'Verify',     icon: '✦', desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
                 { step: '04', title: 'Claim',      icon: '◎', desc: 'Recipient withdraws vested tokens at any time. Math is enforced by the program.'      },
               ].map(s => (
                 <Card key={s.step} style={{ textAlign: 'center', padding: '20px 16px' }}>
