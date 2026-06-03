@@ -523,8 +523,13 @@ export function humanizeError(e: unknown): string {
     return 'Transaction cancelled — you rejected the wallet prompt.';
   if (msg.includes('insufficient funds') || msg.includes('insufficient balance') || msg.includes('insufficient lamports'))
     return 'Insufficient balance — not enough tokens or SOL for fees.';
+  if (msg.includes('not confirmed') || msg.includes('check /streams'))
+    return 'Sent, but confirmation timed out (devnet congestion). The tx may ALREADY be on-chain — check your wallet address on explorer.solana.com (cluster=devnet) or /streams before retrying.';
+  if (msg.includes('on-chain error') || msg.includes('simulation failed'))
+    // Surface the REAL on-chain reason verbatim — never mask it as "expired".
+    return (e instanceof Error ? e.message : String(e)).slice(0, 200);
   if (msg.includes('blockhash') || msg.includes('expired'))
-    return 'Transaction expired — clicking Create again will retry automatically (up to 5x).';
+    return 'Blockhash expired before the tx landed (devnet was slow). It auto-retried with rebroadcast — check explorer for your wallet; the tx may have landed anyway.';
   if (msg.includes('already in use') || msg.includes('already exists'))
     return 'Stream account already exists at this address.';
   if (msg.includes('invalid account data') || msg.includes('incorrect program id'))
