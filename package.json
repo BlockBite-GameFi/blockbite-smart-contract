@@ -37,6 +37,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/bn.js": "^5.1.5",
     "@types/chai": "^4.3.12",
     "@types/mocha": "^10.0.6",
