@@ -198,10 +198,24 @@ export function useStreamCreate() {
           // without requiring the user to approve again on each retry.
           if (signTransaction) {
             try {
-              // Get freshest possible blockhash right before signing
-              const { blockhash } = await conn.getLatestBlockhash('finalized');
-              tx.recentBlockhash = blockhash;
-              tx.feePayer = publicKey;
+              // ROOT-CAUSE FIX for "Transaction expired":
+              // A blockhash is valid for only ~150 slots (~60-90s). The OLD code
+              // fetched it with 'finalized' commitment — but a finalized blockhash
+              // is ALREADY ~32 slots (~13s) behind the cluster tip the moment you
+              // get it, so it burned ~1/5 of the validity window before the user
+              // even saw the Approve prompt. Add 10-60s of human approval time and
+              // the hash expires → "Transaction expired".
+              //
+              // FIX: fetch with 'confirmed' (newest usable hash = full window) from
+              // a HEALTHY, low-latency node via withRpcFallback — the single
+              // useConnection() RPC can itself lag behind the cluster, making the
+              // hash even staler. signTransaction signs EXACTLY this hash (it never
+              // refreshes), so we grab it as fresh as possible right before signing.
+              const { blockhash, lastValidBlockHeight } =
+                await withRpcFallback(c => c.getLatestBlockhash('confirmed'));
+              tx.recentBlockhash      = blockhash;
+              tx.lastValidBlockHeight = lastValidBlockHeight;
+              tx.feePayer             = publicKey;
 
               // One wallet prompt — user approves here
               const signedTx = await signTransaction(tx);
