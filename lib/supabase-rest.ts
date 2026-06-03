@@ -402,18 +402,69 @@ function emptyTotalStats(): TotalViewStats {
   return { totalViews: 0, uniqueVisitors: 0, today: 0, tableReady: true, byDay };
 }
 
+/** Count .json event objects under a storage prefix. Paginates so the result
+ *  is exact regardless of how many objects the folder holds. */
+async function sbCountObjects(prefix: string): Promise<number> {
+  let count = 0;
+  let offset = 0;
+  for (;;) {
+    let items: { name: string }[];
+    try {
+      const res = await fetch(`${SB_URL}/storage/v1/object/list/${ANA_BUCKET}`, {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ prefix, limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }),
+        cache: 'no-store',
+      });
+      if (!res.ok) break;
+      items = await res.json();
+    } catch { break; }
+    if (!Array.isArray(items) || items.length === 0) break;
+    // .emptyFolderPlaceholder objects must not be counted as views
+    count += items.filter(i => i.name.endsWith('.json')).length;
+    if (items.length < 1000) break;
+    offset += 1000;
+  }
+  return count;
+}
+
 export async function sbGetTotalViewStats(): Promise<TotalViewStats> {
   if (!supabaseReady()) return emptyTotalStats();
   try {
-    const items = await sbListAllPvObjects();
-    // Bucket not accessible — try to create it; return zeros (next call will succeed)
-    if (!items) {
-      sbEnsureBucket().catch(() => {});
-      return emptyTotalStats();
-    }
-    if (items.length === 0) return emptyTotalStats();
+    // ── 7-day chart + "today": count each date folder DIRECTLY. ──────────────
+    // Every event is stored at  pv/{YYYY-MM-DD}/{ts}-{rand}.json  so the date is
+    // already in the key — counting a day's folder gives an exact, uncapped daily
+    // total. The previous version derived these from only the 500 NEWEST event
+    // files, so as today's traffic grew it pushed earlier days out of the sample
+    // and their bars collapsed to 0 (the "loses yesterday's data" bug). Folder
+    // counts never slide out of a window, so historical days stay put forever.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const last7 = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().slice(0, 10);
+    });
+    const dayCounts = await Promise.all(last7.map(date => sbCountObjects(`pv/${date}/`)));
+    const byDay: DayStat[] = last7.map((date, i) => ({ date, views: dayCounts[i], visitors: 0 }));
+    const today = byDay.find(d => d.date === todayStr)?.views ?? 0;
 
-    // Read up to 500 most recent events (fast; accurate for low-traffic devnet)
+    // ── All-time total + unique visitors from the full object listing. ───────
+    const items = await sbListAllPvObjects();
+    if (!items) {
+      // Listing failed (bucket missing/inaccessible) — try to create it, but the
+      // per-folder counts above may still be valid, so return those.
+      sbEnsureBucket().catch(() => {});
+      return {
+        totalViews:     byDay.reduce((s, d) => s + d.views, 0),
+        uniqueVisitors: 0,
+        today,
+        tableReady:     true,
+        byDay,
+      };
+    }
+
+    // Unique visitors needs the session id from file contents → recent sample.
+    // This metric is approximate by design; the daily chart above is exact.
     const sample = items.slice(0, 500);
     const reads = await Promise.all(
       sample.map(name =>
@@ -422,40 +473,13 @@ export async function sbGetTotalViewStats(): Promise<TotalViewStats> {
           .catch(() => null),
       ),
     );
-
-    const todayStr  = new Date().toISOString().slice(0, 10);
-    const sessions  = new Set<string>();
-    let todayViews  = 0;
-
-    // Per-day aggregation for the 7-day chart
-    const dayMap = new Map<string, { views: number; sids: Set<string> }>();
-    // Pre-seed last 7 days so we always return a full 7-entry array
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      dayMap.set(d.toISOString().slice(0, 10), { views: 0, sids: new Set() });
-    }
-
-    for (const ev of reads) {
-      if (!ev?.path) continue;  // skip non-event objects (folders etc.)
-      const evDate = ev.ts ? new Date(ev.ts).toISOString().slice(0, 10) : todayStr;
-      if (ev.sid) sessions.add(ev.sid);
-      if (evDate === todayStr) todayViews++;
-      if (dayMap.has(evDate)) {
-        const ds = dayMap.get(evDate)!;
-        ds.views++;
-        if (ev.sid) ds.sids.add(ev.sid);
-      }
-    }
-
-    const byDay: DayStat[] = Array.from(dayMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, ds]) => ({ date, views: ds.views, visitors: ds.sids.size }));
+    const sessions = new Set<string>();
+    for (const ev of reads) if (ev?.sid) sessions.add(ev.sid);
 
     return {
-      totalViews:     items.length,     // exact count from storage listing
+      totalViews:     items.length,     // exact count from storage listing (cap 5000)
       uniqueVisitors: sessions.size,    // from sample (accurate for devnet traffic)
-      today:          todayViews,
+      today,
       tableReady:     true,
       byDay,
     };
