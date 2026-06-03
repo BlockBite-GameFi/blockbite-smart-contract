@@ -42,6 +42,7 @@
     "migrations",
     "programs",
     "blockblast",
+    "remotion-walkthrough",
     ".surfpool",
     "test-ledger",
     "scripts"

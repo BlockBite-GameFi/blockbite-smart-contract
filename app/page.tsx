@@ -736,40 +736,27 @@ export default function Home() {
             {T.videoSub}
           </p>
 
-          {/* Video player placeholder — matching Velthoryn reference */}
-          <div style={{
-            position: 'relative',
-            borderRadius: 20,
-            overflow: 'hidden',
-            border: `1px solid ${D.border}`,
-            background: D.bg2,
-            aspectRatio: '16/9',
-            display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center',
-            gap: 20,
-            boxShadow: '0 8px 48px rgba(153,69,255,0.10)',
-          }}>
-            {/* Play button */}
-            <div style={{
-              width: 72, height: 72, borderRadius: '50%',
-              border: `2px solid rgba(153,69,255,0.50)`,
-              background: 'rgba(153,69,255,0.08)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'default',
-            }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path d="M6 4l15 8-15 8V4z" fill="rgba(153,69,255,0.70)" />
-              </svg>
-            </div>
-            {/* Coming soon label */}
-            <p style={{
-              fontFamily: DS.sora, fontSize: 12, fontWeight: 700,
-              letterSpacing: '0.2em', color: D.muted,
-              textTransform: 'uppercase', margin: 0,
-            }}>
-              {T.videoComingSoon}
-            </p>
-          </div>
+          {/* Walkthrough video — code-generated (Remotion), see remotion-walkthrough/ */}
+          <video
+            src="/walkthrough.mp4"
+            poster="/walkthrough-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            controls
+            preload="metadata"
+            style={{
+              width: '100%',
+              display: 'block',
+              aspectRatio: '16/9',
+              objectFit: 'cover',
+              borderRadius: 20,
+              border: `1px solid ${D.border}`,
+              background: D.bg2,
+              boxShadow: '0 8px 48px rgba(153,69,255,0.10)',
+            }}
+          />
         </div>
       </section>
 
