@@ -715,11 +715,17 @@ export function StreamPageShell({
       }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <Link href="/streams/new" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            fontSize: 12, color: C.muted, textDecoration: 'none', marginBottom: 14,
-            padding: '4px 10px', borderRadius: 7, border: `1px solid ${C.border}`,
-            background: 'rgba(255,255,255,.02)',
-          }}>← Back to types</Link>
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            fontSize: 13, fontWeight: 600, color: 'var(--p-text)', textDecoration: 'none', marginBottom: 18,
+            padding: '8px 18px', borderRadius: 999,
+            border: `1px solid ${C.border}`,
+            background: 'rgba(255,255,255,.06)',
+            backdropFilter: 'blur(8px)',
+            transition: 'background .15s',
+          }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,.12)')}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,.06)')}
+          >← Back to Stream Type</Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
               width: 48, height: 48, borderRadius: 13,
