@@ -1,32 +1,15 @@
-/**
- * /api/og — OG image generation
- * Fetches logo + font from our own Vercel CDN (static public/ files)
- * Edge runtime works on Linux/Vercel; no filesystem or Buffer issues
- */
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 
 export async function GET() {
   try {
-    const BASE = 'https://blockbite.vercel.app';
-
-    // Fetch logo and font from our own CDN (public/ files)
-    const [fontRes, logoRes] = await Promise.all([
-      fetch(`${BASE}/montserrat-900.woff2`),
-      fetch(`${BASE}/logo.png`),
-    ]);
-
-    if (!fontRes.ok || !logoRes.ok) {
-      throw new Error(`Fetch failed: font=${fontRes.status} logo=${logoRes.status}`);
-    }
-
+    // Load co-located files — no self-HTTP fetch, works reliably on Vercel edge
     const [fontData, logoData] = await Promise.all([
-      fontRes.arrayBuffer(),
-      logoRes.arrayBuffer(),
+      fetch(new URL('./montserrat-900.woff2', import.meta.url)).then(r => r.arrayBuffer()),
+      fetch(new URL('./logo.png', import.meta.url)).then(r => r.arrayBuffer()),
     ]);
 
-    // Convert logo to base64 data URL (Web API, no Buffer)
     const logoBytes = new Uint8Array(logoData);
     let bin = '';
     for (let i = 0; i < logoBytes.length; i++) bin += String.fromCharCode(logoBytes[i]);
