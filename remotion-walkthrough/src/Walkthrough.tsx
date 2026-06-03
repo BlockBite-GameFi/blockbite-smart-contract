@@ -1,9 +1,11 @@
 import React from "react";
 import {
   AbsoluteFill,
+  Img,
   Sequence,
   interpolate,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -61,25 +63,13 @@ const Background: React.FC = () => {
   );
 };
 
-/* ── Blocks logo mark (CSS, no asset needed) ───────────────────────── */
-const LogoMark: React.FC<{ size?: number }> = ({ size = 84 }) => {
-  const u = size / 2 - size * 0.04;
-  const r = size * 0.18;
-  const cell = (bg: string, x: number, y: number, delayShadow: string) => (
-    <div style={{
-      position: "absolute", left: x, top: y, width: u, height: u, borderRadius: r,
-      background: `linear-gradient(140deg, ${bg}, ${bg}cc)`, boxShadow: `0 6px 20px ${delayShadow}`,
-    }} />
-  );
-  return (
-    <div style={{ position: "relative", width: size, height: size }}>
-      {cell(C.purple, 0, 0, "rgba(153,69,255,0.5)")}
-      {cell(C.green, size - u, 0, "rgba(20,241,149,0.4)")}
-      {cell(C.blue, 0, size - u, "rgba(0,194,255,0.4)")}
-      {cell(C.gold, size - u, size - u, "rgba(245,198,106,0.4)")}
-    </div>
-  );
-};
+/* ── Official BlockBite logo (RULE-G11: always public/logo.png) ─────── */
+const LogoMark: React.FC<{ size?: number }> = ({ size = 84 }) => (
+  <Img
+    src={staticFile("logo.png")}
+    style={{ width: size, height: size, objectFit: "contain", filter: "drop-shadow(0 6px 22px rgba(153,69,255,0.35))" }}
+  />
+);
 
 /* ── Reusable kicker + step badge ──────────────────────────────────── */
 const StepKicker: React.FC<{ step: string; label: string; color: string; frame: number }> = ({ step, label, color, frame }) => {
