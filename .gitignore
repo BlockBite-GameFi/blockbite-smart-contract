@@ -48,6 +48,8 @@ anchor-build.log
 # ─── Surfpool / local validator simulation artifacts ─────────────────────────
 .surfpool/
 test-ledger/
+.anchor/
+.sixth/
 
 # ─── Scripts (may contain keypairs / secrets) ─────────────────────────────────
 scripts/

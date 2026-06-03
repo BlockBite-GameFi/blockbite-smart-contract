@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability / Kerentanan keamanan
+    url: https://github.com/nayrbryanGaming/blockblast/security/policy
+    about: Please report security issues privately — see SECURITY.md. / Laporkan masalah keamanan secara privat.
