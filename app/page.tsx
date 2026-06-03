@@ -124,6 +124,11 @@ const COPY = {
     faqKicker: 'FAQ',
     faqTitle: 'Questions,',
     faqItalic: 'answered.',
+    videoKicker: 'SEE IT IN ACTION',
+    videoTitle: 'See how a campaign',
+    videoTitleItalic: 'comes together.',
+    videoSub: 'A short walkthrough of campaign setup, vesting configuration, and recipient claims is on the way.',
+    videoComingSoon: 'WALKTHROUGH COMING SOON',
     ctaFinalTitle: 'Ready to distribute tokens responsibly?',
     ctaFinalSub: 'Join the projects already streaming tokens with cliff, linear, and milestone vesting on Solana.',
     ctaFinal1: 'Launch App →',
@@ -183,6 +188,11 @@ const COPY = {
     faqKicker: 'FAQ',
     faqTitle: 'Pertanyaan,',
     faqItalic: 'terjawab.',
+    videoKicker: 'LIHAT CARA KERJANYA',
+    videoTitle: 'Lihat bagaimana kampanye',
+    videoTitleItalic: 'dibuat bersama.',
+    videoSub: 'Walkthrough singkat tentang setup kampanye, konfigurasi vesting, dan klaim penerima akan segera hadir.',
+    videoComingSoon: 'WALKTHROUGH SEGERA HADIR',
     ctaFinalTitle: 'Siap mendistribusikan token secara bertanggung jawab?',
     ctaFinalSub: 'Bergabung dengan proyek yang sudah streaming token dengan cliff, linear, dan milestone vesting di Solana.',
     ctaFinal1: 'Buka Aplikasi →',
@@ -683,6 +693,82 @@ export default function Home() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── VIDEO WALKTHROUGH ─────────────────────────────────────────────────── */}
+      <section className="m-section" style={{
+        position: 'relative', zIndex: 1,
+        padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
+        background: D.bg1,
+        borderTop: `1px solid ${D.border}`,
+      }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
+          {/* Kicker */}
+          <p style={{
+            fontSize: 11, fontWeight: 700, color: D.accent,
+            letterSpacing: '3px', textTransform: 'uppercase',
+            marginBottom: 16, fontFamily: DS.sora,
+          }}>
+            {T.videoKicker}
+          </p>
+
+          {/* Heading */}
+          <h2 style={{
+            fontFamily: DS.cinzel,
+            fontSize: 'clamp(26px,3.5vw,40px)', fontWeight: 700,
+            color: D.text, margin: '0 0 16px',
+          }}>
+            {T.videoTitle}{' '}
+            <span style={{
+              fontStyle: 'italic',
+              background: 'linear-gradient(90deg, #9945FF, #14F195)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>{T.videoTitleItalic}</span>
+          </h2>
+
+          {/* Subtitle */}
+          <p style={{
+            fontFamily: DS.sora, fontSize: 15, color: D.muted,
+            maxWidth: 520, margin: '0 auto 44px', lineHeight: 1.7,
+          }}>
+            {T.videoSub}
+          </p>
+
+          {/* Video player placeholder — matching Velthoryn reference */}
+          <div style={{
+            position: 'relative',
+            borderRadius: 20,
+            overflow: 'hidden',
+            border: `1px solid ${D.border}`,
+            background: D.bg2,
+            aspectRatio: '16/9',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            gap: 20,
+            boxShadow: '0 8px 48px rgba(153,69,255,0.10)',
+          }}>
+            {/* Play button */}
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%',
+              border: `2px solid rgba(153,69,255,0.50)`,
+              background: 'rgba(153,69,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'default',
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path d="M6 4l15 8-15 8V4z" fill="rgba(153,69,255,0.70)" />
+              </svg>
+            </div>
+            {/* Coming soon label */}
+            <p style={{
+              fontFamily: DS.sora, fontSize: 12, fontWeight: 700,
+              letterSpacing: '0.2em', color: D.muted,
+              textTransform: 'uppercase', margin: 0,
+            }}>
+              {T.videoComingSoon}
+            </p>
           </div>
         </div>
       </section>
