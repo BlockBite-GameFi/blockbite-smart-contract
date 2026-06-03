@@ -45,6 +45,7 @@ const NAV_HREFS = [
   { key: 'nav_token_streams', href: '/streams'       }, // Public global dashboard
   { key: 'nav_my_campaign',   href: '/my-campaign'   }, // User claim & interaction portal
   { key: 'nav_faq',           href: '/#faq'          }, // HARDCODED — homepage FAQ section
+  { key: 'nav_demo',          href: '/#video'        }, // HARDCODED — homepage video section
 ] as const;
 
 export default function Navbar() {
