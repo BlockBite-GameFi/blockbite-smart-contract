@@ -250,7 +250,8 @@ export async function withdraw(p: WithdrawParams): Promise<string> {
 
   tx.add(ix);
   tx.feePayer = p.beneficiary;
-  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
+  // Use 'confirmed' not 'finalized' — finalized is ~13s behind tip, burning the validity window
+  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction(
@@ -292,7 +293,8 @@ export async function cancelStream(p: CancelParams): Promise<string> {
 
   const tx = new Transaction().add(ix);
   tx.feePayer = p.authority;
-  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
+  // Use 'confirmed' not 'finalized' — finalized is ~13s behind tip, burning the validity window
+  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction(

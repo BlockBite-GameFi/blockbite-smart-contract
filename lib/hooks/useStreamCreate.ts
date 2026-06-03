@@ -219,12 +219,36 @@ export function useStreamCreate() {
 
               // One wallet prompt — user approves here
               const signedTx = await signTransaction(tx);
-              const rawTx    = signedTx.serialize();
 
+              // SURFACE THE REAL ERROR: simulate before sending. With skipPreflight
+              // the old code hid on-chain failures (bad accounts, insufficient
+              // funds, program error) behind a generic "expired". Simulate once so
+              // a genuine program error is reported instead of silently dropped.
+              try {
+                const sim = await withRpcFallback(c => c.simulateTransaction(signedTx));
+                if (sim?.value?.err) {
+                  const logs = (sim.value.logs ?? []).join('\n');
+                  throw new Error(
+                    `On-chain simulation failed: ${JSON.stringify(sim.value.err)}` +
+                    (logs ? `\n${logs}` : ''),
+                  );
+                }
+              } catch (simErr: unknown) {
+                const sm = ((simErr as Error)?.message ?? '').toLowerCase();
+                // Only abort on a real program/account error; ignore RPC noise and
+                // let the durable sender try anyway.
+                if (sm.includes('simulation failed') || sm.includes('custom program error') ||
+                    sm.includes('insufficient')) {
+                  throw simErr;
+                }
+              }
+
+              const rawTx = signedTx.serialize();
               setTxStatus('confirming');
 
-              // Blast to many RPCs simultaneously — first success wins
-              const sig = await sendRawToManyRpcs(rawTx);
+              // Durable send: rebroadcast to real nodes until confirmed or the
+              // blockhash truly expires (uses lastValidBlockHeight for accuracy).
+              const sig = await sendRawToManyRpcs(rawTx, lastValidBlockHeight);
               return sig;
             } catch (signErr: unknown) {
               // If user rejected, propagate immediately
