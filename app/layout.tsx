@@ -7,7 +7,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { PageTracker } from '@/components/PageTracker';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://blockbite.vercel.app';
-const OG_IMAGE = `${APP_URL}/og.png`;
+const OG_IMAGE = `${APP_URL}/og.png?v=2`;
 
 export const metadata: Metadata = {
   title: 'BlockBite TDP — Token Distribution Protocol on Solana',
