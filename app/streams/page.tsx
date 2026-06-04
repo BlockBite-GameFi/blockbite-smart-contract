@@ -13,9 +13,10 @@ import {
   computeUnlocked,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
-import { BN } from '@coral-xyz/anchor';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { getMint } from '@solana/spl-token';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
+import { KNOWN } from '@/lib/hooks/useWalletTokens';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
 import { useApp } from '@/lib/useApp';
@@ -81,15 +82,21 @@ function shortKey(pk: { toBase58(): string } | null): string {
   return `${s.slice(0, 4)}…${s.slice(-4)}`;
 }
 
-function fmtTokens(bn: BN): string {
-  const n = Number(bn.toString()) / 1e6;
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-  return n.toFixed(2);
+/**
+ * Resolve a mint address to its display symbol + REAL decimals.
+ * The old code hardcoded "TOKEN" and divided every amount by 1e6 (6 decimals),
+ * so a 1 SOL stream (9 decimals = 1e9 lamports) rendered as "1000 TOKEN".
+ * wSOL is shown as "SOL" because users think of it as native SOL.
+ */
+function metaFor(mintB58: string, decByMint: Record<string, number>): { symbol: string; decimals: number } {
+  const k = KNOWN[mintB58];
+  if (k) return { symbol: k.symbol === 'wSOL' ? 'SOL' : k.symbol, decimals: k.decimals };
+  return { symbol: `${mintB58.slice(0, 4)}…`, decimals: decByMint[mintB58] ?? 9 };
 }
 
-function fmtRaw(raw: number): string {
-  const n = raw / 1e6;
+/** Format a raw on-chain amount using the mint's real decimals. */
+function fmtAmount(raw: number, decimals: number): string {
+  const n = raw / 10 ** decimals;
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
   return n.toFixed(2);
@@ -144,6 +151,8 @@ export default function StreamsPage() {
   const [loading,  setLoading]  = useState(false);
   const [filter,   setFilter]   = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all');
   const [nowSec,   setNowSec]   = useState(Math.floor(Date.now() / 1000));
+  // Real decimals for any mint NOT in the KNOWN map (fetched on-chain once).
+  const [decByMint, setDecByMint] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
@@ -178,13 +187,47 @@ export default function StreamsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Enrich: fetch real decimals for any non-KNOWN mint so amounts format correctly.
+  useEffect(() => {
+    const unknown = [...new Set(streams.map(s => s.mint.toBase58()))]
+      .filter(m => !KNOWN[m] && decByMint[m] === undefined);
+    if (unknown.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates: Record<string, number> = {};
+      for (const m of unknown) {
+        try {
+          const info = await withRpcFallback(c => getMint(c, new PublicKey(m)));
+          updates[m] = info.decimals;
+        } catch { updates[m] = 9; }
+      }
+      if (!cancelled) setDecByMint(prev => ({ ...prev, ...updates }));
+    })();
+    return () => { cancelled = true; };
+  }, [streams, decByMint]);
+
   const filtered = streams.filter(s => {
     if (filter === 'all') return true;
     return streamStatus(s, nowSec) === filter;
   });
 
-  const totalLocked    = streams.reduce((acc, s) => acc + Number(s.amountTotal.toString()), 0) / 1e6;
-  const totalWithdrawn = streams.reduce((acc, s) => acc + Number(s.amountWithdrawn.toString()), 0) / 1e6;
+  // Sum locked/withdrawn per token symbol using each mint's REAL decimals,
+  // so 1 SOL counts as 1.00 SOL (not 1000) and tokens are not mixed wrongly.
+  const lockedBySymbol:    Record<string, number> = {};
+  const withdrawnBySymbol: Record<string, number> = {};
+  for (const s of streams) {
+    const m = metaFor(s.mint.toBase58(), decByMint);
+    lockedBySymbol[m.symbol]    = (lockedBySymbol[m.symbol]    ?? 0) + Number(s.amountTotal.toString())     / 10 ** m.decimals;
+    withdrawnBySymbol[m.symbol] = (withdrawnBySymbol[m.symbol] ?? 0) + Number(s.amountWithdrawn.toString()) / 10 ** m.decimals;
+  }
+  const fmtTotal = (bySym: Record<string, number>): string => {
+    const syms = Object.keys(bySym);
+    if (syms.length === 0) return '0.00';
+    if (syms.length === 1) return `${bySym[syms[0]].toFixed(2)} ${syms[0]}`;
+    return syms.map(s => `${bySym[s].toFixed(2)} ${s}`).join(' · ');
+  };
+  const totalLockedLabel    = fmtTotal(lockedBySymbol);
+  const totalWithdrawnLabel = fmtTotal(withdrawnBySymbol);
   const activeCount    = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
 
   return (
@@ -234,8 +277,8 @@ export default function StreamsPage() {
           {[
             { label: tx.kpi.streams, value: String(streams.length),               sub: tx.kpi.streamsSub, color: T.accent },
             { label: tx.kpi.active,  value: String(activeCount),                  sub: tx.kpi.activeSub,  color: T.green  },
-            { label: tx.kpi.locked,  value: totalLocked.toFixed(2) + ' TOKEN',    sub: tx.kpi.lockedSub,  color: T.gold   },
-            { label: tx.kpi.claimed, value: totalWithdrawn.toFixed(2) + ' TOKEN', sub: tx.kpi.claimedSub, color: T.blue   },
+            { label: tx.kpi.locked,  value: totalLockedLabel,    sub: tx.kpi.lockedSub,  color: T.gold   },
+            { label: tx.kpi.claimed, value: totalWithdrawnLabel, sub: tx.kpi.claimedSub, color: T.blue   },
           ].map(s => (
             <div key={s.label} style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '18px 20px' }}>
               <div style={{ fontSize: 10, color: T.textDim, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
@@ -314,6 +357,7 @@ export default function StreamsPage() {
                 const type       = streamType(s);
                 const status     = streamStatus(s, nowSec);
                 const typeCol    = TYPE_COLORS[type] ?? T.accent;
+                const meta       = metaFor(s.mint.toBase58(), decByMint);
                 const total      = Number(s.amountTotal.toString());
                 const withdrawn  = Number(s.amountWithdrawn.toString());
                 const claimable  = Number(computeUnlocked(s, nowSec));
@@ -358,9 +402,9 @@ export default function StreamsPage() {
                     {/* Col 2: Type */}
                     <div className="sd-col-hide"><Badge label={type.toUpperCase()} color={typeCol} /></div>
 
-                    {/* Col 3: Total Tokens */}
+                    {/* Col 3: Total Tokens — real decimals + resolved symbol */}
                     <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text, fontWeight: 600 }}>
-                      {fmtTokens(s.amountTotal)}
+                      {fmtAmount(total, meta.decimals)} <span style={{ color: T.textDim, fontSize: 10 }}>{meta.symbol}</span>
                     </div>
 
                     {/* Col 4: Creator / Team */}

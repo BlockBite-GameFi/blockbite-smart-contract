@@ -9,7 +9,8 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import Navbar from '@/components/Navbar';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
+import { KNOWN } from '@/lib/hooks/useWalletTokens';
 import {
   fetchStream,
   fetchVaultBalance,
@@ -72,11 +73,12 @@ function fmtDate(ts: number): string {
   });
 }
 
-/** Format raw token units to a human-readable string (no decimals assumed) */
-function fmtTokens(raw: bigint): string {
-  if (raw >= 1_000_000n) return `${(Number(raw) / 1_000_000).toFixed(2)}M`;
-  if (raw >= 1_000n)     return `${(Number(raw) / 1_000).toFixed(1)}K`;
-  return raw.toLocaleString();
+/** Format a raw on-chain amount using the mint's REAL decimals (SOL=9, USDC=6…). */
+function fmtTokens(raw: bigint, decimals: number): string {
+  const n = Number(raw) / 10 ** decimals;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 4 });
 }
 
 /** Infer a vesting schedule label from on-chain timestamps */
@@ -131,6 +133,7 @@ export default function StreamDetailPage() {
   const [loading,  setLoading]  = useState(true);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [gamesPlayed, setGamesPlayed] = useState(0);
+  const [fetchedDec, setFetchedDec] = useState<number | null>(null);
   type TxStage = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
   const [claimStage,     setClaimStage]     = useState<TxStage>('idle');
   const [claimSig,       setClaimSig]       = useState<string | null>(null);
@@ -187,6 +190,20 @@ export default function StreamDetailPage() {
   }, [idParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
+
+  // Resolve real decimals for the stream's mint if it's not a KNOWN token.
+  useEffect(() => {
+    const m = stream?.mint.toBase58();
+    if (!m || KNOWN[m] || fetchedDec !== null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const info = await withRpcFallback(cn => getMint(cn, stream!.mint));
+        if (!cancelled) setFetchedDec(info.decimals);
+      } catch { if (!cancelled) setFetchedDec(9); }
+    })();
+    return () => { cancelled = true; };
+  }, [stream, fetchedDec]);
 
   // ── Withdraw / Claim handler — 3-stage (approving → confirming → done) ──────
   const handleClaim = async () => {
@@ -308,6 +325,12 @@ export default function StreamDetailPage() {
   const endTs     = Number(stream.endTs.toString());
   const total     = BigInt(stream.amountTotal.toString());
   const withdrawn = BigInt(stream.amountWithdrawn.toString());
+
+  // Resolve the token's display symbol + real decimals (wSOL shown as "SOL").
+  const _mintB58  = stream.mint.toBase58();
+  const _known    = KNOWN[_mintB58];
+  const decimals  = _known ? _known.decimals : (fetchedDec ?? 9);
+  const sym       = _known ? (_known.symbol === 'wSOL' ? 'SOL' : _known.symbol) : 'TOKEN';
 
   // Extra fields decoded by Anchor (present at runtime, not typed by fetchStream)
   const milestoneCount     = (stream as unknown as StreamInfo).milestoneCount    ?? 0;
@@ -449,7 +472,7 @@ export default function StreamDetailPage() {
             >
               {claimStage === 'approving'  ? (lang === 'id' ? '◈ Setujui di wallet…' : '◈ Approve in wallet…')
                : claimStage === 'confirming' ? (lang === 'id' ? '▶ Mengonfirmasi di Solana…' : '▶ Confirming on Solana…')
-               : lang === 'id' ? `Klaim ${fmtTokens(claimable)} token` : `Claim ${fmtTokens(claimable)} tokens`}
+               : lang === 'id' ? `Klaim ${fmtTokens(claimable, decimals)} ${sym}` : `Claim ${fmtTokens(claimable, decimals)} ${sym}`}
             </button>
           )}
           {!publicKey && claimable > 0n && (
@@ -646,10 +669,10 @@ export default function StreamDetailPage() {
         {/* KPI row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,140px),1fr))', gap: 12 }}>
           {[
-            { l: lang === 'id' ? 'Total' : 'Total',       v: fmtTokens(total),                                                  c: 'var(--ds-text)' },
-            { l: 'Claimed',     v: fmtTokens(withdrawn),                                              c: C.green   },
-            { l: 'Unlocked',    v: fmtTokens(claimable),                                              c: C.gold    },
-            { l: 'Still Locked',v: fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n),    c: C.accent  },
+            { l: lang === 'id' ? 'Total' : 'Total',       v: `${fmtTokens(total, decimals)} ${sym}`,                            c: 'var(--ds-text)' },
+            { l: 'Claimed',     v: `${fmtTokens(withdrawn, decimals)} ${sym}`,                        c: C.green   },
+            { l: 'Unlocked',    v: `${fmtTokens(claimable, decimals)} ${sym}`,                        c: C.gold    },
+            { l: 'Still Locked',v: `${fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n, decimals)} ${sym}`, c: C.accent  },
             { l: 'Time Left',   v: timeRemaining,                                                     c: stream.cancelled || nowSec >= endTs ? C.muted : C.blue },
           ].map(x => (
             <Card key={x.l} style={{ padding: '14px 16px' }}>
@@ -770,7 +793,7 @@ export default function StreamDetailPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.muted, marginTop: 4 }}>
                 <span>Withdrawn {total > 0n ? Math.round(Number(withdrawn) * 100 / Number(total)) : 0}%</span>
                 <span>Unlocked {total > 0n ? Math.round(Number(unlockedTotal) * 100 / Number(total)) : 0}%</span>
-                <span>Total {fmtTokens(total)} tokens</span>
+                <span>Total {fmtTokens(total, decimals)} {sym}</span>
               </div>
             </div>
           </Card>
@@ -856,7 +879,7 @@ export default function StreamDetailPage() {
               { label: 'Total Duration',   val: `${vestDays} days`,     col: typeCol  },
               { label: 'Cliff Period',      val: `${cliffDays} days`,    col: C.ember  },
               { label: 'Vesting Rate',      val: activeDays > 0
-                ? `${fmtTokens(total / BigInt(activeDays))} T/day`
+                ? `${fmtTokens(total / BigInt(activeDays), decimals)} ${sym}/day`
                 : '—',                                                    col: typeCol  },
             ].map(x => (
               <div key={x.label} style={{
@@ -875,7 +898,7 @@ export default function StreamDetailPage() {
           }}>
             <span style={{ color: C.accent }}>claimable(t)</span>
             {' = min('}
-            <span style={{ color: C.gold }}>{fmtTokens(total)}</span>
+            <span style={{ color: C.gold }}>{fmtTokens(total, decimals)} {sym}</span>
             {', R × (t − cliff_ts)) − withdrawn'}
             <br />
             <span style={{ color: C.muted }}>
