@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "programs/blockbite"
+    "programs/blockbite",
+    "coverage-tests"
 ]
 resolver = "2"
 

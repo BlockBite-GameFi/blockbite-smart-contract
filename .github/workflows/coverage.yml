@@ -49,27 +49,26 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Run unit tests with coverage
+      # Runs BOTH the in-crate Rust unit tests (utils/campaign/cancel) AND the
+      # native solana-program-test harness in coverage-tests/, then merges the
+      # coverage so instruction handlers show real line coverage.
+      - name: Run tests with coverage (workspace)
         run: |
-          cargo llvm-cov --no-report \
-            --manifest-path programs/blockbite/Cargo.toml \
-            --package blockbite
+          cargo llvm-cov --no-report --workspace --tests
 
       - name: Emit lcov report
         run: |
           cargo llvm-cov report \
-            --manifest-path programs/blockbite/Cargo.toml \
-            --ignore-filename-regex 'tests_(campaign|cancel)\.rs' \
+            --ignore-filename-regex 'tests_(campaign|cancel)\.rs|coverage-tests/' \
             --lcov --output-path lcov.info
 
       - name: Print coverage summary
         run: |
-          echo '## BlockBite — Rust Unit Test Coverage' >> "$GITHUB_STEP_SUMMARY"
+          echo '## BlockBite — Rust Coverage (unit + native handler tests)' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cargo llvm-cov report \
-            --manifest-path programs/blockbite/Cargo.toml \
-            --ignore-filename-regex 'tests_(campaign|cancel)\.rs' \
+            --ignore-filename-regex 'tests_(campaign|cancel)\.rs|coverage-tests/' \
             | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 

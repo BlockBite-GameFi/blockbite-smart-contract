@@ -1,0 +1,19 @@
+[package]
+name = "blockbite-coverage-tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+# Isolated host-native test harness used ONLY to generate line-coverage of the
+# blockbite instruction handlers (via solana-program-test `processor!`, which
+# runs the program as native host code so cargo-llvm-cov can instrument it).
+# This crate is NOT part of `anchor build` (BPF) — it never ships on-chain.
+
+[dependencies]
+blockbite = { path = "../programs/blockbite" }
+anchor-lang = "1.0.0"
+
+[dev-dependencies]
+solana-program-test = "3"
+solana-sdk = "3"
+spl-token = "8"
+spl-associated-token-account = "7"
