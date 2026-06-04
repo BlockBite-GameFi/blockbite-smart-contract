@@ -802,3 +802,82 @@ pub enum VestingError {
     #[msg("Stream has expired past end_ts")]
     StreamExpired,
 }
+
+// ─── Native unit tests (Week 7) ─────────────────────────────────────────────
+// These run under `cargo test` / `cargo llvm-cov` on the host (NOT SBF), giving
+// real line coverage of the pure vesting math in `unlocked_amount`. The full
+// instruction handlers are exercised by the TS integration suite (tests/*.ts)
+// against a validator; see docs/COVERAGE_REPORT.md for the combined picture.
+#[cfg(test)]
+mod unit_tests {
+    use super::*;
+
+    /// Build a minimal StreamAccount for math-only assertions.
+    fn mk(total: u64, start: i64, cliff: i64, end: i64) -> StreamAccount {
+        StreamAccount {
+            authority:           Pubkey::default(),
+            beneficiary:         Pubkey::default(),
+            mint:                Pubkey::default(),
+            stream_id:           1,
+            amount_total:        total,
+            amount_withdrawn:    0,
+            start_ts:            start,
+            cliff_ts:            cliff,
+            end_ts:              end,
+            cancelled:           false,
+            bump:                0,
+            velocity_strikes:    0,
+            last_action_ts:      start,
+            required_tier:       0,
+            milestone_count:     0,
+            milestones_verified: [false; 4],
+            milestone_pct:       [0u8; 4],
+        }
+    }
+
+    #[test]
+    fn nothing_unlocked_before_cliff() {
+        let s = mk(1_000, 100, 200, 1_100); // cliff at 200
+        assert_eq!(s.unlocked_amount(150), 0, "before cliff must be 0");
+        assert_eq!(s.unlocked_amount(199), 0, "one second before cliff must be 0");
+    }
+
+    #[test]
+    fn nothing_unlocked_before_start() {
+        let s = mk(1_000, 100, 0, 1_100); // cliff coerced elsewhere; here cliff=0<start
+        assert_eq!(s.unlocked_amount(50), 0, "before start must be 0");
+    }
+
+    #[test]
+    fn fully_unlocked_at_and_after_end() {
+        let s = mk(1_000, 100, 100, 1_100);
+        assert_eq!(s.unlocked_amount(1_100), 1_000, "at end_ts must be full");
+        assert_eq!(s.unlocked_amount(5_000), 1_000, "past end_ts must be full");
+    }
+
+    #[test]
+    fn linear_midpoints() {
+        // duration = 1000s, total = 1000 → 1 token/sec
+        let s = mk(1_000, 0, 0, 1_000);
+        assert_eq!(s.unlocked_amount(250), 250, "25% of duration → 25%");
+        assert_eq!(s.unlocked_amount(500), 500, "50% of duration → 50%");
+        assert_eq!(s.unlocked_amount(999), 999, "just before end → 99.9%");
+    }
+
+    #[test]
+    fn cliff_boundary_counts_from_start_not_cliff() {
+        // start=0, cliff=300, end=1000, total=1000.
+        // At cliff (t=300) the linear amount counts from start_ts → 30% unlocked.
+        let s = mk(1_000, 0, 300, 1_000);
+        assert_eq!(s.unlocked_amount(299), 0, "one sec before cliff → 0 (gated)");
+        assert_eq!(s.unlocked_amount(300), 300, "at cliff → linear-from-start = 30%");
+    }
+
+    #[test]
+    fn no_overflow_with_large_total() {
+        // u128 intermediate must prevent overflow for large amounts.
+        let big = u64::MAX / 2;
+        let s = mk(big, 0, 0, 1_000);
+        assert_eq!(s.unlocked_amount(500), big / 2, "half duration → half of large total");
+    }
+}

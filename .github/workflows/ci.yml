@@ -103,3 +103,28 @@ jobs:
           ANCHOR_PROVIDER_URL="$SURFPOOL_RPC" \
           ANCHOR_WALLET=~/.config/solana/id.json \
           npx ts-mocha -p ./tsconfig.anchor.json -t 1000000 tests/**/*.ts
+
+  # ── Week 7: line coverage of pure vesting math (native cargo unit tests) ──────
+  # Non-blocking: measures real line coverage of unlocked_amount() and friends via
+  # llvm-cov. SBF instruction handlers are covered separately by the TS suite —
+  # see docs/COVERAGE_REPORT.md. Never fails the pipeline (continue-on-error).
+  coverage:
+    name: Unit-test line coverage (llvm-cov)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Run coverage on pure-logic unit tests
+        working-directory: programs/blockbite-vesting
+        run: |
+          cargo llvm-cov --lib --summary-only | tee ../../coverage-summary.txt
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage-summary.txt
