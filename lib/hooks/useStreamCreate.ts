@@ -13,7 +13,7 @@ import {
 } from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
 import { resolveMintDecimals } from './useWalletTokens';
-import { withRpcFallback, sendRawToManyRpcs } from '@/lib/solana/rpc-manager';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'approving' | 'confirming' | 'done' | 'error';
 
@@ -31,7 +31,7 @@ export interface StreamCreateInput {
 
 export function useStreamCreate() {
   const { connection }                            = useConnection();
-  const { publicKey, sendTransaction, signTransaction, connected } = useWallet();
+  const { publicKey, sendTransaction, connected } = useWallet();
 
   const [txStatus, setTxStatus] = useState<TxStatus>('idle');
   const [txSig,    setTxSig]    = useState<string | null>(null);
@@ -159,75 +159,48 @@ export function useStreamCreate() {
         // Fold the wSOL wrap (if native SOL) into the SAME tx → one prompt, atomic.
         preInstructions: preIxs,
         sendTransaction: async (tx, conn) => {
-          // ── Preferred path: sign once → blast to 20+ RPCs simultaneously ──────
-          // This eliminates "Transaction expired" by getting the tx on-chain fast
-          // without requiring the user to approve again on each retry.
-          if (signTransaction) {
+          // ── DEFAULT, MOST-RELIABLE PATH (2026-06-04 rewrite) ──────────────────
+          // SYMPTOM we are fixing: the button reached "Approve in wallet…" but the
+          // Solflare popup NEVER appeared. Cause: the old code awaited a 4-way
+          // public-RPC race (withRpcFallback → getLatestBlockhash, 10s timeout
+          // each) BEFORE ever calling the wallet. On a slow/429 devnet RPC that
+          // await hung, so signTransaction was never reached → no prompt.
+          //
+          // FIX: get a blockhash FAST (short timeout), then hand the tx to the
+          // wallet adapter's own sendTransaction. For Solflare this routes to its
+          // native signAndSendTransaction — the wallet pops the Approve prompt
+          // immediately and broadcasts via the wallet's OWN reliable RPC, instead
+          // of us blocking on public RPC before the prompt.
+          tx.feePayer = publicKey;
+
+          // 1) Try the wallet's connection with a tight 4s cap — pre-setting the
+          //    blockhash means the adapter won't do its own (un-timed) RPC wait.
+          let haveHash = false;
+          try {
+            const r = await Promise.race([
+              conn.getLatestBlockhash('confirmed'),
+              new Promise<never>((_, rej) => setTimeout(() => rej(new Error('blockhash-timeout')), 4_000)),
+            ]) as { blockhash: string; lastValidBlockHeight: number };
+            tx.recentBlockhash      = r.blockhash;
+            tx.lastValidBlockHeight = r.lastValidBlockHeight;
+            haveHash = true;
+          } catch { /* fall through to multi-RPC fallback */ }
+
+          // 2) Last resort: the multi-RPC fallback (each endpoint self-times-out).
+          if (!haveHash) {
             try {
-              // ROOT-CAUSE FIX for "Transaction expired":
-              // A blockhash is valid for only ~150 slots (~60-90s). The OLD code
-              // fetched it with 'finalized' commitment — but a finalized blockhash
-              // is ALREADY ~32 slots (~13s) behind the cluster tip the moment you
-              // get it, so it burned ~1/5 of the validity window before the user
-              // even saw the Approve prompt. Add 10-60s of human approval time and
-              // the hash expires → "Transaction expired".
-              //
-              // FIX: fetch with 'confirmed' (newest usable hash = full window) from
-              // a HEALTHY, low-latency node via withRpcFallback — the single
-              // useConnection() RPC can itself lag behind the cluster, making the
-              // hash even staler. signTransaction signs EXACTLY this hash (it never
-              // refreshes), so we grab it as fresh as possible right before signing.
-              const { blockhash, lastValidBlockHeight } =
-                await withRpcFallback(c => c.getLatestBlockhash('confirmed'));
-              tx.recentBlockhash      = blockhash;
-              tx.lastValidBlockHeight = lastValidBlockHeight;
-              tx.feePayer             = publicKey;
-
-              // One wallet prompt — user approves here
-              const signedTx = await signTransaction(tx);
-
-              // SURFACE THE REAL ERROR: simulate before sending. With skipPreflight
-              // the old code hid on-chain failures (bad accounts, insufficient
-              // funds, program error) behind a generic "expired". Simulate once so
-              // a genuine program error is reported instead of silently dropped.
-              try {
-                const sim = await withRpcFallback(c => c.simulateTransaction(signedTx));
-                if (sim?.value?.err) {
-                  const logs = (sim.value.logs ?? []).join('\n');
-                  throw new Error(
-                    `On-chain simulation failed: ${JSON.stringify(sim.value.err)}` +
-                    (logs ? `\n${logs}` : ''),
-                  );
-                }
-              } catch (simErr: unknown) {
-                const sm = ((simErr as Error)?.message ?? '').toLowerCase();
-                // Only abort on a real program/account error; ignore RPC noise and
-                // let the durable sender try anyway.
-                if (sm.includes('simulation failed') || sm.includes('custom program error') ||
-                    sm.includes('insufficient')) {
-                  throw simErr;
-                }
-              }
-
-              const rawTx = signedTx.serialize();
-              setTxStatus('confirming');
-
-              // Durable send: rebroadcast to real nodes until confirmed or the
-              // blockhash truly expires (uses lastValidBlockHeight for accuracy).
-              const sig = await sendRawToManyRpcs(rawTx, lastValidBlockHeight);
-              return sig;
-            } catch (signErr: unknown) {
-              // If user rejected, propagate immediately
-              const m = ((signErr as Error)?.message ?? '').toLowerCase();
-              if (m.includes('reject') || m.includes('cancel') || m.includes('denied')) throw signErr;
-              // Signing/network error — fall through to standard sendTransaction
-            }
+              const r = await withRpcFallback(c => c.getLatestBlockhash('confirmed'));
+              tx.recentBlockhash      = r.blockhash;
+              tx.lastValidBlockHeight = r.lastValidBlockHeight;
+              haveHash = true;
+            } catch { /* leave unset — adapter fetches its own as a final fallback */ }
           }
 
-          // ── Fallback: standard wallet adapter sendTransaction (single RPC) ────
-          const s = await sendTransaction(tx, conn, { skipPreflight: true });
+          // 3) Prompt + broadcast through the wallet's native flow. maxRetries lets
+          //    the wallet's RPC rebroadcast against drops (kills phantom "expired").
+          const sig = await sendTransaction(tx, conn, { skipPreflight: true, maxRetries: 5 });
           setTxStatus('confirming');
-          return s;
+          return sig;
         },
       });
       setTxSig(sig);
