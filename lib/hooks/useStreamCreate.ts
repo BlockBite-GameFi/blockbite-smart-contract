@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import {
-  PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL,
+  PublicKey, TransactionInstruction, SystemProgram, LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
-  getAssociatedTokenAddress, getAccount,
-  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountIdempotentInstruction,
   createSyncNativeInstruction, NATIVE_MINT,
   TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
@@ -65,7 +65,18 @@ export function useStreamCreate() {
     const rawAmount = BigInt(Math.round(Number(p.amount) * 10 ** decimals));
     if (rawAmount <= 0n) { setTxErr('Amount must be greater than 0'); setTxStatus('error'); return false; }
 
-    // ── Native SOL path: check balance + auto-wrap to wSOL ───────────────────
+    // ── Native SOL path: check balance + BUILD wrap instructions (no send) ────
+    //    ROOT-CAUSE FIX (2026-06-04): the old code sent a SEPARATE wSOL-wrap
+    //    transaction via wallet-adapter sendTransaction (single RPC, blockhash
+    //    fetched from the lone useConnection node) BEFORE the create tx. On a
+    //    flaky/CORS-blocked RPC that first send threw *before* Solflare could
+    //    show its Approve prompt → "wallet never prompts", then the error got
+    //    relabeled "Blockhash expired". FIX: do NOT send here. Collect the wrap
+    //    instructions and fold them into the SAME create_stream transaction as
+    //    preInstructions, so there is exactly ONE wallet prompt, routed through
+    //    the robust signTransaction + withRpcFallback path below. Atomic: the
+    //    wrap and the stream creation now succeed or fail together.
+    const preIxs: TransactionInstruction[] = [];
     if (isNativeSol) {
       const lamportsNeeded = rawAmount + BigInt(10_000_000); // +0.01 SOL fee buffer
 
@@ -90,64 +101,17 @@ export function useStreamCreate() {
         setTxStatus('error'); return false;
       }
 
-      try {
-        const wsolAta = await getAssociatedTokenAddress(NATIVE_MINT, publicKey);
-        const wrapTx  = new Transaction();
-
-        // Check if wSOL ATA exists — CORS failure = ATA doesn't exist → create it
-        let wsolExists = false;
-        try {
-          // First try server proxy
-          const res = await fetch(`/api/solana/tokens?wallet=${publicKey.toBase58()}`, { cache: 'no-store' });
-          const data = await res.json() as { accounts?: { mint: string }[] };
-          wsolExists = (data.accounts ?? []).some(a => a.mint === NATIVE_MINT.toBase58());
-        } catch {
-          // Proxy failed — try direct (will fail on CORS too, caught below)
-          try { await getAccount(connection, wsolAta); wsolExists = true; } catch { wsolExists = false; }
-        }
-
-        if (!wsolExists) {
-          wrapTx.add(createAssociatedTokenAccountInstruction(
-            publicKey, wsolAta, publicKey, NATIVE_MINT,
-            TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
-          ));
-        }
-        wrapTx.add(
-          SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: wsolAta, lamports: rawAmount }),
-          createSyncNativeInstruction(wsolAta),
-        );
-
-        setTxStatus('approving'); setTxErr(null);
-
-        // KEY FIX: Do NOT set recentBlockhash.
-        // Solflare fetches a FRESH blockhash at the exact moment the user signs.
-        // Any pre-set blockhash will be stale by the time the user approves (10-60s).
-        wrapTx.feePayer = publicKey;
-        // wrapTx.recentBlockhash intentionally NOT set
-
-        const wrapSig = await sendTransaction(wrapTx, connection, { skipPreflight: true });
-        setTxStatus('confirming');
-
-        // Poll for confirmation by signature (no blockhash dependency)
-        const wrapDeadline = Date.now() + 90_000;
-        while (Date.now() < wrapDeadline) {
-          try {
-            const { value } = await connection.getSignatureStatuses([wrapSig]);
-            const st = value[0];
-            if (st) {
-              if (st.err) throw new Error(`wSOL wrap error: ${JSON.stringify(st.err)}`);
-              if (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized') break;
-            }
-          } catch (pollErr: unknown) {
-            const m = ((pollErr as Error)?.message ?? '').toLowerCase();
-            if (!m.includes('fetch') && !m.includes('429')) throw pollErr;
-          }
-          await new Promise(r => setTimeout(r, 2_000));
-        }
-      } catch (e: unknown) {
-        setTxErr(`SOL wrap failed: ${(e as Error)?.message ?? 'unknown'}`);
-        setTxStatus('error'); return false;
-      }
+      // Idempotent create (never errors if the wSOL ATA already exists) + fund +
+      // sync. No existence probe needed → one less fragile network call.
+      const wsolAta = await getAssociatedTokenAddress(NATIVE_MINT, publicKey);
+      preIxs.push(
+        createAssociatedTokenAccountIdempotentInstruction(
+          publicKey, wsolAta, publicKey, NATIVE_MINT,
+          TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+        ),
+        SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: wsolAta, lamports: rawAmount }),
+        createSyncNativeInstruction(wsolAta),
+      );
     } else {
       // ── SPL token path: verify ATA balance via server proxy ────────────────
       try {
@@ -192,6 +156,8 @@ export function useStreamCreate() {
         cliffTs:      p.cliffTs,
         endTs:        p.endTs,
         requiredTier: p.requiredTier ?? 0,
+        // Fold the wSOL wrap (if native SOL) into the SAME tx → one prompt, atomic.
+        preInstructions: preIxs,
         sendTransaction: async (tx, conn) => {
           // ── Preferred path: sign once → blast to 20+ RPCs simultaneously ──────
           // This eliminates "Transaction expired" by getting the tx on-chain fast
