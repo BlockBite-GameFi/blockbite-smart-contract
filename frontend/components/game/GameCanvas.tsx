@@ -178,6 +178,13 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
       setTicketBalance(newBal);
       localStorage.setItem(`tickets_${publicKey.toBase58()}`, newBal.toString());
       setHasStartedGame(true);
+      // Start the game immediately (before the async session call) so the
+      // button disappears at once and isGameOver resets in the same render.
+      if (initialLevel > 1) {
+        newGameAt(initialLevel);
+      } else {
+        newGame();
+      }
       try {
         const res = await fetch('/api/session/start', {
           method: 'POST',
@@ -189,11 +196,6 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
           sessionTokenRef.current = data.token ?? null;
         }
       } catch { /* non-fatal — game proceeds without server session */ }
-      if (initialLevel > 1) {
-        newGameAt(initialLevel);
-      } else {
-        newGame();
-      }
     }
   };
 
@@ -201,6 +203,11 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
   useEffect(() => {
     if (state.isGameOver && !gameOverHandledRef.current) {
       gameOverHandledRef.current = true;
+
+      // Show the start/play-again button exactly once per game-over event.
+      // Placed inside the guard so dep changes while isGameOver=true cannot
+      // accidentally reset hasStartedGame a second time.
+      setHasStartedGame(false);
 
       // Always track games played — no wallet required
       if (state.score > 0) {
@@ -252,7 +259,6 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
       }
     }
     if (!state.isGameOver) gameOverHandledRef.current = false;
-    if (state.isGameOver) setHasStartedGame(false);
   }, [state.isGameOver, connected, publicKey, state.level, state.score, state.sessionId, state.placements]);
 
   const handleMysteryBoxResult = useCallback((result: BoxResult) => {
@@ -635,7 +641,7 @@ export default function GameCanvas({ initialLevel = 1, onBack, biome }: { initia
         <span className={styles.hintKey}>1-3</span> SELECT PIECE · <span className={styles.hintKey}>CLICK</span> BOARD TO PLACE · <span className={styles.hintKey}>ESC</span> DESELECT
       </div>
 
-      {(state.isGameOver || (!hasStartedGame && (connected ? (ticketBalance !== null && ticketBalance > 0) : true))) && (
+      {!hasStartedGame && (state.isGameOver || (connected ? (ticketBalance !== null && ticketBalance > 0) : true)) && (
         <div className={styles.gameOverActions}>
           <button type="button" className="btn btn-primary btn-lg" onClick={handleStartGame}>
             {state.isGameOver

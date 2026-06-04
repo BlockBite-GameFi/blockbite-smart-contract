@@ -74,14 +74,14 @@ const HOW_IT_WORKS = [
   {
     num: '01',
     color: '#ff7a3a',
-    title: 'Upload Recipient List',
-    desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.',
+    title: 'Connect & Import Data',
+    desc: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.',
   },
   {
     num: '02',
     color: DS.blue,
-    title: 'Set Unlock Schedule',
-    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.',
+    title: 'Define Tokenomics',
+    desc: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.',
   },
   {
     num: '03',
@@ -92,8 +92,8 @@ const HOW_IT_WORKS = [
   {
     num: '04',
     color: DS.green,
-    title: 'Update or Cancel',
-    desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.',
+    title: 'Lock, Launch & Manage',
+    desc: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.',
   },
 ];
 
@@ -118,12 +118,17 @@ const COPY = {
     featSub: 'From modular verification to automated clawbacks — all the tools a token distribution needs, built into one trustless protocol.',
     howKicker: 'HOW IT WORKS',
     howTitle: 'Four moves.',
-    howItalic: 'From CSV to claim.',
+    howItalic: 'From setup to claim.',
     howSub: 'Upload recipients, choose how tokens unlock, and let each wallet claim on schedule.',
     verifyKicker: 'CHOOSE YOUR VERIFICATION LAYER',
     faqKicker: 'FAQ',
     faqTitle: 'Questions,',
     faqItalic: 'answered.',
+    videoKicker: 'SEE IT IN ACTION',
+    videoTitle: 'See how a campaign',
+    videoTitleItalic: 'comes together.',
+    videoSub: 'A short walkthrough of campaign setup, vesting configuration, and recipient claims is on the way.',
+    videoComingSoon: 'WALKTHROUGH COMING SOON',
     ctaFinalTitle: 'Ready to distribute tokens responsibly?',
     ctaFinalSub: 'Join the projects already streaming tokens with cliff, linear, and milestone vesting on Solana.',
     ctaFinal1: 'Launch App →',
@@ -141,10 +146,10 @@ const COPY = {
     ],
     /* ── How it works ── */
     howItems: [
-      { num: '01', title: 'Upload Recipient List',  desc: 'Import wallet addresses and token amounts from a CSV. The program compresses them into one 32-byte on-chain root — no per-recipient accounts needed.' },
-      { num: '02', title: 'Set Unlock Schedule',    desc: 'Choose cliff, linear, or milestone vesting for the whole campaign or per recipient. The program enforces the curve on-chain — nobody can claim past the line.' },
-      { num: '03', title: 'Set Verification Layer', desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
-      { num: '04', title: 'Update or Cancel',       desc: 'Need to fix an allocation or revoke future tokens? Rotate the Merkle root, or cancel the campaign — recipients keep what is vested with a 7-day grace window.' },
+      { num: '01', title: 'Connect & Import Data',    desc: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
+      { num: '02', title: 'Define Tokenomics',         desc: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
+      { num: '03', title: 'Set Verification Layer',    desc: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
+      { num: '04', title: 'Lock, Launch & Manage',     desc: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
     ],
     /* ── Verify methods ── */
     verifyMethods: [
@@ -177,12 +182,17 @@ const COPY = {
     featSub: 'Dari verifikasi modular hingga clawback otomatis — semua dalam satu protokol tanpa kepercayaan pihak ketiga.',
     howKicker: 'CARA KERJA',
     howTitle: 'Empat langkah.',
-    howItalic: 'Dari CSV ke klaim.',
+    howItalic: 'Dari setup ke klaim.',
     howSub: 'Upload penerima, pilih cara token unlock, dan biarkan setiap wallet klaim sesuai jadwal.',
     verifyKicker: 'PILIH LAPISAN VERIFIKASI',
     faqKicker: 'FAQ',
     faqTitle: 'Pertanyaan,',
     faqItalic: 'terjawab.',
+    videoKicker: 'LIHAT CARA KERJANYA',
+    videoTitle: 'Lihat bagaimana kampanye',
+    videoTitleItalic: 'dibuat bersama.',
+    videoSub: 'Walkthrough singkat tentang setup kampanye, konfigurasi vesting, dan klaim penerima akan segera hadir.',
+    videoComingSoon: 'WALKTHROUGH SEGERA HADIR',
     ctaFinalTitle: 'Siap mendistribusikan token secara bertanggung jawab?',
     ctaFinalSub: 'Bergabung dengan proyek yang sudah streaming token dengan cliff, linear, dan milestone vesting di Solana.',
     ctaFinal1: 'Buka Aplikasi →',
@@ -200,10 +210,10 @@ const COPY = {
     ],
     /* ── How it works ── */
     howItems: [
-      { num: '01', title: 'Upload Daftar Penerima', desc: 'Import alamat wallet dan jumlah token dari CSV. Program mengkompresi menjadi satu root 32-byte on-chain — tidak perlu akun per penerima.' },
-      { num: '02', title: 'Atur Jadwal Unlock',     desc: 'Pilih cliff, linear, atau milestone vesting untuk seluruh kampanye atau per penerima. Program menerapkan kurva on-chain — tidak ada yang bisa klaim lebih awal.' },
-      { num: '03', title: 'Atur Lapisan Verifikasi',desc: 'Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
-      { num: '04', title: 'Perbarui atau Batalkan', desc: 'Perlu memperbaiki alokasi atau mencabut token masa depan? Rotasi Merkle root, atau batalkan kampanye — penerima menyimpan yang sudah vesting dengan grace period 7 hari.' },
+      { num: '01', title: 'Hubungkan & Import Data',  desc: 'Hubungkan wallet kamu dan upload daftar penerima via CSV atau entri manual dalam hitungan detik.' },
+      { num: '02', title: 'Tentukan Tokenomics',       desc: 'Sesuaikan strategi rilis menggunakan linear vesting, cliff periods, atau distribusi berbasis milestone.' },
+      { num: '03', title: 'Atur Lapisan Verifikasi',   desc: 'Pilih antara klaim langsung untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
+      { num: '04', title: 'Kunci, Luncurkan & Kelola', desc: 'Kunci aset untuk mengotomatiskan klaim pengguna. Pantau distribusi secara real-time dengan kontrol Clawback penuh.' },
     ],
     /* ── Verify methods ── */
     verifyMethods: [
@@ -410,8 +420,8 @@ export default function Home() {
         </p>
 
         {/* CTAs */}
-        <div className="m-cta-wrap" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 480 }}>
-          <Link href="/waitlist" className="m-cta-btn" style={{
+        <div className="m-cta-wrap" style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', width: '100%', maxWidth: 600 }}>
+          <Link href="/join" className="m-cta-btn" style={{
             padding: '15px 36px', borderRadius: 9999,
             background: 'linear-gradient(90deg, #9945FF 0%, #00C2FF 100%)',
             color: '#fff', fontWeight: 800, fontSize: 15,
@@ -484,9 +494,6 @@ export default function Home() {
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>{T.featItalic}</span>
             </h2>
-            <p style={{ fontFamily: DS.sora, fontSize: 15, color: D.muted, maxWidth: 540, margin: '16px auto 0', lineHeight: 1.7 }}>
-              {T.featSub}
-            </p>
           </div>
 
           {/* ── 5 core features — bilingual via T.features ── */}
@@ -537,7 +544,7 @@ export default function Home() {
       </section>
 
       {/* ─── HOW IT WORKS ──────────────────────────────────────────────────────── */}
-      <section className="m-section" style={{
+      <section id="how-it-works" className="m-section" style={{
         position: 'relative', zIndex: 1,
         padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
         background: D.bg1,
@@ -632,22 +639,6 @@ export default function Home() {
             })}
           </div>
 
-          {/* ── Comparison — standalone page under /demo for Pasal 207 compliance ── */}
-          <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, letterSpacing: '2px', color: D.accent, fontWeight: 700, marginBottom: 10 }}>
-              {T.whyKicker}
-            </div>
-            <p style={{ color: D.muted, fontSize: 13, marginBottom: 14 }}>
-              {T.whyDesc}
-            </p>
-            <Link href="/demo/comparison" style={{
-              display: 'inline-block', padding: '9px 22px', borderRadius: 10,
-              border: `1px solid ${D.border}`, color: D.accent,
-              fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            }}>
-              {T.whyLink}
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -706,6 +697,69 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ─── VIDEO WALKTHROUGH ─────────────────────────────────────────────────── */}
+      <section id="video" className="m-section" style={{
+        position: 'relative', zIndex: 1,
+        padding: 'clamp(52px,8vw,96px) clamp(16px,4vw,24px)',
+        background: D.bg1,
+        borderTop: `1px solid ${D.border}`,
+      }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
+          {/* Kicker */}
+          <p style={{
+            fontSize: 11, fontWeight: 700, color: D.accent,
+            letterSpacing: '3px', textTransform: 'uppercase',
+            marginBottom: 16, fontFamily: DS.sora,
+          }}>
+            {T.videoKicker}
+          </p>
+
+          {/* Heading */}
+          <h2 style={{
+            fontFamily: DS.cinzel,
+            fontSize: 'clamp(26px,3.5vw,40px)', fontWeight: 700,
+            color: D.text, margin: '0 0 16px',
+          }}>
+            {T.videoTitle}{' '}
+            <span style={{
+              fontStyle: 'italic',
+              background: 'linear-gradient(90deg, #9945FF, #14F195)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>{T.videoTitleItalic}</span>
+          </h2>
+
+          {/* Subtitle */}
+          <p style={{
+            fontFamily: DS.sora, fontSize: 15, color: D.muted,
+            maxWidth: 520, margin: '0 auto 44px', lineHeight: 1.7,
+          }}>
+            {T.videoSub}
+          </p>
+
+          {/* Walkthrough video — code-generated (Remotion), see remotion-walkthrough/ */}
+          <video
+            src="/walkthrough.mp4"
+            poster="/walkthrough-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            controls
+            preload="metadata"
+            style={{
+              width: '100%',
+              display: 'block',
+              aspectRatio: '16/9',
+              objectFit: 'cover',
+              borderRadius: 20,
+              border: `1px solid ${D.border}`,
+              background: D.bg2,
+              boxShadow: '0 8px 48px rgba(153,69,255,0.10)',
+            }}
+          />
+        </div>
+      </section>
+
       {/* ─── FINAL CTA ─────────────────────────────────────────────────────────── */}
       <section className="m-section" style={{
         position: 'relative', zIndex: 1,
@@ -757,9 +811,7 @@ export default function Home() {
       }}>
         <div>{T.footer}</div>
         <div className="m-footer-links" style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <a href="https://x.com/blockbite_gg" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Twitter / X</a>
-          <a href="https://discord.gg/blockbite" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Discord</a>
-          <a href="https://github.com/nayrbryanGaming/blockblast" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>GitHub</a>
+          <a href="https://x.com/BlockBite_Sol" target="_blank" rel="noopener noreferrer" style={{ color: D.muted, textDecoration: 'none' }}>Twitter / X</a>
         </div>
       </footer>
 
