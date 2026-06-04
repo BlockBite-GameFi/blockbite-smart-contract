@@ -17,7 +17,9 @@ use anchor_lang::InstructionData;
 use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::Account,
+    account_info::AccountInfo,
     clock::Clock,
+    entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     rent::Rent,
@@ -28,6 +30,22 @@ use solana_sdk::{
 
 const DECIMALS: u8 = 6;
 type TxResult = Result<(), solana_program_test::BanksClientError>;
+
+/// Lifetime-erasing shim for `solana-program-test`'s `processor!`.
+///
+/// Anchor 1.0.2's generated `entry` ties `program_id`, the `accounts` slice and
+/// its `AccountInfo` elements to a single `'info` lifetime, while `processor!`
+/// requires independent lifetimes. `AccountInfo` is invariant, so the slice
+/// cannot be coerced. The transmute only erases lifetimes (identical layout),
+/// and is sound because `entry` never retains the slice past this call.
+fn process_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> ProgramResult {
+    let accounts: &[AccountInfo] = unsafe { core::mem::transmute(accounts) };
+    blockbite::entry(program_id, accounts, data)
+}
 
 // ── pubkeys / pdas ─────────────────────────────────────────────────────────
 
@@ -120,7 +138,7 @@ struct Env {
 }
 
 async fn boot(creator_amount: u64) -> (ProgramTestContext, Env) {
-    let mut pt = ProgramTest::new("blockbite", pid(), processor!(blockbite::entry));
+    let mut pt = ProgramTest::new("blockbite", pid(), processor!(process_instruction));
 
     let creator = Keypair::new();
     let recipient = Keypair::new();
