@@ -111,7 +111,11 @@ Solana's execution model is single-threaded per transaction. Anchor enforces **C
 - Security: unauthorized signer, PDA collision, cross-stream replay, integer overflow ✅
 - Error codes: all 11 custom errors triggered and verified ✅
 
-**Estimated line coverage: >85%** (all instruction handlers + calculate_unlocked + VGPV logic covered)
+**Tool-measured line coverage (CI `cargo-llvm-cov`, see `.github/workflows/coverage.yml`):**
+- `utils.rs` (vesting math — `calculate_unlocked`): **100%** line coverage ✅
+- Overall Rust program: **23.36%** line coverage.
+
+> Honest note: the instruction handlers measure 0% under the *host* coverage tool because they are CPI-driven Anchor handlers — they can only execute on-chain (BPF). They are covered **behaviorally** by the 33 surfpool integration tests above, which `llvm-cov` cannot instrument. An attempt to run them host-side via `solana-program-test` (`coverage-tests/`) is blocked by `solana-invoke 0.5.0` (`"only supported with target_os = solana"`). The earlier ">85% estimate" was not tool-backed and has been corrected.
 
 ---
 
