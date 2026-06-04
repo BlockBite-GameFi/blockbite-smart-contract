@@ -1,0 +1,81 @@
+name: Coverage
+
+# Generates a REAL line-coverage report for the blockbite Anchor program's
+# Rust unit tests (utils.rs vesting math, campaign/cancel logic, state, errors).
+# Uses cargo-llvm-cov (source-based coverage). Does NOT modify any program source.
+#
+# Note on scope: this measures the Rust *unit* test layer only. The Anchor
+# instruction handlers (create_stream/withdraw/cancel/...) are exercised by the
+# TypeScript integration suite against surfpool (see ci.yml step 13), which a
+# host coverage tool cannot instrument. Coverage numbers here therefore reflect
+# the pure-logic units; the integration layer is reported separately by test count.
+
+on:
+  push:
+    branches: [main, master, week7-security-tests]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Rust Unit Test Coverage
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    defaults:
+      run:
+        working-directory: blockbite
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust 1.91.0 + llvm-tools
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.91.0"
+          components: llvm-tools-preview
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: blockbite
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Run unit tests with coverage
+        run: |
+          cargo llvm-cov --no-report \
+            --manifest-path programs/blockbite/Cargo.toml \
+            --package blockbite
+
+      - name: Emit lcov report
+        run: |
+          cargo llvm-cov report \
+            --manifest-path programs/blockbite/Cargo.toml \
+            --ignore-filename-regex 'tests_(campaign|cancel)\.rs' \
+            --lcov --output-path lcov.info
+
+      - name: Print coverage summary
+        run: |
+          echo '## BlockBite — Rust Unit Test Coverage' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cargo llvm-cov report \
+            --manifest-path programs/blockbite/Cargo.toml \
+            --ignore-filename-regex 'tests_(campaign|cancel)\.rs' \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: blockbite/lcov.info
+          if-no-files-found: error
