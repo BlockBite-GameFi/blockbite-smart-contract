@@ -24,7 +24,6 @@ use solana_sdk::{
     pubkey::Pubkey,
     rent::Rent,
     signature::{Keypair, Signer},
-    system_program,
     transaction::Transaction,
 };
 
@@ -55,6 +54,10 @@ fn pid() -> Pubkey {
 
 fn spl_id() -> Pubkey {
     Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap()
+}
+
+fn sys_id() -> Pubkey {
+    Pubkey::from_str("11111111111111111111111111111111").unwrap()
 }
 
 fn stream_pda(creator: &Pubkey, recipient: &Pubkey, seed: u64) -> Pubkey {
@@ -121,7 +124,7 @@ fn sol_account(sol: u64) -> Account {
     Account {
         lamports: sol * 1_000_000_000,
         data: vec![],
-        owner: system_program::ID,
+        owner: sys_id(),
         executable: false,
         rent_epoch: 0,
     }
@@ -212,7 +215,7 @@ fn create_stream_ix(
         AccountMeta::new(escrow, false),
         AccountMeta::new(stream, false),
         AccountMeta::new_readonly(spl_id(), false),
-        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(sys_id(), false),
     ];
     (Instruction { program_id: pid(), accounts, data }, stream)
 }
