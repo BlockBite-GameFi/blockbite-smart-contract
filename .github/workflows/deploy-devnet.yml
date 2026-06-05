@@ -40,12 +40,12 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
-      - name: Install Anchor CLI (avm 0.32.1)
+      - name: Install Anchor CLI (avm 1.0.0)
         run: |
-          cargo install --git https://github.com/solana-foundation/anchor avm --locked --force
-          avm install 0.32.1
-          avm use 0.32.1
-          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 1.0.0
+          avm use 1.0.0
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           anchor --version
 
       - name: Restore deployer keypair
@@ -55,13 +55,11 @@ jobs:
           solana-keygen pubkey ~/.config/solana/id.json
 
       - name: Restore program keypair
-        working-directory: ./blockbite
         run: |
           mkdir -p target/deploy
           echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
 
       - name: Sync program ID
-        working-directory: ./blockbite
         run: anchor keys sync
 
       - name: Setup Node.js
@@ -69,14 +67,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
-          cache-dependency-path: ./blockbite/yarn.lock
+          cache-dependency-path: yarn.lock
 
       - name: Install Node dependencies
-        working-directory: ./blockbite
         run: yarn install --frozen-lockfile
 
       - name: Build program
-        working-directory: ./blockbite
         run: anchor build
 
       - name: Check devnet balance
@@ -91,7 +87,6 @@ jobs:
           fi
 
       - name: Deploy to Devnet
-        working-directory: ./blockbite
         run: |
           anchor deploy \
             --provider.cluster devnet \
@@ -100,7 +95,6 @@ jobs:
           echo "Program ID: $(anchor keys list | grep blockbite | awk '{print $2}')"
 
       - name: Verify deployment
-        working-directory: ./blockbite
         run: |
           PROGRAM_ID=$(anchor keys list | grep blockbite | awk '{print $2}')
           echo "Verifying program $PROGRAM_ID on devnet..."

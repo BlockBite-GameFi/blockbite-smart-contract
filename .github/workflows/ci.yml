@@ -17,7 +17,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 0
       CARGO_TERM_COLOR: always
-      CARGO_TARGET_DIR: ${{ github.workspace }}/blockbite/target
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
@@ -25,10 +25,6 @@ jobs:
         uses: actions/checkout@v4
 
       # ── 2. Rust 1.91.0 ───────────────────────────────────────────────────────
-      # Minimum version matrix:
-      #   edition2024 support       → Cargo >= 1.85.0
-      #   avm v1.0.2 dependencies   → rustc >= 1.91.0 (cargo-platform, icu_*, etc)
-      # 1.91.0 satisfies both constraints.
       - name: Install Rust 1.91.0
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -38,13 +34,9 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: blockbite
+          workspaces: .
 
       # ── 4. Solana CLI v2.1.6 ─────────────────────────────────────────────────
-      # Pinned to v2.1.6 — same version used by working CI reference.
-      # v2.1.6 bundles Rust/Cargo that is compatible with our dependency tree.
-      # Later versions (v2.1.21+) bundle Cargo 1.79.0 which cannot parse
-      # edition2024 manifests (block-buffer 0.12.0, cpufeatures 0.3.0, etc).
       - name: Cache Solana CLI v2.1.6
         uses: actions/cache@v4
         id: solana-cache
@@ -63,8 +55,6 @@ jobs:
       - name: Ensure Solana dirs and wallet
         run: |
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-          # cargo-build-sbf panics at startup if ~/.cache/solana does not exist
-          # (it calls fs::read_dir(~/.cache/solana).unwrap() unconditionally)
           mkdir -p "$HOME/.cache/solana"
           mkdir -p "$HOME/.config/solana"
           SOLANA_BIN="$HOME/.local/share/solana/install/active_release/bin"
@@ -76,10 +66,7 @@ jobs:
             --url http://127.0.0.1:8899 \
             --keypair "$HOME/.config/solana/id.json"
 
-      # ── 5. Anchor CLI 0.32.1 via AVM ─────────────────────────────────────────
-      # AVM (Anchor Version Manager) is the officially supported way to install
-      # Anchor. Compiling anchor-cli directly from source also works but takes
-      # ~8 minutes; AVM caches the binary and is faster on cache hit.
+      # ── 5. Anchor CLI 1.0.0 via AVM ─────────────────────────────────────────
       - name: Cache Anchor CLI 1.0.0
         uses: actions/cache@v4
         id: anchor-cache
@@ -110,16 +97,14 @@ jobs:
         with:
           node-version: "20"
           cache: "yarn"
-          cache-dependency-path: blockbite/yarn.lock
+          cache-dependency-path: yarn.lock
 
       # ── 7. Node dependencies ─────────────────────────────────────────────────
       - name: Install Node dependencies
-        working-directory: blockbite
         run: yarn install --frozen-lockfile
 
       # ── 8. Program keypair ───────────────────────────────────────────────────
       - name: Restore program keypair
-        working-directory: blockbite
         run: |
           mkdir -p target/deploy
           if [ -n "${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}" ]; then
@@ -134,23 +119,17 @@ jobs:
 
       # ── 9. Sync program ID ────────────────────────────────────────────────────
       - name: Sync program ID
-        working-directory: blockbite
         run: anchor keys sync
 
       # ── 10. Build ─────────────────────────────────────────────────────────────
       - name: Build Anchor program
-        working-directory: blockbite
         run: anchor build
 
       # ── 11. Rust unit tests ───────────────────────────────────────────────────
       - name: Run Rust unit tests
-        working-directory: blockbite
         run: cargo test --manifest-path programs/blockbite/Cargo.toml --package blockbite
 
       # ── 12. Surfpool (local validator for Anchor 1.0.0) ───────────────────────
-      # Anchor 1.0.0 replaced solana-test-validator with surfpool.
-      # Without it anchor test fails with:
-      # "Failed to spawn `surfpool`: No such file or directory"
       - name: Cache Surfpool
         uses: actions/cache@v4
         id: surfpool-cache
@@ -170,7 +149,6 @@ jobs:
 
       # ── 13. Integration tests ─────────────────────────────────────────────────
       - name: Run integration tests
-        working-directory: blockbite
         env:
           ANCHOR_WALLET: /home/runner/.config/solana/id.json
           ANCHOR_PROVIDER_URL: http://127.0.0.1:8899

@@ -1,0 +1,11 @@
+/home/raisha/blockbite/blockbite/trident-tests/target/debug/deps/console-6ec03abd3d3fc4e1.d: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/common_term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/kb.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/unix_term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/utils.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/ansi.rs
+
+/home/raisha/blockbite/blockbite/trident-tests/target/debug/deps/libconsole-6ec03abd3d3fc4e1.rmeta: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/common_term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/kb.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/unix_term.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/utils.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/ansi.rs
+
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/lib.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/common_term.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/kb.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/term.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/unix_term.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/utils.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/console-0.15.11/src/ansi.rs:

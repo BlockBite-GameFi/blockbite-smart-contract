@@ -1,0 +1,8 @@
+/home/raisha/blockbite/blockbite/trident-tests/target/debug/deps/solana_svm_rent_collector-19cb7d0abce8c738.d: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/rent_state.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector/rent_collector.rs
+
+/home/raisha/blockbite/blockbite/trident-tests/target/debug/deps/libsolana_svm_rent_collector-19cb7d0abce8c738.rmeta: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/rent_state.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector/rent_collector.rs
+
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/lib.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/rent_state.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/solana-svm-rent-collector-2.3.13/src/svm_rent_collector/rent_collector.rs:

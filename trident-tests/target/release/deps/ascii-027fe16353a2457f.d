@@ -1,0 +1,11 @@
+/home/raisha/blockbite/blockbite/trident-tests/target/release/deps/ascii-027fe16353a2457f.d: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_char.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_str.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_string.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/free_functions.rs
+
+/home/raisha/blockbite/blockbite/trident-tests/target/release/deps/libascii-027fe16353a2457f.rlib: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_char.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_str.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_string.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/free_functions.rs
+
+/home/raisha/blockbite/blockbite/trident-tests/target/release/deps/libascii-027fe16353a2457f.rmeta: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_char.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_str.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_string.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/free_functions.rs
+
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/lib.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_char.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_str.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/ascii_string.rs:
+/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ascii-0.9.3/src/free_functions.rs:

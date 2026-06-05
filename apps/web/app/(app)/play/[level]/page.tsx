@@ -1,0 +1,127 @@
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import GameCanvas from '@/components/game/GameCanvas';
+import { BIOMES, type Biome } from '@/lib/game/biomes';
+import { useApp } from '@/lib/useApp';
+import { T } from '@/lib/theme';
+
+const ACT_NUMERALS = ['I','II','III','IV','V','VI','VII','VIII'];
+
+/**
+ * Backdrop3D is intentionally a no-op as of 2026-05-16 — see the matching
+ * comment in lib/components/MapScreen.tsx. The biome.sky gradient + biome.fog
+ * tint + radial vignette layers below still give the page its themed feel,
+ * without any WebGL dependency.
+ */
+function Backdrop3D(_props: { biome: Biome; progress: number }) {
+  return null;
+}
+
+export default function PlayLevelPage() {
+  const params = useParams<{ level: string }>();
+  const level = Math.max(1, parseInt(params.level || '1', 10));
+  const router = useRouter();
+  const { lang } = useApp();
+
+  const TX = {
+    backToMap: lang === 'id' ? 'KEMBALI KE PETA' : 'BACK TO MAP',
+    level:     lang === 'id' ? 'LEVEL'            : 'LEVEL',
+    act:       lang === 'id' ? 'BABAK'            : 'ACT',
+  };
+
+  // Pick the biome that owns this level so the in-game backdrop matches the
+  // map theme the player just came from (Crystal/Frost/Ember/.../Apex).
+  const biome = BIOMES.find(b => level >= b.range[0] && level <= b.range[1]) ?? BIOMES[0];
+  const progress = Math.max(
+    0,
+    Math.min(1, (level - biome.range[0]) / Math.max(1, biome.range[1] - biome.range[0])),
+  );
+
+  return (
+    <>
+      {/* Real-time 3D biome backdrop — fixed behind the entire game UI so
+          the canvas always plays "inside" the act's landscape. Pointer
+          events disabled so it never blocks game controls. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: -2,
+          background: biome.sky, overflow: 'hidden', pointerEvents: 'none',
+        }}
+      >
+        <Backdrop3D biome={biome} progress={progress} />
+      </div>
+      {/* Vignette + biome fog tint above the 3D layer for legibility. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: -1,
+          background: biome.fog, pointerEvents: 'none',
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed', inset: 0, zIndex: -1,
+          background: `radial-gradient(ellipse at 50% 50%, transparent 0%, transparent 40%, rgba(0,0,0,0.55) 100%)`,
+          pointerEvents: 'none',
+        }}
+      />
+
+      <main style={{ paddingTop: 64, minHeight: '100vh' }}>
+        <div style={{
+          maxWidth: 1100, margin: '0 auto', padding: '12px 24px 0',
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+        }}>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            style={{
+              padding: '7px 16px', borderRadius: 10,
+              border: `1px solid ${biome.accent}44`,
+              background: T.surface, color: biome.glow,
+              fontFamily: "'Orbitron', monospace", fontSize: 11,
+              cursor: 'pointer', letterSpacing: '0.06em',
+            }}
+          >
+            {TX.backToMap}
+          </button>
+          <span style={{
+            fontFamily: "'Orbitron', monospace", fontSize: 13,
+            color: biome.glow, fontWeight: 700,
+          }}>
+            {TX.level} {level.toLocaleString()}
+          </span>
+          <span style={{
+            fontFamily: "'Orbitron', monospace", fontSize: 10,
+            color: T.textDim, opacity: 0.9, letterSpacing: '0.2em',
+            padding: '4px 10px', borderRadius: 999,
+            background: `${biome.accent}22`,
+            border: `1px solid ${biome.accent}55`,
+          }}>
+            {TX.act} {ACT_NUMERALS[biome.act - 1]} · {biome.name.toUpperCase()}
+          </span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 24px 40px' }}>
+          {/* Biome-themed frame around the canvas. Border + accent tint give
+              players a visual cue of which Act they're in.
+              NOTE: backdrop-filter: blur() and large box-shadow blur radii were
+              removed here — both are GPU-heavy compositor operations that
+              crashed the renderer on lower-end mobile devices, leaving users
+              with a blank /play/[level] page. The visual identity is now
+              carried by the border + flat translucent fill, which costs zero
+              GPU and renders identically on every device. */}
+          <div style={{
+            padding: 14,
+            borderRadius: 24,
+            background: `linear-gradient(180deg, ${biome.accent}1a 0%, ${T.surface} 60%)`,
+            border: `1px solid ${biome.accent}66`,
+          }}>
+            <GameCanvas initialLevel={level} onBack={() => router.back()} biome={biome} />
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}
