@@ -1307,6 +1307,66 @@ describe("blockbite", () => {
     return (s.totalAmount * elapsed) / duration;
   }
 
+  it("W7: Full flow (self-contained) — create_stream → elapse → withdraw → verify balance", async () => {
+    // Acceptance criterion #1, end-to-end with fresh actors so it depends on no
+    // other test. ~50% of the window has already elapsed (start in the past), so
+    // we get a real partial unlock without a flaky real-time sleep.
+    const ffC = Keypair.generate();
+    const ffR = Keypair.generate();
+    const [a1, a2] = await Promise.all([
+      provider.connection.requestAirdrop(ffC.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(ffR.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(a1, "confirmed"),
+      provider.connection.confirmTransaction(a2, "confirmed"),
+    ]);
+
+    const TOTAL = 1_000_000;
+    const ffMint = await createMint(provider.connection, ffC, ffC.publicKey, null, 6);
+    const ffCTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ffC, ffMint, ffC.publicKey)).address;
+    const ffRTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ffR, ffMint, ffR.publicKey)).address;
+    await mintTo(provider.connection, ffC, ffMint, ffCTA, ffC, TOTAL);
+
+    const now    = Math.floor(Date.now() / 1000);
+    const ffStart = now - 150;            // 150s elapsed of a ...
+    const ffEnd   = now + 150;            // ... 300s window → ~50% vested
+
+    const [ffStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), ffC.publicKey.toBuffer(), ffR.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(4242)]).buffer))], programId);
+    const [ffEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), ffStream.toBuffer()], programId);
+
+    // 1. create_stream — locks the full amount into escrow
+    await createStream(programId, ffC, ffR.publicKey, ffMint, ffCTA, ffEscrow, ffStream,
+      ffStart, ffEnd, TOTAL, 4242, provider);
+
+    const creatorAfterLock = await getAccount(provider.connection, ffCTA);
+    const escrowAfterLock  = await getAccount(provider.connection, ffEscrow);
+    assert.strictEqual(Number(creatorAfterLock.amount), 0, "creator emptied — all tokens locked");
+    assert.strictEqual(escrowAfterLock.amount.toString(), TOTAL.toString(), "escrow holds the full total");
+
+    // 2. (wait — already elapsed via past start_time) → 3. withdraw
+    const wIx = createWithdrawIx(programId, ffR.publicKey, ffStream, ffMint, ffEscrow, ffRTA);
+    await provider.sendAndConfirm(new Transaction().add(wIx), [ffR]);
+
+    // 4. verify balances reconcile exactly
+    const streamInfo = await provider.connection.getAccountInfo(ffStream);
+    const withdrawn  = decodeStream(streamInfo!.data).amountWithdrawn;
+    const recipBal   = await getAccount(provider.connection, ffRTA);
+    const escrowBal  = await getAccount(provider.connection, ffEscrow);
+
+    assert.ok(withdrawn > BigInt(0) && withdrawn < BigInt(TOTAL),
+      `partial unlock expected, got ${withdrawn}`);
+    assert.strictEqual(recipBal.amount.toString(), withdrawn.toString(),
+      "recipient received exactly amount_withdrawn");
+    assert.strictEqual(escrowBal.amount.toString(), (BigInt(TOTAL) - withdrawn).toString(),
+      "escrow decreased by exactly amount_withdrawn");
+    assert.strictEqual((recipBal.amount + escrowBal.amount).toString(), TOTAL.toString(),
+      "CONSERVATION: recipient + escrow == total (no tokens created or destroyed)");
+  });
+
   it("W7: Full flow — create → partial withdraw → on-chain invariants hold", async () => {
     // The shared stream (seed=1) was created in before() and partially withdrawn
     // by the 'Withdraw at ~50 percent' test. Verify the end-to-end result on-chain.

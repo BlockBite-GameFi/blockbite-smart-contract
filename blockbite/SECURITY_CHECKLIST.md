@@ -107,6 +107,25 @@ Solana's runtime executes one instruction at a time and a CPI into `spl-token` *
 
 ---
 
+## 7b. Mapping to `coral-xyz/sealevel-attacks`
+
+Each canonical Solana attack class from the Week-7 resource, and where this program closes it:
+
+| sealevel-attacks class | Closed by | Where |
+|---|---|---|
+| 0 — Signer authorization | `Signer<'info>` + `constraint = stream.{creator,recipient} == signer.key()` | §1 |
+| 1 — Account data matching | `token::mint = mint` on every token account; recipient/creator bound in PDA seeds | §2, §4 |
+| 2 — Owner checks | `Account<'info, T>` enforces program/SPL ownership; escrow `token::authority = stream` | §4 |
+| 3 — Type cosplay | Anchor 8-byte account discriminator on `StreamAccount` deserialisation | §4 |
+| 4 — Initialization / reinit | `create_stream` uses `init` (`create_stream.rs:37,47`) — Anchor rejects re-init of an existing PDA | §2 |
+| 5 — Arbitrary CPI | Token CPIs target the typed `Program<'info, Token>` (`token_program`), not an attacker-supplied program id | §4 |
+| 6 — Duplicate mutable accounts | Single `stream` PDA per instruction; escrow vs recipient/creator accounts are distinct, mint-checked | §4 |
+| 7 — Bump seed canonicalization | `bump = stream.bump` re-checks the canonical bump stored at creation (`create_stream.rs:107`) | §2 |
+| 8 — PDA sharing | Seeds bind `creator + recipient + seed` → no cross-stream reuse | §2 |
+| — Integer overflow | `u128` intermediate + `checked_*` everywhere | §3 |
+
+---
+
 ## 8. Test Coverage Summary (Week 7)
 
 | Category | Count | Pass |

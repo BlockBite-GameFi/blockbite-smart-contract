@@ -10,7 +10,7 @@
 
 ## What I specifically built this week
 
-I owned the **integration test suite, edge-case tests, the security review/checklist, and the coverage CI** for the `blockbite` Anchor program. No smart-contract source (`programs/blockbite/src/`) was modified — this week is tests + docs + CI only, by design, so the audited program byte-for-byte matches what is deployed.
+Within our two-developer split, I owned **acceptance criterion #1 — full-flow integration tests** and **#3 — the security review / checklist** for the `blockbite` Anchor program. (My partner owns #2 edge-case tests, #4 issue documentation, and #5 the coverage report — see the split section.) No smart-contract source (`programs/blockbite/src/`) was modified — this week is tests + docs only, by design, so the audited program byte-for-byte matches what is deployed.
 
 - **`3507977`**, **`3f7924c`** — edge-case + security tests in `tests/blockbite.ts` and the first `SECURITY_CHECKLIST.md`.
 - **`03e65fd`** — rewrote the full-flow test to share one stream account, fixing a `TokenAccountNotFoundError` flake on CI.
@@ -33,8 +33,12 @@ I owned the **integration test suite, edge-case tests, the security review/check
 
 ## How my partner and I split the work
 
-- **Me (Bryan):** the test suite (`tests/blockbite.ts`), edge-case + security tests, `SECURITY_CHECKLIST.md`, the coverage workflow, and the native-harness coverage experiment.
-- **Raisha (partner):** the campaign/milestone vesting alignment (`6bbc2c7`, `96e6a96`, `760bdf9`), milestone features (`f3193f5`), surfpool test-timing fixes (`2ef47b4`, `4222701`), and **fuzzing + invariant testing** for Week 7. *Her fuzzing/invariant work is in her own report/PR — it is not part of my deliverable above, and I did not touch it.*
+We split the five acceptance criteria by number:
+
+- **Me (Bryan) — #1 and #3:** the full-flow integration tests in `tests/blockbite.ts` (`W7: Full flow (self-contained)` does create_stream → elapse → withdraw → balance reconciliation with a token-conservation check) and the security review `SECURITY_CHECKLIST.md` (10 sections + a `sealevel-attacks` mapping, every claim cited to a real `file:line`).
+- **Raisha (partner) — #2, #4, #5:** the edge-case test set (#2), the issue-documentation pass (#4), and the coverage report / >80% KPI (#5), plus her **fuzzing + invariant testing**. Those are her deliverables and are submitted under her own report/PR.
+
+Because we share one codebase, some commits touch both halves; my report claims only #1 and #3 so the individual scoring stays clean and I am not taking my partner's share.
 
 ## Status — what works / what doesn't
 
