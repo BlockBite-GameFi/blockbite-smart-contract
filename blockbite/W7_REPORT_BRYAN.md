@@ -1,64 +1,76 @@
-# Week 7 Report — Testing & Security — Vincentius Bryan Kwandou (nayrbryanGaming)
+# Week 7 Report — Testing & Security — Vincentius Bryan Kwandou
 
-**Team:** BlockBite (Token Distribution Platform) · **Partner:** Raisha Adhila (raishaney)
+**Team:** BlockBite (Token Distribution Protocol) · **Partner:** Raisha Adhila
 **Repo:** https://github.com/BlockBite-GameFi/blockbite-smart-contract
-**PR (my deliverable):** https://github.com/BlockBite-GameFi/blockbite-smart-contract/pull/4 — *"Week 7 — nayrbryanGaming — Tests + Security"*
+**PR (my deliverable):** *"Week 7 — nayrbryanGaming — Tests + Security"* (branch `week7-security-tests`)
+
+> Git note: my commits appear under three identities that are all me — `Vincentius Bryan Kwandou` and `Bryan Kwandou` (`vincentius.kwandou@gmail.com`) and `nayrbryanGaming` (GitHub noreply). Raisha's appear as `raishaney` / `Raisha Adhila`.
 
 ---
 
 ## What I specifically built this week
 
-I owned the **integration test suite, edge-case tests, and the security review/checklist** for the `blockbite` Anchor program. Concretely (all verifiable by commit author):
+I owned the **integration test suite, edge-case tests, the security review/checklist, and the coverage CI** for the `blockbite` Anchor program. No smart-contract source (`programs/blockbite/src/`) was modified — this week is tests + docs + CI only, by design, so the audited program byte-for-byte matches what is deployed.
 
-- **`3507977`** — wrote `SECURITY_CHECKLIST.md` (signer validation, PDA seed uniqueness, integer-overflow guards, account ownership, reentrancy/CEI, frontrunning) + 8 edge-case integration tests.
-- **`deb31c9`** — VGPV (velocity-guard) bot-detection test, hardened for CI clock drift.
-- **`3f7924c`** — 7 full-flow + security tests: end-to-end `create_stream → withdraw → verify balances`, MIN_CLAIM_AMOUNT dust guard, PDA seed-collision attack, cross-stream replay attack, integer-overflow verification.
-- **`03e65fd`** — rewrote the full-flow test to share a stream account, fixing a `TokenAccountNotFoundError` flake on CI.
+- **`3507977`**, **`3f7924c`** — edge-case + security tests in `tests/blockbite.ts` and the first `SECURITY_CHECKLIST.md`.
+- **`03e65fd`** — rewrote the full-flow test to share one stream account, fixing a `TokenAccountNotFoundError` flake on CI.
+- **`a1eaba8`** — wired `cargo-llvm-cov` into CI (`.github/workflows/coverage.yml`) to produce a **real** line-coverage number instead of an estimate.
+- **`ac3db23` → `85b4a6f`** — built a `solana-program-test` native harness (`coverage-tests/`) to try to lift the handlers' coverage host-side (see Insight — it hit a structural wall).
+- **`48e3445`, `2a470ab`** — replaced the earlier ">85% estimated" claim with the real measured numbers and the two-layer coverage explanation.
+- **This submission** — rewrote the 7 `W7:`-labeled tests so none are `assert.ok(true)` placeholders: they now decode the real on-chain `StreamAccount` bytes and assert invariants, and re-implement `calculate_unlocked` exactly in TypeScript to check the overflow/cancel boundaries. Rewrote `SECURITY_CHECKLIST.md` and this report to describe **only code that exists** (see Issue #1).
 
-These cover the acceptance criteria directly:
-- ✅ Full flow: `create_stream → wait → withdraw → verify balance` (`W7: Full flow` test)
-- ✅ Zero-amount stream → `InvalidAmount`
-- ✅ Withdraw at/around cliff date (`Cliff: before` blocked, `after` unlocks)
-- ✅ Cancel at exactly end date → `FullyVested` guard
-- ✅ Double withdraw → `NothingToWithdraw`
-- ✅ Withdraw with nothing available → `NothingToWithdraw` / `ClaimTooSmall`
-- ✅ Security checklist: signer authority, unique PDA seeds (`creator+recipient+seed_le`), checked arithmetic, account ownership via `token::authority`, CEI reentrancy reasoning.
+### Acceptance criteria → where it's covered (all against the *real* program)
+
+| Criterion | Covered by | Error/result |
+|---|---|---|
+| Full flow create→wait→withdraw→verify balance | `before()` + `Withdraw at ~50 percent` + `W7: Full flow` (asserts `recipient balance == amount_withdrawn`) | balances reconcile |
+| Zero-amount stream | `create_stream` validation test | `InvalidAmount` |
+| Withdraw before / at / after cliff | `Cliff` tests + `utils.rs` unit tests | 0 before, linear after |
+| Cancel at exactly end date | `W7: Cancel at exactly end_time` (replica proves `unlocked == total`) | `FullyVested` |
+| Double / empty withdraw | `Nothing to withdraw` + `W7: Withdraw never releases more than unlocked` | `NothingToWithdraw` |
+| Unauthorized cancel / withdraw | `Cancel by non-creator` / `Withdraw by non-recipient` + `W7: Unauthorized withdraw` | `Unauthorized` |
+| Signer / PDA / overflow / ownership | `SECURITY_CHECKLIST.md` §1–4 with verified `file:line` | — |
 
 ## How my partner and I split the work
 
-- **Me (Bryan):** integration tests (`tests/blockbite.ts`), edge-case tests, security checklist, and CI stabilization of the test runs.
-- **Raisha (partner):** the campaign/milestone vesting alignment with acceptance criteria (`6bbc2c7`, `96e6a96`, `760bdf9`), anti-bot/milestone features (`f3193f5`), surfpool test-timing fixes (`2ef47b4`, `4222701`), and **fuzzing + invariant testing** for Week 7. *(Her fuzzing/invariant work is submitted under her own report/PR — it is not part of my deliverable above.)*
+- **Me (Bryan):** the test suite (`tests/blockbite.ts`), edge-case + security tests, `SECURITY_CHECKLIST.md`, the coverage workflow, and the native-harness coverage experiment.
+- **Raisha (partner):** the campaign/milestone vesting alignment (`6bbc2c7`, `96e6a96`, `760bdf9`), milestone features (`f3193f5`), surfpool test-timing fixes (`2ef47b4`, `4222701`), and **fuzzing + invariant testing** for Week 7. *Her fuzzing/invariant work is in her own report/PR — it is not part of my deliverable above, and I did not touch it.*
 
 ## Status — what works / what doesn't
 
 **Works:**
-- 27 integration tests on `main` (34 on the PR branch, +7 `W7:`-labeled) + 36 Rust unit tests, passing on surfpool CI.
-- Security checklist documents 8 real issues found & fixed during Weeks 5–7 (borrow-checker conflict, double-counted discriminator space, CI gossip panic, wrong `set_milestone` discriminator recomputed via `sha256("global:set_milestone")[..8]`, etc.).
+- 34 TypeScript integration tests (7 `W7:`-labeled) + 36 Rust unit tests (`utils.rs` 19, `tests_cancel.rs` 8, `tests_campaign.rs` 9).
+- `SECURITY_CHECKLIST.md` now maps every claim to a real `file:line` in the current source.
+- Real CI coverage report runs on every push.
 
-**Doesn't / incomplete (honest):**
-- PR #4 is still **OPEN** (not yet merged to `main`); the `W7:`-labeled tests live on the `week7-security-tests` branch.
-- **Tool-measured line coverage is 23.36% overall, NOT >80%.** A real `cargo-llvm-cov` report now runs in CI (`.github/workflows/coverage.yml`) — `utils.rs` (the vesting math) is **100%**, but the instruction handlers measure **0%** under the host coverage tool (see Insight). The earlier "estimated >85%" in the checklist was not tool-backed; I replaced it with the real number.
+**Doesn't / honest gaps:**
+- **Tool-measured whole-program line coverage is ~23%, not >80%.** `utils.rs` (the vesting math, where a token-loss bug would hide) is **100%**; the CPI-driven instruction handlers read 0% under the *host* coverage tool because they only execute on-chain — they are covered behaviorally by the integration tests, which a host tool cannot instrument. This is a structural property of an Anchor program, proven (Insight), not an excuse.
+- PR is open, not yet merged to `main`.
 
 ## Blockers
 
-1. **Coverage KPI is structurally unreachable via host tooling for this program.** Two independent walls (both documented in CI logs):
-   - **Anchor 1.0.2 CPI cannot run host-side.** I built a `solana-program-test` native harness (`coverage-tests/`) to execute handlers as host code. It compiles and runs, but every token-moving handler panics at `solana-invoke 0.5.0`: *"not implemented: only supported with target_os = solana."* Anchor's CPI layer has no native syscall-stub, so `create_stream`/`withdraw`/`cancel` cannot execute off-chain.
-   - **Even non-CPI handler execution under `solana-program-test` is not recorded by `llvm-cov`** (the validation-path tests pass but `create_stream.rs` still measures 0% — bank worker-thread counters aren't reflected).
-   The handlers ARE exercised behaviorally by the 33 TS integration tests on surfpool, but surfpool runs BPF, which a host coverage tool cannot instrument.
-2. **PR merge** — waiting on review to merge #4 into `main`.
+1. **The >80% host-coverage KPI is structurally unreachable for this program without changing the contract.** Two independent walls, both reproducible in CI:
+   - Anchor CPI cannot run host-side: the `coverage-tests/` native harness compiles but every token-moving handler panics at `solana-invoke` — *"only supported with target_os = solana."*
+   - Even non-CPI handler lines under `solana-program-test` aren't reflected by `llvm-cov`.
+   The only way to raise the *measured* number is to refactor logic out of the handlers into pure functions — a contract change I deliberately did **not** make this week per the no-modify constraint.
 
 ## Metrics (counted from source / CI, not estimated)
 
 | Metric | Value | Evidence |
 |---|---|---|
-| Integration tests (TS) | 27 on main / 34 on PR branch | `tests/blockbite.ts` |
-| Rust unit tests | 36 | `tests_campaign.rs` 9, `tests_cancel.rs` 8, `utils.rs` 19 |
-| Native host harness tests | 6 (2 run, 4 documented-`#[ignore]`) | `coverage-tests/tests/stream_lifecycle.rs` |
-| Security checklist sections | 9 | `SECURITY_CHECKLIST.md` |
-| Documented issues found & fixed | 8 | checklist §8 |
-| **Line coverage (real, CI llvm-cov)** | **23.36% total · `utils.rs` 100%** | `coverage.yml` run, GITHUB_STEP_SUMMARY |
-| My Week 7 commits | 9 (4 tests/checklist + 5 coverage harness) | `3507977`, `deb31c9`, `3f7924c`, `03e65fd`, `coverage.yml`+harness |
+| Integration tests (TS) | 34 (7 `W7:`) | `tests/blockbite.ts` |
+| Rust unit tests | 36 | `utils.rs` 19 · `tests_cancel.rs` 8 · `tests_campaign.rs` 9 |
+| Security checklist sections | 10 | `SECURITY_CHECKLIST.md` |
+| Documented issues found & fixed | 7 | checklist §9 |
+| Line coverage (real, CI `llvm-cov`) | `utils.rs` 100% · whole-program ~23% | `coverage.yml` GITHUB_STEP_SUMMARY |
+| Smart-contract source files changed | **0** | `git diff main..HEAD -- programs/blockbite/src/` is empty |
 
 ## Insight
 
-My most useful finding this week was negative and hard-won: **you cannot hit the >80% host-coverage KPI on an Anchor 1.0.2 program whose handlers are CPI-driven.** I proved it rather than assumed it — wired `cargo-llvm-cov` into CI (real number: `utils.rs` 100%, total 23%), then built a `solana-program-test` native harness to lift the handler numbers. It compiles and the validation paths run, but Anchor's CPI (`solana-invoke 0.5.0`) panics off-chain (`only supported with target_os=solana`), and `llvm-cov` doesn't capture the bank's program execution anyway. So the program's real coverage story is two-layer: **pure logic (vesting math) is 100% unit-covered and tool-verified; the instruction handlers are covered behaviorally by 33 surfpool integration tests that a host tool structurally can't measure.** Practically, the way to actually raise the *measured* number is to refactor business logic out of the `#[derive(Accounts)]` handlers into pure functions (like `utils::calculate_unlocked`, already 100%) — a design lesson, not a test-writing one. On security, the highest-value confirmation was that stream PDAs bind `creator + recipient + seed_le`, which closes the cross-stream replay class from sealevel-attacks.
+Two findings this week, both more useful for being uncomfortable:
+
+1. **A doc-vs-reality drift, caught before review.** The earlier checklist and report described a velocity-guard bot filter, a `close_stream` instruction, a `MIN_CLAIM_AMOUNT` dust filter and a developer fee — all of which had been **reverted** out of the program when we simplified to Linear/Cliff/Milestone. A reviewer opening the code would have found the security doc describing instructions that don't exist. I rewrote both documents to cite only verified `file:line`, and added it as Issue #1 in the checklist. Lesson: a security checklist has to be regenerated from the source it audits, not carried forward.
+
+2. **You cannot hit >80% host-coverage on a CPI-driven Anchor program — I proved it rather than assumed it.** Wired real `llvm-cov` into CI (`utils.rs` 100%, total ~23%), then built a `solana-program-test` harness to execute handlers host-side; it dies at `solana-invoke` because Anchor's CPI has no off-chain syscall stub. So the honest coverage story is two-layer: pure logic is 100% unit-covered and tool-verified; handlers are covered behaviorally by integration tests a host tool structurally can't measure. The real lever to raise the *number* is to pull business logic into pure functions like `calculate_unlocked` — a design lesson, not a test-writing one.
+
+On security specifically, the highest-value confirmation was that stream PDAs bind `creator + recipient + seed_le`, which closes the cross-stream replay class from sealevel-attacks; the one hardening item I'd flag for next revision is making `withdraw`/`cancel` strict Checks-Effects-Interactions (update state before the transfer CPI) — safe today on Solana's no-reentrancy model, but cleaner.

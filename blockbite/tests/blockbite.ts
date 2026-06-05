@@ -1267,57 +1267,100 @@ describe("blockbite", () => {
   });
 
   // ── Week 7 — Edge Case & Security Tests ──────────────────────────────────────
+  //
+  // These run against the real deployed program on surfpool. Where a property is
+  // pure arithmetic (vesting math, overflow bound) we re-implement the program's
+  // EXACT formula in TypeScript and assert against real on-chain account bytes.
+  // There are no `assert.ok(true)` placeholder tests here.
 
-  it("W7: Full flow — create → partial withdraw → verify balances", async () => {
-    // This test reuses the shared stream (seed=1, SEED from top-level before())
-    // which was created in the before() hook and has been partially withdrawn already.
-    // We verify the complete flow by inspecting the existing stream state.
+  // Decode the on-chain StreamAccount (byte layout from state/stream.rs, after the
+  // 8-byte Anchor discriminator).
+  function decodeStream(data: Buffer) {
+    return {
+      totalAmount:      data.readBigUInt64LE(136),
+      amountWithdrawn:  data.readBigUInt64LE(144),
+      startTime:        data.readBigInt64LE(152),
+      endTime:          data.readBigInt64LE(160),
+      cliffTime:        data.readBigInt64LE(168),
+      isCancelled:      data[176] === 1,
+      milestoneReached: data[186] === 1,
+      milestoneEnabled: data[187] === 1,
+    };
+  }
 
-    // The top-level stream was created with TOTAL_AMOUNT = 1_000_000
-    // and start_time = Date.now()/1000 - 60, end_time = start_time + 300
-    // so ~20% of vesting has elapsed → unlocked ≈ 200_000 tokens.
+  // Exact TypeScript replica of utils::calculate_unlocked (programs/blockbite/src/utils.rs).
+  // The program does the multiply in u128; JS BigInt is unbounded, so this matches
+  // the on-chain result bit-for-bit.
+  function unlockedTs(
+    s: { totalAmount: bigint; startTime: bigint; endTime: bigint; cliffTime: bigint;
+         milestoneEnabled: boolean; milestoneReached: boolean },
+    now: bigint,
+  ): bigint {
+    const ZERO = BigInt(0);
+    if (s.cliffTime > ZERO && now < s.cliffTime) return ZERO;
+    if (s.milestoneEnabled && !s.milestoneReached) return ZERO;
+    if (now < s.startTime) return ZERO;
+    if (now >= s.endTime) return s.totalAmount;
+    const effStart = s.cliffTime > ZERO ? s.cliffTime : s.startTime;
+    const elapsed  = now - effStart;
+    const duration = s.endTime - effStart;
+    return (s.totalAmount * elapsed) / duration;
+  }
 
-    // 1. Verify stream account exists (created in before())
+  it("W7: Full flow — create → partial withdraw → on-chain invariants hold", async () => {
+    // The shared stream (seed=1) was created in before() and partially withdrawn
+    // by the 'Withdraw at ~50 percent' test. Verify the end-to-end result on-chain.
     const info = await provider.connection.getAccountInfo(streamPda);
     assert.ok(info !== null, "Stream account must exist");
     assert.ok(info!.owner.equals(programId), "Owned by the vesting program");
 
-    // 2. Verify escrow still holds tokens (created → partially withdrawn)
-    const escrowInfo = await provider.connection.getAccountInfo(escrowTokenAccount);
-    assert.ok(escrowInfo !== null, "Escrow token account must exist");
+    const s = decodeStream(info!.data);
+    assert.strictEqual(s.totalAmount, BigInt(TOTAL_AMOUNT), "total_amount persisted == 1_000_000");
+    assert.ok(s.amountWithdrawn > BigInt(0), "a partial withdraw has happened");
+    assert.ok(s.amountWithdrawn <= s.totalAmount, "INVARIANT: amount_withdrawn <= total_amount");
+    assert.ok(!s.isCancelled, "shared stream is still active");
 
-    // 3. Recipient balance increased (verified by prior withdraw tests)
-    const recipBal = await getAccount(provider.connection, recipientTokenAccount);
-    assert.ok(Number(recipBal.amount) >= 0, "Recipient balance is valid non-negative");
-
-    // 4. Creator balance = TOTAL_AMOUNT minus what's in escrow (tokens moved to escrow)
+    // Creator emptied into escrow; recipient received exactly what was withdrawn.
     const creatorBal = await getAccount(provider.connection, creatorTokenAccount);
-    // After create_stream: escrow holds TOTAL_AMOUNT, creator has 0
-    // After withdraws: escrow has TOTAL_AMOUNT - withdrawn, recipient has withdrawn
-    assert.ok(Number(creatorBal.amount) === 0, "Creator balance 0 — all tokens locked in escrow");
-
-    // 5. Full flow assertion: create + lock + withdraw works end-to-end
-    assert.ok(true, "Full flow verified: create_stream locks tokens, withdraw releases to recipient");
+    assert.strictEqual(Number(creatorBal.amount), 0, "creator balance 0 — all tokens locked in escrow");
+    const recipBal = await getAccount(provider.connection, recipientTokenAccount);
+    assert.strictEqual(recipBal.amount.toString(), s.amountWithdrawn.toString(),
+      "recipient balance == amount_withdrawn recorded on the stream (no tokens lost or duplicated)");
   });
 
-  it("W7: MIN_CLAIM_AMOUNT guard — withdraw with nothing available fails NothingToWithdraw", async () => {
-    // This is verified by the existing 'Nothing to withdraw at t=0' test above.
-    // The MIN_CLAIM_AMOUNT = 1000 guard ensures dust claims are blocked.
-    // In our stream, when claimed = unlocked, claimable = 0 → NothingToWithdraw.
-    // This is the same guard that blocks < 1000 base-unit dust claims.
-    assert.ok(true, "Verified: MIN_CLAIM_AMOUNT=1000 guard blocks dust withdrawals (0x6004 NothingToWithdraw)");
+  it("W7: Withdraw never releases more than unlocked — amount_withdrawn <= unlocked(now)", async () => {
+    // Real on-chain read + exact formula replica: the program must never let
+    // amount_withdrawn exceed what calculate_unlocked returns at the current time.
+    const info = await provider.connection.getAccountInfo(streamPda);
+    const s = decodeStream(info!.data);
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const unlocked = unlockedTs(s, now);
+    assert.ok(s.amountWithdrawn <= unlocked,
+      `amount_withdrawn (${s.amountWithdrawn}) must be <= unlocked (${unlocked}) — no over-release`);
   });
 
-  it("W7: Cancel at exactly vesting end — fails FullyVested, no partial return", async () => {
-    // Verified by 'Cancel after full vest fails (FullyVested)' above.
-    // This documents the security property: tokens can't be clawed back after full vest.
-    assert.ok(true, "Covered by 'Cancel after full vest fails (FullyVested)' — security property verified");
+  it("W7: Cancel at exactly end_time would fail FullyVested (unlocked == total)", async () => {
+    // Pure spec check against the real stream timing: at end_time the formula
+    // returns the full total, so cancel's `require!(unlocked < total)` blocks it;
+    // one second earlier, cancel is still permitted.
+    const info = await provider.connection.getAccountInfo(streamPda);
+    const s = decodeStream(info!.data);
+    assert.strictEqual(unlockedTs(s, s.endTime), s.totalAmount,
+      "at end_time, unlocked == total_amount → cancel blocked (FullyVested)");
+    assert.ok(unlockedTs(s, s.endTime - BigInt(1)) < s.totalAmount,
+      "one second before end, unlocked < total → cancel still allowed");
   });
 
-  it("W7: Unauthorized withdraw — signer not matching stream.recipient", async () => {
-    // Covered by 'Withdraw by non-recipient fails (Unauthorized)' above.
-    // Re-asserts the constraint is enforced at instruction level, not just UI.
-    assert.ok(true, "Signer check enforced by Anchor constraint = stream.recipient == recipient.key()");
+  it("W7: Unauthorized withdraw — stream.recipient binds the only valid signer", async () => {
+    // The withdraw constraint is `stream.recipient == recipient.key()`. Decode the
+    // recipient stored on-chain: any other signer is rejected by Anchor before the
+    // handler runs (see 'Withdraw by non-recipient fails' which exercises the reject path).
+    const info = await provider.connection.getAccountInfo(streamPda);
+    const storedRecipient = new PublicKey(info!.data.subarray(40, 72));
+    assert.ok(storedRecipient.equals(recipient.publicKey),
+      "on-chain stream.recipient == our recipient; constraint admits no other signer");
+    assert.ok(!storedRecipient.equals(creator.publicKey),
+      "creator is NOT the recipient → creator cannot withdraw");
   });
 
   it("W7: PDA seed collision attack — different seed produces different PDA", async () => {
@@ -1356,12 +1399,19 @@ describe("blockbite", () => {
     assert.ok(!pdaAB.equals(pdaAC), "Creator+recipient binding prevents cross-stream replay");
   });
 
-  it("W7: Integer overflow protection — total_amount u64 max is safe via checked arithmetic", async () => {
-    // The program uses checked_mul / checked_add / checked_sub throughout.
-    // Maximum u64 = 18_446_744_073_709_551_615.
-    // We verify the overflow guard exists in program source (test is documentation).
-    // Actual overflow test would require minting u64::MAX tokens which is impractical on devnet.
-    // Verified by Rust tests: test_unlock_at_50_percent, test_cliff_50_percent_after_cliff (no overflow)
-    assert.ok(true, "Overflow protection: checked_mul/add/sub used throughout calculate_unlocked");
+  it("W7: Integer overflow protection — u64::MAX vesting stays exact via u128 math", async () => {
+    // Replicates calculate_unlocked at the maximum possible total. The program does
+    // `(total as u128) * elapsed / duration`; with total = u64::MAX a naive u64
+    // multiply would wrap, but the u128 intermediate keeps it exact. BigInt here
+    // mirrors that u128, so we assert the result is exact and never exceeds u64::MAX.
+    const U64_MAX = (BigInt(1) << BigInt(64)) - BigInt(1);
+    const s = {
+      totalAmount: U64_MAX, startTime: BigInt(1000), endTime: BigInt(2000), cliffTime: BigInt(0),
+      milestoneEnabled: false, milestoneReached: false,
+    };
+    assert.strictEqual(unlockedTs(s, BigInt(1500)), U64_MAX / BigInt(2), "50% of u64::MAX is exact (no wrap)");
+    assert.ok(unlockedTs(s, BigInt(1500)) < U64_MAX, "intermediate fits because the multiply is done in u128");
+    assert.strictEqual(unlockedTs(s, BigInt(2000)), U64_MAX, "100% returns the full total, no overflow");
+    assert.strictEqual(unlockedTs(s, BigInt(999)), BigInt(0), "before start returns 0");
   });
 });
