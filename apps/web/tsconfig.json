@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@blockbite/clients": [
+        "../../clients/ts/src/index.ts"
       ]
     }
   },

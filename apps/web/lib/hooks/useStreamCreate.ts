@@ -17,7 +17,7 @@ import {
   NATIVE_MINT, createAssociatedTokenAccountInstruction,
   createSyncNativeInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { createStream } from '@blockbite/clients';
+import { createStream } from '@/lib/anchor/vesting-client';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';

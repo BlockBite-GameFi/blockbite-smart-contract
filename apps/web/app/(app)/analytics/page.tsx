@@ -7,7 +7,7 @@ import {
   getAllStreams,
   computeUnlocked,
   StreamInfo,
-} from '@blockbite/clients';
+} from '@/lib/anchor/vesting-client';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
 import { useApp } from '@/lib/useApp';

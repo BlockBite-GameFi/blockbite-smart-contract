@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { getStreamsByAuthority, StreamInfo } from '@blockbite/clients';
+import { getStreamsByAuthority, StreamInfo } from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';

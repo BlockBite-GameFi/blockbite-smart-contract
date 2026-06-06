@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { VESTING_PROGRAM_ID } from '@blockbite/clients';
+import { VESTING_PROGRAM_ID } from '@/lib/anchor/vesting-client';
 import { ConfirmedSignatureInfo } from '@solana/web3.js';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';

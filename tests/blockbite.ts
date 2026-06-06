@@ -122,6 +122,12 @@ async function createStream(
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("blockbite", () => {
+  async function getValidatorTime(): Promise<number> {
+    const slot = await provider.connection.getSlot();
+    return await provider.connection.getBlockTime(slot);
+  }
+
+
   const provider  = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
@@ -188,7 +194,7 @@ describe("blockbite", () => {
       TOTAL_AMOUNT,
     );
 
-    startTime = Math.floor(Date.now() / 1000) - 60;
+    startTime = await getValidatorTime() - 60;
     endTime   = startTime + 300;
 
     [streamPda] = PublicKey.findProgramAddressSync(
@@ -273,7 +279,7 @@ describe("blockbite", () => {
     const fwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwR, fwMint, fwR.publicKey)).address;
     await mintTo(provider.connection, fwC, fwMint, fwCTA, fwC, 1_000_000);
 
-    const now     = Math.floor(Date.now() / 1000);
+    const now     = await getValidatorTime();
     const fwStart = now - 200;
     const fwEnd   = now - 50;
 
@@ -317,8 +323,8 @@ describe("blockbite", () => {
     const dwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwR, dwMint, dwR.publicKey)).address;
     await mintTo(provider.connection, dwC, dwMint, dwCTA, dwC, 1_000_000);
 
-    const dwStart = Math.floor(Date.now() / 1000) - 200; // already fully vested
-    const dwEnd   = Math.floor(Date.now() / 1000) - 50;
+    const dwStart = await getValidatorTime() - 200; // already fully vested
+    const dwEnd   = await getValidatorTime() - 50;
 
     const [dwStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), dwC.publicKey.toBuffer(), dwR.publicKey.toBuffer(),
@@ -400,7 +406,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) + 60; // future start — stream hasn't begun
+    const cStart = await getValidatorTime() + 60; // future start — stream hasn't begun
     const cEnd   = cStart + 100;
 
     const [cStream] = PublicKey.findProgramAddressSync(
@@ -474,7 +480,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) - 20;
+    const cStart = await getValidatorTime() - 20;
     const cEnd   = cStart + 100;
 
     const [cStream] = PublicKey.findProgramAddressSync(
@@ -540,7 +546,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(0, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 4, false),
+      data: createStreamData(0, await getValidatorTime(), await getValidatorTime() + 100, 0, 4, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [zc]);
@@ -583,7 +589,7 @@ describe("blockbite", () => {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
       programId,
-      data: createStreamData(1_000_000, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000) + 100, 0, 5, false),
+      data: createStreamData(1_000_000, await getValidatorTime(), await getValidatorTime() + 100, 0, 5, false),
     });
     try {
       await provider.sendAndConfirm(new Transaction().add(ix), [sc]);
@@ -614,7 +620,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000);
+    const cStart = await getValidatorTime();
     const cEnd   = cStart + 100;
 
     const [cStream] = PublicKey.findProgramAddressSync(
@@ -666,7 +672,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000);
+    const cStart = await getValidatorTime();
     const cEnd   = cStart + 300;
     const cliff  = cStart + 120; // far future — validator clock won't reach it during this test
 
@@ -715,7 +721,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
 
-    const cStart = Math.floor(Date.now() / 1000) - 120;
+    const cStart = await getValidatorTime() - 120;
     const cEnd   = cStart + 300;
     const cliff  = cStart + 60; // well in the past — validator clock is definitely past it
 
@@ -734,7 +740,7 @@ describe("blockbite", () => {
       cStart, cEnd, TOTAL_AMOUNT, 8, provider, cliff, false,
     );
 
-    const waitMs = (cliff - Math.floor(Date.now() / 1000) + 2) * 1000;
+    const waitMs = (cliff - await getValidatorTime() + 2) * 1000;
     if (waitMs > 0) await new Promise((r) => setTimeout(r, waitMs));
 
     const wIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
@@ -765,7 +771,7 @@ describe("blockbite", () => {
 
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
-    const mStart = Math.floor(Date.now() / 1000) - 10;
+    const mStart = await getValidatorTime() - 10;
     const mEnd   = mStart + 100;
     const mCliff = mStart - 1;
 
@@ -846,7 +852,7 @@ describe("blockbite", () => {
     await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_000_000);
 
     // Stream already fully vested at creation time — no waiting needed
-    const now    = Math.floor(Date.now() / 1000);
+    const now    = await getValidatorTime();
     const fStart = now - 200;
     const fEnd   = now - 50;
 
@@ -900,7 +906,7 @@ describe("blockbite", () => {
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
     await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = await getValidatorTime();
     const [iStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), ic.publicKey.toBuffer(), ir.publicKey.toBuffer(),
        Buffer.from(new Uint8Array(new BigUint64Array([BigInt(11)]).buffer))],
@@ -946,7 +952,7 @@ describe("blockbite", () => {
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
     await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
 
-    const now = Math.floor(Date.now() / 1000);
+    const now = await getValidatorTime();
     const [iStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), ic.publicKey.toBuffer(), ir.publicKey.toBuffer(),
        Buffer.from(new Uint8Array(new BigUint64Array([BigInt(12)]).buffer))],
@@ -999,7 +1005,7 @@ describe("blockbite", () => {
     const nrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nr, nMint, nr.publicKey)).address;
     await mintTo(provider.connection, nc, nMint, ncTA, nc, 1_000_000);
 
-    const now    = Math.floor(Date.now() / 1000);
+    const now    = await getValidatorTime();
     const nStart = now + 10_000;
     const nEnd   = nStart + 100;
 
@@ -1045,7 +1051,7 @@ describe("blockbite", () => {
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
-    const now    = Math.floor(Date.now() / 1000);
+    const now    = await getValidatorTime();
     const mCliff = now - 1;
 
     const [mStream] = PublicKey.findProgramAddressSync(
@@ -1100,7 +1106,7 @@ describe("blockbite", () => {
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
-    const now    = Math.floor(Date.now() / 1000);
+    const now    = await getValidatorTime();
     const mCliff = now - 1;
 
     const [mStream] = PublicKey.findProgramAddressSync(
@@ -1157,7 +1163,7 @@ describe("blockbite", () => {
     const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
 
-    const now    = Math.floor(Date.now() / 1000);
+    const now    = await getValidatorTime();
     const mCliff = now + 100;
 
     const [mStream] = PublicKey.findProgramAddressSync(

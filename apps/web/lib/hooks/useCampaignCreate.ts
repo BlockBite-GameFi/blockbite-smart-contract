@@ -10,7 +10,7 @@ import {
   deriveCampaignPDA,
   deriveMilestonePDA,
   type SendTx,
-} from '@blockbite/clients';
+} from '@/lib/anchor/campaign-client';
 import { BN } from '@coral-xyz/anchor';
 
 export type CampaignCreateStatus = 'idle' | 'creating' | 'done' | 'error';

@@ -6,9 +6,10 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { PublicKey } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
-import { RPC_URL, USDC_MINT } from '@/lib/solana/config';
+import { RPC_URL } from '@/lib/solana/config';
 import { useCampaignCreate } from '@/lib/hooks/useCampaignCreate';
-import { toUsdcLamports } from '@/lib/solana/config';
+import TokenSelector from '@/components/TokenSelector';
+import { IS_DEVNET } from '@/lib/solana/config';
 
 // ─── Design tokens ───────────────────────────────────────────────────────────────
 const C = {
@@ -144,6 +145,10 @@ function RecipientRow({ r, i, onChange, onRemove }: {
   );
 }
 
+function toLamports(humanAmount: number, decimals: number): bigint {
+  return BigInt(Math.round(humanAmount * 10 ** decimals));
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────────
 export default function CreateCampaignPage() {
   const { connected, publicKey, sendTransaction } = useWallet();
@@ -159,6 +164,12 @@ export default function CreateCampaignPage() {
   const [milestoneAmount, setMilestoneAmount] = useState('');
   const [milestoneDesc, setMilestoneDesc] = useState('');
 
+  // Token selection
+  const [selectedMint, setSelectedMint] = useState('');
+  const [tokenDecimals, setTokenDecimals] = useState(6);
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [tokenError, setTokenError] = useState('');
+
   const { status, error, result, create, reset } = useCampaignCreate();
 
   const totalBudget = Number(budget) || 0;
@@ -170,8 +181,15 @@ export default function CreateCampaignPage() {
     { label: 'Review', icon: '▲' },
   ];
 
+  const handleTokenChange = useCallback((mint: string, decimals: number, symbol: string) => {
+    setSelectedMint(mint);
+    setTokenDecimals(decimals);
+    setTokenSymbol(symbol);
+    setTokenError('');
+  }, []);
+
   const handleLaunch = useCallback(async () => {
-    if (!publicKey) return;
+    if (!publicKey || !selectedMint) return;
 
     const titleHash = new Uint8Array(32);
     const descHash = new Uint8Array(32);
@@ -188,20 +206,20 @@ export default function CreateCampaignPage() {
 
     await create(
       publicKey,
-      USDC_MINT,
-      toUsdcLamports(totalBudget),
+      new PublicKey(selectedMint),
+      toLamports(totalBudget, tokenDecimals),
       titleHash,
       seed,
       [{
         descriptionHash: descHash,
-        tokenAmount: toUsdcLamports(milestoneAmt),
+        tokenAmount: toLamports(milestoneAmt, tokenDecimals),
         gameProgramId,
         recipient: recipientPk,
         milestoneSeed,
       }],
       sendTransaction,
     );
-  }, [publicKey, name, milestoneDesc, totalBudget, milestoneAmt, recipient, gameLevel, sendTransaction, create]);
+  }, [publicKey, selectedMint, name, milestoneDesc, totalBudget, milestoneAmt, tokenDecimals, recipient, gameLevel, sendTransaction, create]);
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (result) {
@@ -314,16 +332,25 @@ export default function CreateCampaignPage() {
                     placeholder="What is this campaign for?" />
                 </div>
                 <div>
-                  <Label>Total Budget (USDC) *</Label>
+                  <Label>Token *</Label>
+                  <TokenSelector
+                    value={selectedMint}
+                    onChange={handleTokenChange}
+                    isDevnet={IS_DEVNET}
+                    error={tokenError || (!selectedMint && step === 0 ? 'Select a token' : undefined)}
+                  />
+                </div>
+                <div>
+                  <Label>Total Budget ({tokenSymbol || 'token'}) *</Label>
                   <Input value={budget} onChange={setBudget} placeholder="500000" type="number" />
                 </div>
-                {totalBudget > 0 && (
+                {totalBudget > 0 && selectedMint && (
                   <div style={{
                     padding: '12px 14px', borderRadius: 10,
                     background: `${C.accent}0a`, border: `1px solid ${C.accent}22`,
                     fontSize: 12, color: C.muted, fontFamily: C.mono,
                   }}>
-                    <span style={{ color: C.gold, fontWeight: 700 }}>{totalBudget.toLocaleString()} USDC</span>
+                    <span style={{ color: C.gold, fontWeight: 700 }}>{totalBudget.toLocaleString()} {tokenSymbol}</span>
                     {' '} will be locked into the campaign escrow PDA.
                   </div>
                 )}
@@ -400,7 +427,7 @@ export default function CreateCampaignPage() {
                     placeholder="e.g. Complete Level 10 of BlockBite" />
                 </div>
                 <div>
-                  <Label>Reward Amount (USDC) *</Label>
+                  <Label>Reward Amount ({tokenSymbol || 'token'}) *</Label>
                   <Input value={milestoneAmount} onChange={setMilestoneAmount} placeholder="10000" type="number" />
                 </div>
                 <div>
@@ -415,7 +442,7 @@ export default function CreateCampaignPage() {
                     border: `1px solid ${milestoneAmt > totalBudget ? C.red : C.green}44`,
                     color: milestoneAmt > totalBudget ? C.red : C.green,
                   }}>
-                    Milestone reward: {milestoneAmt.toLocaleString()} / {totalBudget.toLocaleString()} USDC
+                    Milestone reward: {milestoneAmt.toLocaleString()} / {totalBudget.toLocaleString()} {tokenSymbol}
                     {milestoneAmt > totalBudget ? ' ⚠ exceeds budget' : ' ✓ within budget'}
                   </div>
                 )}
@@ -432,14 +459,15 @@ export default function CreateCampaignPage() {
                     title: 'Campaign', color: C.accent,
                     rows: [
                       { l: 'Name', v: name || '—' },
-                      { l: 'Budget', v: `${totalBudget.toLocaleString()} USDC` },
+                      { l: 'Token', v: tokenSymbol ? `${tokenSymbol} (${selectedMint.slice(0, 8)}…)` : '—' },
+                      { l: 'Budget', v: `${totalBudget.toLocaleString()} ${tokenSymbol}` },
                     ],
                   },
                   {
                     title: 'Milestone', color: C.game,
                     rows: [
                       { l: 'Description', v: milestoneDesc || '—' },
-                      { l: 'Reward', v: `${milestoneAmt.toLocaleString()} USDC` },
+                      { l: 'Reward', v: `${milestoneAmt.toLocaleString()} ${tokenSymbol}` },
                       { l: 'Verification', v: gameGate ? `BlockBite Level ${gameLevel}` : 'None' },
                       { l: 'Recipient', v: recipient ? `${recipient.slice(0, 8)}…${recipient.slice(-6)}` : '—' },
                     ],
@@ -509,12 +537,12 @@ export default function CreateCampaignPage() {
               }}>Continue →</button>
             ) : (
               <button onClick={handleLaunch}
-                disabled={status === 'creating' || !connected}
+                disabled={status === 'creating' || !connected || !selectedMint}
                 style={{
                   padding: '11px 32px', borderRadius: 11, border: 'none',
-                  background: status === 'creating' ? C.muted : `linear-gradient(135deg,${C.gold}cc,#a36a17)`,
+                  background: status === 'creating' || !selectedMint ? C.muted : `linear-gradient(135deg,${C.gold}cc,#a36a17)`,
                   color: status === 'creating' ? '#fff' : '#0b0a14', fontWeight: 900, fontSize: 14,
-                  cursor: status === 'creating' || !connected ? 'not-allowed' : 'pointer',
+                  cursor: status === 'creating' || !connected || !selectedMint ? 'not-allowed' : 'pointer',
                   boxShadow: `0 0 20px ${C.gold}44`, fontFamily: C.serif, letterSpacing: '.02em',
                 }}>
                 {status === 'creating' ? 'Deploying…' : '▲ Launch Campaign'}
@@ -533,8 +561,9 @@ export default function CreateCampaignPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
                 { l: 'Name', v: name || '—', c: '#e8e1f8' },
-                { l: 'Budget', v: `${totalBudget.toLocaleString()} USDC`, c: C.green },
-                { l: 'Milestone', v: `${milestoneAmt.toLocaleString()} USDC`, c: C.game },
+                { l: 'Token', v: tokenSymbol || '—', c: C.accent },
+                { l: 'Budget', v: `${totalBudget.toLocaleString()} ${tokenSymbol}`, c: C.green },
+                { l: 'Milestone', v: `${milestoneAmt.toLocaleString()} ${tokenSymbol}`, c: C.game },
                 { l: 'Game Gate', v: gameGate ? `Level ${gameLevel}` : 'OFF', c: gameGate ? C.game : C.muted },
               ].map(r => (
                 <div key={r.l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
@@ -577,6 +606,7 @@ export default function CreateCampaignPage() {
               <div>✓ Campaign escrow PDA vault</div>
               <div>✓ Game-verified milestone unlock</div>
               <div>✓ On-chain token claim</div>
+              <div>✓ Any SPL token supported</div>
             </div>
           </div>
         </div>

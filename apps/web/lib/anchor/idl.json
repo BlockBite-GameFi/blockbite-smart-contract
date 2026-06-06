@@ -1,0 +1,112 @@
+{
+  "address": "Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq",
+  "metadata": {
+    "name": "blockbite",
+    "version": "1.0.0-devnet",
+    "spec": "0.1.0",
+    "description": "BlockBite TDP — deployed devnet program (slot 463647969, 2026-05-20)"
+  },
+  "instructions": [
+    {
+      "name": "create_stream",
+      "docs": ["Lock tokens into PDA escrow. 1% dev fee charged to developer_token_account."],
+      "discriminator": [71, 188, 111, 127, 108, 40, 229, 158],
+      "accounts": [
+        { "name": "creator",                "writable": true,  "signer": true  },
+        { "name": "recipient" },
+        { "name": "mint" },
+        { "name": "creator_token_account",  "writable": true  },
+        { "name": "escrow_token_account",   "writable": true  },
+        { "name": "stream",                 "writable": true  },
+        { "name": "developer_token_account","writable": true  },
+        { "name": "token_program",  "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "total_amount", "type": "u64" },
+        { "name": "start_time",   "type": "i64" },
+        { "name": "end_time",     "type": "i64" },
+        { "name": "cliff_time",   "type": "i64" },
+        { "name": "seed",         "type": "u64" }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": ["Recipient claims vested tokens. VGPV anti-bot check applies."],
+      "discriminator": [183, 18, 70, 156, 148, 109, 161, 34],
+      "accounts": [
+        { "name": "recipient",               "writable": true, "signer": true },
+        { "name": "stream",                  "writable": true },
+        { "name": "mint" },
+        { "name": "escrow_token_account",    "writable": true },
+        { "name": "recipient_token_account", "writable": true },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancel",
+      "docs": ["Creator cancels — vested portion to recipient, rest returns to creator."],
+      "discriminator": [232, 219, 223, 41, 219, 236, 220, 190],
+      "accounts": [
+        { "name": "creator",                "writable": true, "signer": true },
+        { "name": "stream",                 "writable": true },
+        { "name": "mint" },
+        { "name": "escrow_token_account",   "writable": true },
+        { "name": "creator_token_account",  "writable": true },
+        { "name": "recipient_token_account","writable": true },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_milestone",
+      "docs": ["Creator marks milestone reached — enables linear vesting when cliff_time > 0."],
+      "discriminator": [174, 213, 91, 82, 156, 42, 105, 3],
+      "accounts": [
+        { "name": "creator", "signer": true },
+        { "name": "stream",  "writable": true }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "StreamAccount",
+      "discriminator": [0, 0, 0, 0, 0, 0, 0, 0],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "creator",              "type": "pubkey" },
+          { "name": "recipient",            "type": "pubkey" },
+          { "name": "mint",                 "type": "pubkey" },
+          { "name": "escrow_token_account", "type": "pubkey" },
+          { "name": "total_amount",         "type": "u64" },
+          { "name": "amount_withdrawn",     "type": "u64" },
+          { "name": "start_time",           "type": "i64" },
+          { "name": "end_time",             "type": "i64" },
+          { "name": "cliff_time",           "type": "i64" },
+          { "name": "is_cancelled",         "type": "bool" },
+          { "name": "bump",                 "type": "u8" },
+          { "name": "seed",                 "type": "u64" },
+          { "name": "milestone_reached",    "type": "bool" },
+          { "name": "velocity_strikes",     "type": "u8" },
+          { "name": "last_action_ts",       "type": "i64" }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidAmount",      "msg": "Amount must be > 0" },
+    { "code": 6001, "name": "InvalidTimestamp",   "msg": "Invalid timestamps" },
+    { "code": 6002, "name": "Unauthorized",       "msg": "Unauthorized" },
+    { "code": 6003, "name": "StreamCancelled",    "msg": "Stream cancelled" },
+    { "code": 6004, "name": "NothingToWithdraw",  "msg": "Nothing to withdraw" },
+    { "code": 6005, "name": "AlreadyCancelled",   "msg": "Already cancelled" },
+    { "code": 6006, "name": "FullyVested",        "msg": "Stream is fully vested" },
+    { "code": 6007, "name": "StreamNotStarted",   "msg": "Stream not started" },
+    { "code": 6008, "name": "InvalidRecipient",   "msg": "Recipient cannot be creator" },
+    { "code": 6009, "name": "VelocityBan",        "msg": "VGPV: too many rapid actions" },
+    { "code": 6010, "name": "MinClaimAmount",     "msg": "Below minimum claim amount (1000 base units)" }
+  ]
+}

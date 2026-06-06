@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { getAccount } from '@solana/spl-token';
 import { RPC_URL } from '@/lib/solana/config';
 import {
   fetchCampaign,
@@ -13,8 +14,10 @@ import {
   deriveCampaignEscrowPDA,
   type CampaignInfo,
   type MilestoneInfo,
-} from '@blockbite/clients';
+} from '@/lib/anchor/campaign-client';
 import { useMilestoneAction } from '@/lib/hooks/useMilestoneAction';
+import { KNOWN_DEVNET_TOKENS, KNOWN_MAINNET_TOKENS } from '@/lib/solana/token-registry';
+import { IS_DEVNET } from '@/lib/solana/config';
 import { T } from '@/lib/theme';
 
 export default function CampaignDetailPage() {
@@ -27,6 +30,11 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Token info fetched from escrow
+  const [tokenMint, setTokenMint] = useState<PublicKey | null>(null);
+  const [tokenSymbol, setTokenSymbol] = useState('');
+  const [tokenDecimals, setTokenDecimals] = useState(6);
 
   const { status, error: actionError, claimMilestoneAction } = useMilestoneAction();
 
@@ -54,6 +62,34 @@ export default function CampaignDetailPage() {
 
       const ms = await getMilestonesByCampaign(connection, campaignPda);
       setMilestones(ms);
+
+      // Fetch token mint from escrow account
+      const [campaignEscrow] = deriveCampaignEscrowPDA(campaignPda);
+      try {
+        const escrowInfo = await getAccount(connection, campaignEscrow);
+        setTokenMint(escrowInfo.mint);
+
+        // Look up symbol from registry
+        const mintStr = escrowInfo.mint.toBase58();
+        const known = IS_DEVNET ? KNOWN_DEVNET_TOKENS[mintStr] : KNOWN_MAINNET_TOKENS[mintStr];
+        if (known) {
+          setTokenSymbol(known.symbol);
+          setTokenDecimals(known.decimals);
+        } else {
+          setTokenSymbol(mintStr.slice(0, 6) + '…');
+          // Fetch decimals from chain
+          const mintInfo = await connection.getParsedAccountInfo(escrowInfo.mint);
+          if (mintInfo.value) {
+            const data = mintInfo.value.data as any;
+            if (data.parsed?.info?.decimals != null) {
+              setTokenDecimals(data.parsed.info.decimals);
+            }
+          }
+        }
+      } catch {
+        // Escrow not created yet or not a token account
+        setTokenSymbol('???');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'RPC error');
     } finally { setLoading(false); }
@@ -84,16 +120,24 @@ export default function CampaignDetailPage() {
 
   function fmtBudget(n: CampaignInfo['totalBudget']): string {
     const raw = BigInt(n.toString());
-    return (raw / 1_000_000n).toLocaleString();
+    const divisor = BigInt(10 ** tokenDecimals);
+    const whole = raw / divisor;
+    const frac = raw % divisor;
+    const fracStr = frac.toString().padStart(tokenDecimals, '0').slice(0, 2);
+    return `${whole.toLocaleString()}.${fracStr} ${tokenSymbol}`;
   }
 
   function fmtMilestoneAmount(n: MilestoneInfo['tokenAmount']): string {
     const raw = BigInt(n.toString());
-    return (raw / 1_000_000n).toLocaleString();
+    const divisor = BigInt(10 ** tokenDecimals);
+    const whole = raw / divisor;
+    const frac = raw % divisor;
+    const fracStr = frac.toString().padStart(tokenDecimals, '0').slice(0, 2);
+    return `${whole.toLocaleString()}.${fracStr} ${tokenSymbol}`;
   }
 
   const handleClaim = async (ms: MilestoneInfo) => {
-    if (!publicKey || !campaign) return;
+    if (!publicKey || !campaign || !tokenMint) return;
     const campaignSeed = BigInt(0);
     const milestoneSeed = BigInt(0);
 
@@ -103,7 +147,7 @@ export default function CampaignDetailPage() {
       publicKey,
       ms.pubkey,
       campaign.pubkey,
-      new PublicKey('ZLkYWYvM4ZEDcPcvmcxmcgTgvsWRCXqg9ZYyQuf7njU'),
+      tokenMint,
       milestoneSeed,
       campaignSeed,
       sendTransaction,
@@ -160,7 +204,7 @@ export default function CampaignDetailPage() {
             {campaign.pubkey.toBase58().slice(0, 16)}…
           </h1>
           <p style={{ fontSize: 13, color: T.textDim, margin: 0 }}>
-            {campaign.milestoneCount} milestone{campaign.milestoneCount !== 1 ? 's' : ''} · {fmtBudget(campaign.totalBudget)} USDC budget
+            {campaign.milestoneCount} milestone{campaign.milestoneCount !== 1 ? 's' : ''} · {fmtBudget(campaign.totalBudget)} budget
           </p>
         </div>
       </div>
@@ -202,8 +246,8 @@ export default function CampaignDetailPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
                   { l: 'Founder', v: `${campaign.founder.toBase58().slice(0, 8)}…${campaign.founder.toBase58().slice(-6)}`, c: T.accent },
-                  { l: 'Total Budget', v: `${fmtBudget(campaign.totalBudget)} USDC`, c: T.green },
-                  { l: 'Allocated', v: `${fmtBudget(campaign.allocatedAmount)} USDC`, c: T.blue },
+                  { l: 'Total Budget', v: `${fmtBudget(campaign.totalBudget)}`, c: T.green },
+                  { l: 'Allocated', v: `${fmtBudget(campaign.allocatedAmount)}`, c: T.blue },
                   { l: 'Milestones', v: `${campaign.milestoneCount}`, c: T.text },
                 ].map(r => (
                   <div key={r.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${T.border}` }}>
@@ -254,7 +298,7 @@ export default function CampaignDetailPage() {
                           Milestone {idx + 1}
                         </div>
                         <div style={{ fontFamily: T.mono, fontSize: 11.5, color: isGameVerified ? T.green : T.textDim }}>
-                          {fmtMilestoneAmount(ms.tokenAmount)} USDC · {isGameVerified ? 'Verified' : 'Pending'}
+                          {fmtMilestoneAmount(ms.tokenAmount)} · {isGameVerified ? 'Verified' : 'Pending'}
                         </div>
                       </div>
                       {isGameVerified && (

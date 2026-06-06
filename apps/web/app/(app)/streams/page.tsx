@@ -10,7 +10,7 @@ import {
   getStreamsByBeneficiary,
   computeUnlocked,
   StreamInfo,
-} from '@blockbite/clients';
+} from '@/lib/anchor/vesting-client';
 import { BN } from '@coral-xyz/anchor';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';

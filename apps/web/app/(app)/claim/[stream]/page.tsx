@@ -13,7 +13,7 @@ import {
 import {
   fetchStream, deriveStreamPDA, deriveVaultPDA,
   withdraw, ensureAtaIx, deriveProofCachePDA, computeUnlocked,
-} from '@blockbite/clients';
+} from '@/lib/anchor/vesting-client';
 import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';
 

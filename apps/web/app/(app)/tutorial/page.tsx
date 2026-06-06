@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import GameCanvas from '@/components/game/GameCanvas';
 import { BIOMES } from '@/lib/game/biomes';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { getStreamsByAuthority } from '@blockbite/clients';
+import { getStreamsByAuthority } from '@/lib/anchor/vesting-client';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
 import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';

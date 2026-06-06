@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
-import { getAllStreams } from '@blockbite/clients';
+import { getAllStreams } from '@/lib/anchor/vesting-client';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
 import { useApp } from '@/lib/useApp';

@@ -8,7 +8,7 @@ import {
   submitProof,
   verifyGame,
   type SendTx,
-} from '@blockbite/clients';
+} from '@/lib/anchor/campaign-client';
 
 export type CampaignVerificationStatus = 'none' | 'playing' | 'submitting_proof' | 'verifying' | 'verified' | 'failed';
 

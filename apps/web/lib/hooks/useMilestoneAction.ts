@@ -10,7 +10,7 @@ import {
   verifyGame,
   deriveCampaignEscrowPDA,
   type SendTx,
-} from '@blockbite/clients';
+} from '@/lib/anchor/campaign-client';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 
 export type MilestoneActionStatus = 'idle' | 'submitting' | 'verifying' | 'claiming' | 'done' | 'error';

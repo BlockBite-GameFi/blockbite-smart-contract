@@ -12,7 +12,7 @@ import {
   getMilestonesByCampaign,
   type CampaignInfo,
   type MilestoneInfo,
-} from '@blockbite/clients';
+} from '@/lib/anchor/campaign-client';
 import { T } from '@/lib/theme';
 
 export default function CampaignsPage() {

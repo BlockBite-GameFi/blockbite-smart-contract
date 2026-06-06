@@ -11,7 +11,7 @@ import {
   VESTING_PROGRAM_ID, deriveStreamPDA, deriveVaultPDA,
   fetchStream, cancelStream,
   getStreamsByAuthority, getStreamsByBeneficiary,
-} from '@blockbite/clients';
+} from '@/lib/anchor/vesting-client';
 
 // ── Brand tokens ────────────────────────────────────────────────────────────
 const MAGENTA = '#b12c84';

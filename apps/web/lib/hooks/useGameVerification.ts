@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { setMilestone, type SendTx } from '@blockbite/clients';
+import { setMilestone, type SendTx } from '@/lib/anchor/vesting-client';
 import { Connection } from '@solana/web3.js';
 import { RPC_URL } from '@/lib/solana/config';
 

@@ -19,7 +19,7 @@ import {
   deriveVaultPDA,
   deriveProofCachePDA,
   StreamInfo,
-} from '@blockbite/clients';
+} from '@/lib/anchor/vesting-client';
 import { useGameVerification } from '@/lib/hooks/useGameVerification';
 import { useRouter } from 'next/navigation';
 
