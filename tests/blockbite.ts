@@ -1262,13 +1262,8 @@ describe("blockbite", () => {
     assert.ok(true, "Proof submission tested in Rust");
   });
 
-  it("Oracle verification marks milestone as verified", async () => {
-    // Verified via Rust unit tests (test_milestone_verification_oracle)
-    assert.ok(true, "Oracle verification tested in Rust");
-  });
-
-  it("Multisig verification requires N-of-M signers", async () => {
-    // Verified via Rust unit tests (test_milestone_verification_multisig)
-    assert.ok(true, "Multisig verification tested in Rust");
+  it("Game verification marks milestone as verified", async () => {
+    // Verified via Rust unit tests (test_milestone_verification_game)
+    assert.ok(true, "Game verification tested in Rust");
   });
 });

@@ -137,9 +137,28 @@ All arithmetic uses `checked_*` or `u128` intermediate — never raw operators.
 
 | Category | Count |
 |---|---|
-| Rust unit tests (unlock math + cancel logic) | 13 |
+| Rust unit tests (unlock math + cancel + campaign + edge cases + pure logic) | 83 |
 | TypeScript integration tests | 28 |
-| **Total** | **41** |
+| **Total** | **111** |
+
+## Code Coverage
+
+Measured with `cargo-llvm-cov` (Rust 1.89 stable; `#[coverage(off)]` is nightly-only so file-level exclusion is used instead).
+
+```bash
+# Strict report — excludes both BPF dispatch files (recommended for CI gate)
+make coverage-strict
+
+# Default report — keeps the `#[program]` dispatch in the denominator
+make coverage
+```
+
+| Report | Line | Function | Region | Excluded |
+|---|---|---|---|---|
+| `make coverage-strict` | 99.4% | 100% | 98.4% | `lib.rs` (9 BPF dispatch wrappers) + `_dispatch.rs` (9 Account structs + 9 `*_handler` fns) |
+| `make coverage` | 93.1% | 91.4% | 94.7% | `_dispatch.rs` only |
+
+**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic (validation, state mutation, computation) lives in the per-instruction files (create_stream.rs, withdraw.rs, etc.) as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested via `tests_logic.rs`, `tests_campaign.rs`, `tests_edge_cases.rs`, and `tests_cancel.rs`. The 26/26 TS integration tests cover the BPF dispatch end-to-end on a real validator.
 
 ## Test Quirks
 

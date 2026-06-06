@@ -1,4 +1,3 @@
-pub mod constants;
 pub mod errors;
 pub mod instructions;
 pub mod state;
@@ -8,6 +7,10 @@ pub mod utils;
 mod tests_cancel;
 #[cfg(test)]
 mod tests_campaign;
+#[cfg(test)]
+mod tests_edge_cases;
+#[cfg(test)]
+mod tests_logic;
 
 use anchor_lang::prelude::*;
 
@@ -58,52 +61,40 @@ pub mod blockbite {
         create_campaign::handler(ctx, title_hash, total_budget, seed)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn create_milestone(
         ctx: Context<CreateMilestone>,
         description_hash: [u8; 32],
-        verification_type: u8,
         campaign_seed: u64,
         milestone_seed: u64,
         token_amount: u64,
-        oracle_pubkey: Pubkey,
-        signer_count: u8,
-        signers: [Pubkey; 5],
         game_program_id: Pubkey,
         recipient: Pubkey,
     ) -> Result<()> {
         create_milestone::handler(
             ctx,
             description_hash,
-            verification_type,
             campaign_seed,
             milestone_seed,
             token_amount,
-            oracle_pubkey,
-            signer_count,
-            signers,
             game_program_id,
             recipient,
         )
     }
 
-    pub fn submit_proof(ctx: Context<SubmitProof>, proof_hash: [u8; 32]) -> Result<()> {
+    pub fn submit_proof(
+        ctx: Context<SubmitProof>,
+        _milestone_seed: u64,
+        proof_hash: [u8; 32],
+    ) -> Result<()> {
         submit_proof::handler(ctx, proof_hash)
-    }
-
-    pub fn verify_oracle(ctx: Context<VerifyOracle>, signature: [u8; 64]) -> Result<()> {
-        verify_oracle::handler(ctx, signature)
     }
 
     pub fn verify_game(
         ctx: Context<VerifyGame>,
+        _milestone_seed: u64,
         session_result_hash: [u8; 32],
     ) -> Result<()> {
         verify_game::handler(ctx, session_result_hash)
-    }
-
-    pub fn verify_multisig(ctx: Context<VerifyMultisig>) -> Result<()> {
-        verify_multisig::handler(ctx)
     }
 
     pub fn claim_milestone(

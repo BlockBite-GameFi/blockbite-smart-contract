@@ -5,7 +5,7 @@
  *
  * Campaign flow:
  *   1. Founder creates campaign → funds escrow
- *   2. Founder adds milestones (verification_type = 1 = GAME)
+ *   2. Founder adds milestones (verified via declared game program)
  *   3. Recipient submits proof hash
  *   4. Game verification marks milestone as verified
  *   5. Recipient claims tokens from escrow
@@ -31,11 +31,8 @@ export const CAMPAIGN_PROGRAM_ID = new PublicKey(
   'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
 );
 
-export const VERIFICATION_GAME = 1;
-export const MAX_SIGNERS = 5;
-
 export const CAMPAIGN_ACCOUNT_SIZE = 90;
-export const MILESTONE_ACCOUNT_SIZE = 372;
+export const MILESTONE_ACCOUNT_SIZE = 180;
 
 // Instruction discriminators: sha256("global:<name>")[0..8]
 const DISC_CREATE_CAMPAIGN  = Buffer.from([111, 131, 187, 98, 160, 193, 114, 244]);
@@ -94,14 +91,12 @@ export interface MilestoneInfo {
   campaign:         PublicKey;
   recipient:        PublicKey;
   descriptionHash:  Uint8Array;
-  verificationType: number;
-  oraclePubkey:     PublicKey;
-  signerCount:      number;
-  signers:          PublicKey[];
   gameProgramId:    PublicKey;
   tokenAmount:      BN;
   isVerified:       boolean;
   proofHash:        Uint8Array;
+  proofSubmitted:   boolean;
+  isClaimed:        boolean;
   bump:             number;
 }
 
@@ -137,23 +132,16 @@ function decodeMilestone(pubkey: PublicKey, rawData: Uint8Array): MilestoneInfo 
     const campaign        = new PublicKey(data.slice(off, off + 32)); off += 32;
     const recipient       = new PublicKey(data.slice(off, off + 32)); off += 32;
     const descriptionHash = new Uint8Array(data.slice(off, off + 32)); off += 32;
-    const verificationType = data[off]; off += 1;
-    const oraclePubkey    = new PublicKey(data.slice(off, off + 32)); off += 32;
-    const signerCount     = data[off]; off += 1;
-    const signers: PublicKey[] = [];
-    for (let i = 0; i < MAX_SIGNERS; i++) {
-      signers.push(new PublicKey(data.slice(off, off + 32)));
-      off += 32;
-    }
     const gameProgramId   = new PublicKey(data.slice(off, off + 32)); off += 32;
     const tokenAmount     = new BN(data.readBigUInt64LE(off).toString()); off += 8;
     const isVerified      = data[off] !== 0; off += 1;
     const proofHash       = new Uint8Array(data.slice(off, off + 32)); off += 32;
+    const proofSubmitted  = data[off] !== 0; off += 1;
+    const isClaimed       = data[off] !== 0; off += 1;
     const bump            = data[off];
     return {
-      pubkey, campaign, recipient, descriptionHash, verificationType,
-      oraclePubkey, signerCount, signers, gameProgramId, tokenAmount,
-      isVerified, proofHash, bump,
+      pubkey, campaign, recipient, descriptionHash, gameProgramId, tokenAmount,
+      isVerified, proofHash, proofSubmitted, isClaimed, bump,
     };
   } catch {
     return null;
@@ -279,30 +267,20 @@ function mkCreateMilestoneIx(
   campaignPDA: PublicKey,
   milestonePDA: PublicKey,
   descriptionHash: Uint8Array,
-  verificationType: number,
   campaignSeed: bigint,
   milestoneSeed: bigint,
   tokenAmount: bigint,
-  oraclePubkey: PublicKey,
-  signerCount: number,
-  signers: PublicKey[],
   gameProgramId: PublicKey,
   recipient: PublicKey,
 ): TransactionInstruction {
-  const data = Buffer.alloc(322);
+  const data = Buffer.alloc(128);
   DISC_CREATE_MILESTONE.copy(data, 0);
   Buffer.from(descriptionHash).copy(data, 8);
-  data[40] = verificationType;
-  data.writeBigUInt64LE(campaignSeed, 41);
-  data.writeBigUInt64LE(milestoneSeed, 49);
-  data.writeBigUInt64LE(tokenAmount, 57);
-  oraclePubkey.toBuffer().copy(data, 65);
-  data[97] = signerCount;
-  for (let i = 0; i < MAX_SIGNERS; i++) {
-    signers[i].toBuffer().copy(data, 98 + i * 32);
-  }
-  gameProgramId.toBuffer().copy(data, 258);
-  recipient.toBuffer().copy(data, 290);
+  data.writeBigUInt64LE(campaignSeed, 40);
+  data.writeBigUInt64LE(milestoneSeed, 48);
+  data.writeBigUInt64LE(tokenAmount, 56);
+  gameProgramId.toBuffer().copy(data, 64);
+  recipient.toBuffer().copy(data, 96);
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
@@ -317,16 +295,20 @@ function mkCreateMilestoneIx(
 
 function mkSubmitProofIx(
   recipient: PublicKey,
+  campaign: PublicKey,
   milestonePDA: PublicKey,
+  milestoneSeed: bigint,
   proofHash: Uint8Array,
 ): TransactionInstruction {
-  const data = Buffer.alloc(40);
+  const data = Buffer.alloc(48);
   DISC_SUBMIT_PROOF.copy(data, 0);
-  Buffer.from(proofHash).copy(data, 8);
+  data.writeBigUInt64LE(milestoneSeed, 8);
+  Buffer.from(proofHash).copy(data, 16);
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
       { pubkey: recipient,    isSigner: true,  isWritable: true  },
+      { pubkey: campaign,     isSigner: false, isWritable: false },
       { pubkey: milestonePDA, isSigner: false, isWritable: true  },
     ],
     data,
@@ -334,16 +316,20 @@ function mkSubmitProofIx(
 }
 
 function mkVerifyGameIx(
+  campaign: PublicKey,
   milestonePDA: PublicKey,
   gameProgram: PublicKey,
+  milestoneSeed: bigint,
   sessionResultHash: Uint8Array,
 ): TransactionInstruction {
-  const data = Buffer.alloc(40);
+  const data = Buffer.alloc(48);
   DISC_VERIFY_GAME.copy(data, 0);
-  Buffer.from(sessionResultHash).copy(data, 8);
+  data.writeBigUInt64LE(milestoneSeed, 8);
+  Buffer.from(sessionResultHash).copy(data, 16);
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
+      { pubkey: campaign,     isSigner: false, isWritable: false },
       { pubkey: milestonePDA, isSigner: false, isWritable: true  },
       { pubkey: gameProgram,  isSigner: false, isWritable: false },
     ],
@@ -430,11 +416,8 @@ export async function createMilestone(p: CreateMilestoneParams): Promise<string>
   const tx = new Transaction();
   tx.add(mkCreateMilestoneIx(
     p.founder, p.campaignPDA, p.milestonePDA,
-    p.descriptionHash, VERIFICATION_GAME,
+    p.descriptionHash,
     p.campaignSeed, p.milestoneSeed, p.tokenAmount,
-    PublicKey.default,
-    0,
-    Array(MAX_SIGNERS).fill(PublicKey.default),
     p.gameProgramId,
     p.recipient,
   ));
@@ -451,14 +434,18 @@ export async function createMilestone(p: CreateMilestoneParams): Promise<string>
 export interface SubmitProofParams {
   connection:      Connection;
   recipient:       PublicKey;
+  campaign:        PublicKey;
   milestonePDA:    PublicKey;
+  milestoneSeed:   bigint;
   proofHash:       Uint8Array;
   sendTransaction: SendTx;
 }
 
 export async function submitProof(p: SubmitProofParams): Promise<string> {
   const tx = new Transaction();
-  tx.add(mkSubmitProofIx(p.recipient, p.milestonePDA, p.proofHash));
+  tx.add(mkSubmitProofIx(
+    p.recipient, p.campaign, p.milestonePDA, p.milestoneSeed, p.proofHash,
+  ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;
@@ -471,15 +458,19 @@ export async function submitProof(p: SubmitProofParams): Promise<string> {
 
 export interface VerifyGameParams {
   connection:         Connection;
+  campaign:           PublicKey;
   milestonePDA:       PublicKey;
   gameProgram:        PublicKey;
+  milestoneSeed:      bigint;
   sessionResultHash:  Uint8Array;
   sendTransaction:    SendTx;
 }
 
 export async function verifyGame(p: VerifyGameParams): Promise<string> {
   const tx = new Transaction();
-  tx.add(mkVerifyGameIx(p.milestonePDA, p.gameProgram, p.sessionResultHash));
+  tx.add(mkVerifyGameIx(
+    p.campaign, p.milestonePDA, p.gameProgram, p.milestoneSeed, p.sessionResultHash,
+  ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;

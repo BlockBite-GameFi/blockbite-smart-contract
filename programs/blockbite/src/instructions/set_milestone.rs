@@ -1,26 +1,13 @@
 use anchor_lang::prelude::*;
 
 use crate::state::StreamAccount;
-use crate::errors::ErrorCode;
 
-#[derive(Accounts)]
-pub struct SetMilestone<'info> {
-    #[account(mut)]
-    pub creator: Signer<'info>,
+pub(crate) use super::_dispatch::__client_accounts_set_milestone;
+pub use super::_dispatch::{SetMilestone, set_milestone_handler as handler};
 
-    #[account(
-        mut,
-        seeds = [b"stream", stream.creator.as_ref(), stream.recipient.as_ref(), &stream.seed.to_le_bytes()],
-        bump = stream.bump,
-        constraint = stream.creator == creator.key() @ ErrorCode::Unauthorized,
-        constraint = !stream.milestone_reached @ ErrorCode::MilestoneAlreadyReached,
-        constraint = !stream.is_cancelled @ ErrorCode::StreamCancelled,
-    )]
-    pub stream: Box<Account<'info, StreamAccount>>,
-}
-
-pub fn handler(ctx: Context<SetMilestone>) -> Result<()> {
-    ctx.accounts.stream.milestone_reached = true;
-    ctx.accounts.stream.milestone_enabled = true;
-    Ok(())
+/// Pure milestone flip — used by `handler` and unit tests.
+/// Sets `milestone_reached = true` and forces `milestone_enabled = true`.
+pub fn set_milestone_reached(stream: &mut StreamAccount) {
+    stream.milestone_reached = true;
+    stream.milestone_enabled = true;
 }

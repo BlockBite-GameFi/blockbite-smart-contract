@@ -1,3 +1,4 @@
+pub mod _dispatch;
 pub mod cancel;
 pub mod claim_milestone;
 pub mod close_stream;
@@ -7,8 +8,6 @@ pub mod create_stream;
 pub mod set_milestone;
 pub mod submit_proof;
 pub mod verify_game;
-pub mod verify_multisig;
-pub mod verify_oracle;
 pub mod withdraw;
 
 pub use cancel::*;
@@ -20,6 +19,4 @@ pub use create_stream::*;
 pub use set_milestone::*;
 pub use submit_proof::*;
 pub use verify_game::*;
-pub use verify_multisig::*;
-pub use verify_oracle::*;
 pub use withdraw::*;

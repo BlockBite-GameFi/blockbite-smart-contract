@@ -1,5 +1,4 @@
 use crate::state::{CampaignAccount, MilestoneAccount};
-use crate::constants::{MAX_SIGNERS, VERIFICATION_GAME};
 use anchor_lang::prelude::Pubkey;
 
 fn make_campaign(
@@ -19,23 +18,19 @@ fn make_campaign(
 fn make_milestone(
     campaign: Pubkey,
     recipient: Pubkey,
-    verification_type: u8,
     token_amount: u64,
-    oracle_pubkey: Pubkey,
     game_program_id: Pubkey,
 ) -> MilestoneAccount {
     MilestoneAccount {
         campaign,
         recipient,
         description_hash: [2u8; 32],
-        verification_type,
-        oracle_pubkey,
-        signer_count: 0,
-        signers: [Pubkey::default(); MAX_SIGNERS],
         game_program_id,
         token_amount,
         is_verified: false,
         proof_hash: [0u8; 32],
+        proof_submitted: false,
+        is_claimed: false,
         bump: 0,
     }
 }
@@ -56,12 +51,13 @@ fn test_milestone_initial_state() {
     let recipient = Pubkey::new_unique();
     let game = Pubkey::new_unique();
 
-    let milestone = make_milestone(campaign, recipient, VERIFICATION_GAME, 5_000, Pubkey::default(), game);
+    let milestone = make_milestone(campaign, recipient, 5_000, game);
     assert_eq!(milestone.campaign, campaign);
     assert_eq!(milestone.recipient, recipient);
-    assert_eq!(milestone.verification_type, VERIFICATION_GAME);
     assert_eq!(milestone.token_amount, 5_000);
     assert!(!milestone.is_verified);
+    assert!(!milestone.proof_submitted);
+    assert!(!milestone.is_claimed);
     assert_eq!(milestone.proof_hash, [0u8; 32]);
 }
 
@@ -71,7 +67,7 @@ fn test_milestone_proof_submission() {
     let recipient = Pubkey::new_unique();
     let game = Pubkey::new_unique();
 
-    let mut milestone = make_milestone(campaign, recipient, VERIFICATION_GAME, 5_000, Pubkey::default(), game);
+    let mut milestone = make_milestone(campaign, recipient, 5_000, game);
     let proof = [42u8; 32];
     milestone.proof_hash = proof;
     assert_eq!(milestone.proof_hash, proof);
@@ -83,11 +79,10 @@ fn test_milestone_verification_game() {
     let recipient = Pubkey::new_unique();
     let game = Pubkey::new_unique();
 
-    let mut milestone = make_milestone(campaign, recipient, VERIFICATION_GAME, 5_000, Pubkey::default(), game);
+    let mut milestone = make_milestone(campaign, recipient, 5_000, game);
     milestone.proof_hash = [42u8; 32];
     milestone.is_verified = true;
     assert!(milestone.is_verified);
-    assert_eq!(milestone.verification_type, VERIFICATION_GAME);
     assert_eq!(milestone.game_program_id, game);
 }
 
@@ -125,11 +120,6 @@ fn test_campaign_budget_overflow_protection() {
 }
 
 #[test]
-fn test_verification_type_constants() {
-    assert_eq!(VERIFICATION_GAME, 1);
-}
-
-#[test]
-fn test_max_signers_constant() {
-    assert_eq!(MAX_SIGNERS, 5);
+fn test_milestone_account_size() {
+    assert_eq!(MilestoneAccount::LEN, 180);
 }

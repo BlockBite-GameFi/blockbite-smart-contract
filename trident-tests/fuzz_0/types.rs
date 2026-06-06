@@ -1193,19 +1193,11 @@ pub mod blockbite {
     pub struct CreateMilestoneInstructionData {
         pub description_hash: [u8; 32],
 
-        pub verification_type: u8,
-
         pub campaign_seed: u64,
 
         pub milestone_seed: u64,
 
         pub token_amount: u64,
-
-        pub oracle_pubkey: Pubkey,
-
-        pub signer_count: u8,
-
-        pub signers: [Pubkey; 5],
 
         pub game_program_id: Pubkey,
 
@@ -1216,19 +1208,11 @@ pub mod blockbite {
         pub fn new(
             description_hash: [u8; 32],
 
-            verification_type: u8,
-
             campaign_seed: u64,
 
             milestone_seed: u64,
 
             token_amount: u64,
-
-            oracle_pubkey: Pubkey,
-
-            signer_count: u8,
-
-            signers: [Pubkey; 5],
 
             game_program_id: Pubkey,
 
@@ -1237,19 +1221,11 @@ pub mod blockbite {
             Self {
                 description_hash,
 
-                verification_type,
-
                 campaign_seed,
 
                 milestone_seed,
 
                 token_amount,
-
-                oracle_pubkey,
-
-                signer_count,
-
-                signers,
 
                 game_program_id,
 
@@ -1626,6 +1602,8 @@ pub mod blockbite {
     pub struct SubmitProofInstructionAccountMetas {
         pub recipient: AccountMeta,
 
+        pub campaign: AccountMeta,
+
         pub milestone: AccountMeta,
     }
 
@@ -1634,13 +1612,17 @@ pub mod blockbite {
     pub struct SubmitProofInstructionAccounts {
         pub recipient: Pubkey,
 
+        pub campaign: Pubkey,
+
         pub milestone: Pubkey,
     }
 
     impl SubmitProofInstructionAccounts {
-        pub fn new(recipient: Pubkey, milestone: Pubkey) -> Self {
+        pub fn new(recipient: Pubkey, campaign: Pubkey, milestone: Pubkey) -> Self {
             Self {
                 recipient,
+
+                campaign,
 
                 milestone,
             }
@@ -1650,12 +1632,14 @@ pub mod blockbite {
     /// Instruction data for SubmitProof
     #[derive(Debug, BorshDeserialize, BorshSerialize, Clone)]
     pub struct SubmitProofInstructionData {
+        pub milestone_seed: u64,
+
         pub proof_hash: [u8; 32],
     }
 
     impl SubmitProofInstructionData {
-        pub fn new(proof_hash: [u8; 32]) -> Self {
-            Self { proof_hash }
+        pub fn new(milestone_seed: u64, proof_hash: [u8; 32]) -> Self {
+            Self { milestone_seed, proof_hash }
         }
     }
 
@@ -1676,6 +1660,8 @@ pub mod blockbite {
         pub fn accounts(mut self, accounts: SubmitProofInstructionAccounts) -> Self {
             self.accounts.recipient = AccountMeta::new(accounts.recipient, true);
 
+            self.accounts.campaign = AccountMeta::new_readonly(accounts.campaign, false);
+
             self.accounts.milestone = AccountMeta::new(accounts.milestone, false);
 
             self
@@ -1690,6 +1676,8 @@ pub mod blockbite {
             let mut metas = Vec::new();
 
             metas.push(self.accounts.recipient.clone());
+
+            metas.push(self.accounts.campaign.clone());
 
             metas.push(self.accounts.milestone.clone());
 
@@ -1722,6 +1710,8 @@ pub mod blockbite {
     /// Account metadata for VerifyGame instruction
     #[derive(Debug, Clone, Default)]
     pub struct VerifyGameInstructionAccountMetas {
+        pub campaign: AccountMeta,
+
         pub milestone: AccountMeta,
 
         pub game_program: AccountMeta,
@@ -1730,14 +1720,18 @@ pub mod blockbite {
     /// Account pubkeys for VerifyGame instruction
     #[derive(Debug, Clone)]
     pub struct VerifyGameInstructionAccounts {
+        pub campaign: Pubkey,
+
         pub milestone: Pubkey,
 
         pub game_program: Pubkey,
     }
 
     impl VerifyGameInstructionAccounts {
-        pub fn new(milestone: Pubkey, game_program: Pubkey) -> Self {
+        pub fn new(campaign: Pubkey, milestone: Pubkey, game_program: Pubkey) -> Self {
             Self {
+                campaign,
+
                 milestone,
 
                 game_program,
@@ -1748,14 +1742,14 @@ pub mod blockbite {
     /// Instruction data for VerifyGame
     #[derive(Debug, BorshDeserialize, BorshSerialize, Clone)]
     pub struct VerifyGameInstructionData {
+        pub milestone_seed: u64,
+
         pub session_result_hash: [u8; 32],
     }
 
     impl VerifyGameInstructionData {
-        pub fn new(session_result_hash: [u8; 32]) -> Self {
-            Self {
-                session_result_hash,
-            }
+        pub fn new(milestone_seed: u64, session_result_hash: [u8; 32]) -> Self {
+            Self { milestone_seed, session_result_hash }
         }
     }
 
@@ -1774,7 +1768,9 @@ pub mod blockbite {
         }
 
         pub fn accounts(mut self, accounts: VerifyGameInstructionAccounts) -> Self {
-            self.accounts.milestone = AccountMeta::new_readonly(accounts.milestone, false);
+            self.accounts.campaign = AccountMeta::new_readonly(accounts.campaign, false);
+
+            self.accounts.milestone = AccountMeta::new(accounts.milestone, false);
 
             self.accounts.game_program = AccountMeta::new_readonly(accounts.game_program, false);
 
@@ -1788,6 +1784,8 @@ pub mod blockbite {
 
         fn to_account_metas(&self) -> Vec<AccountMeta> {
             let mut metas = Vec::new();
+
+            metas.push(self.accounts.campaign.clone());
 
             metas.push(self.accounts.milestone.clone());
 
@@ -1808,247 +1806,6 @@ pub mod blockbite {
         }
     }
 
-    // ....................................................................
-    // Instruction: VerifyMultisig
-    // ....................................................................
-
-    /// Main instruction struct for VerifyMultisig
-    pub struct VerifyMultisigInstruction {
-        pub accounts: VerifyMultisigInstructionAccountMetas,
-        pub data: VerifyMultisigInstructionData,
-        pub remaining_accounts: Vec<AccountMeta>,
-    }
-
-    /// Account metadata for VerifyMultisig instruction
-    #[derive(Debug, Clone, Default)]
-    pub struct VerifyMultisigInstructionAccountMetas {
-        pub signer_0: AccountMeta,
-
-        pub signer_1: AccountMeta,
-
-        pub signer_2: AccountMeta,
-
-        pub signer_3: AccountMeta,
-
-        pub signer_4: AccountMeta,
-
-        pub milestone: AccountMeta,
-    }
-
-    /// Account pubkeys for VerifyMultisig instruction
-    #[derive(Debug, Clone)]
-    pub struct VerifyMultisigInstructionAccounts {
-        pub signer_0: Pubkey,
-
-        pub signer_1: Pubkey,
-
-        pub signer_2: Pubkey,
-
-        pub signer_3: Pubkey,
-
-        pub signer_4: Pubkey,
-
-        pub milestone: Pubkey,
-    }
-
-    impl VerifyMultisigInstructionAccounts {
-        pub fn new(
-            signer_0: Pubkey,
-
-            signer_1: Pubkey,
-
-            signer_2: Pubkey,
-
-            signer_3: Pubkey,
-
-            signer_4: Pubkey,
-
-            milestone: Pubkey,
-        ) -> Self {
-            Self {
-                signer_0,
-
-                signer_1,
-
-                signer_2,
-
-                signer_3,
-
-                signer_4,
-
-                milestone,
-            }
-        }
-    }
-
-    /// Instruction data for VerifyMultisig
-    #[derive(Debug, BorshDeserialize, BorshSerialize, Clone)]
-    pub struct VerifyMultisigInstructionData {}
-
-    impl VerifyMultisigInstructionData {
-        pub fn new() -> Self {
-            Self {}
-        }
-    }
-
-    /// Implementation for VerifyMultisigInstruction
-    impl VerifyMultisigInstruction {
-        fn discriminator() -> [u8; 8] {
-            [102u8, 41u8, 114u8, 189u8, 224u8, 156u8, 108u8, 191u8]
-        }
-
-        pub fn data(data: VerifyMultisigInstructionData) -> Self {
-            Self {
-                accounts: VerifyMultisigInstructionAccountMetas::default(),
-                data,
-                remaining_accounts: Vec::new(),
-            }
-        }
-
-        pub fn accounts(mut self, accounts: VerifyMultisigInstructionAccounts) -> Self {
-            self.accounts.signer_0 = AccountMeta::new_readonly(accounts.signer_0, true);
-
-            self.accounts.signer_1 = AccountMeta::new_readonly(accounts.signer_1, true);
-
-            self.accounts.signer_2 = AccountMeta::new_readonly(accounts.signer_2, true);
-
-            self.accounts.signer_3 = AccountMeta::new_readonly(accounts.signer_3, true);
-
-            self.accounts.signer_4 = AccountMeta::new_readonly(accounts.signer_4, true);
-
-            self.accounts.milestone = AccountMeta::new(accounts.milestone, false);
-
-            self
-        }
-
-        pub fn remaining_accounts(mut self, accounts: Vec<AccountMeta>) -> Self {
-            self.remaining_accounts = accounts;
-            self
-        }
-
-        fn to_account_metas(&self) -> Vec<AccountMeta> {
-            let mut metas = Vec::new();
-
-            metas.push(self.accounts.signer_0.clone());
-
-            metas.push(self.accounts.signer_1.clone());
-
-            metas.push(self.accounts.signer_2.clone());
-
-            metas.push(self.accounts.signer_3.clone());
-
-            metas.push(self.accounts.signer_4.clone());
-
-            metas.push(self.accounts.milestone.clone());
-
-            metas.extend(self.remaining_accounts.clone());
-            metas
-        }
-
-        pub fn instruction(&self) -> Instruction {
-            let mut buffer: Vec<u8> = Vec::new();
-
-            buffer.extend_from_slice(&Self::discriminator());
-
-            self.data.serialize(&mut buffer).unwrap();
-
-            Instruction::new_with_bytes(program_id(), &buffer, self.to_account_metas())
-        }
-    }
-
-    // ....................................................................
-    // Instruction: VerifyOracle
-    // ....................................................................
-
-    /// Main instruction struct for VerifyOracle
-    pub struct VerifyOracleInstruction {
-        pub accounts: VerifyOracleInstructionAccountMetas,
-        pub data: VerifyOracleInstructionData,
-        pub remaining_accounts: Vec<AccountMeta>,
-    }
-
-    /// Account metadata for VerifyOracle instruction
-    #[derive(Debug, Clone, Default)]
-    pub struct VerifyOracleInstructionAccountMetas {
-        pub oracle: AccountMeta,
-
-        pub milestone: AccountMeta,
-    }
-
-    /// Account pubkeys for VerifyOracle instruction
-    #[derive(Debug, Clone)]
-    pub struct VerifyOracleInstructionAccounts {
-        pub oracle: Pubkey,
-
-        pub milestone: Pubkey,
-    }
-
-    impl VerifyOracleInstructionAccounts {
-        pub fn new(oracle: Pubkey, milestone: Pubkey) -> Self {
-            Self { oracle, milestone }
-        }
-    }
-
-    /// Instruction data for VerifyOracle
-    #[derive(Debug, BorshDeserialize, BorshSerialize, Clone)]
-    pub struct VerifyOracleInstructionData {
-        pub signature: [u8; 64],
-    }
-
-    impl VerifyOracleInstructionData {
-        pub fn new(signature: [u8; 64]) -> Self {
-            Self { signature }
-        }
-    }
-
-    /// Implementation for VerifyOracleInstruction
-    impl VerifyOracleInstruction {
-        fn discriminator() -> [u8; 8] {
-            [252u8, 110u8, 246u8, 149u8, 183u8, 159u8, 204u8, 245u8]
-        }
-
-        pub fn data(data: VerifyOracleInstructionData) -> Self {
-            Self {
-                accounts: VerifyOracleInstructionAccountMetas::default(),
-                data,
-                remaining_accounts: Vec::new(),
-            }
-        }
-
-        pub fn accounts(mut self, accounts: VerifyOracleInstructionAccounts) -> Self {
-            self.accounts.oracle = AccountMeta::new_readonly(accounts.oracle, true);
-
-            self.accounts.milestone = AccountMeta::new(accounts.milestone, false);
-
-            self
-        }
-
-        pub fn remaining_accounts(mut self, accounts: Vec<AccountMeta>) -> Self {
-            self.remaining_accounts = accounts;
-            self
-        }
-
-        fn to_account_metas(&self) -> Vec<AccountMeta> {
-            let mut metas = Vec::new();
-
-            metas.push(self.accounts.oracle.clone());
-
-            metas.push(self.accounts.milestone.clone());
-
-            metas.extend(self.remaining_accounts.clone());
-            metas
-        }
-
-        pub fn instruction(&self) -> Instruction {
-            let mut buffer: Vec<u8> = Vec::new();
-
-            buffer.extend_from_slice(&Self::discriminator());
-
-            self.data.serialize(&mut buffer).unwrap();
-
-            Instruction::new_with_bytes(program_id(), &buffer, self.to_account_metas())
-        }
-    }
 
     // ....................................................................
     // Instruction: Withdraw
@@ -2355,14 +2112,6 @@ pub struct MilestoneAccount {
 
     pub description_hash: [u8; 32],
 
-    pub verification_type: u8,
-
-    pub oracle_pubkey: Pubkey,
-
-    pub signer_count: u8,
-
-    pub signers: [Pubkey; 5],
-
     pub game_program_id: Pubkey,
 
     pub token_amount: u64,
@@ -2370,6 +2119,10 @@ pub struct MilestoneAccount {
     pub is_verified: bool,
 
     pub proof_hash: [u8; 32],
+
+    pub proof_submitted: bool,
+
+    pub is_claimed: bool,
 
     pub bump: u8,
 }
@@ -2382,14 +2135,6 @@ impl MilestoneAccount {
 
         description_hash: [u8; 32],
 
-        verification_type: u8,
-
-        oracle_pubkey: Pubkey,
-
-        signer_count: u8,
-
-        signers: [Pubkey; 5],
-
         game_program_id: Pubkey,
 
         token_amount: u64,
@@ -2397,6 +2142,10 @@ impl MilestoneAccount {
         is_verified: bool,
 
         proof_hash: [u8; 32],
+
+        proof_submitted: bool,
+
+        is_claimed: bool,
 
         bump: u8,
     ) -> Self {
@@ -2407,14 +2156,6 @@ impl MilestoneAccount {
 
             description_hash,
 
-            verification_type,
-
-            oracle_pubkey,
-
-            signer_count,
-
-            signers,
-
             game_program_id,
 
             token_amount,
@@ -2422,6 +2163,10 @@ impl MilestoneAccount {
             is_verified,
 
             proof_hash,
+
+            proof_submitted,
+
+            is_claimed,
 
             bump,
         }
