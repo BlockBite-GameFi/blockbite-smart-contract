@@ -118,6 +118,59 @@ async function createStream(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  Campaign & Milestone instruction-data builders
+//  Discriminators verified against sha256("global:<name>")[0..8].
+// ─────────────────────────────────────────────────────────────────────────────
+
+function mkCreateCampaignData(titleHash: Buffer, totalBudget: bigint, seed: bigint): Buffer {
+  const data = Buffer.alloc(56);
+  Buffer.from([111, 131, 187, 98, 160, 193, 114, 244]).copy(data, 0); // DISC_CREATE_CAMPAIGN
+  titleHash.copy(data, 8);
+  data.writeBigUInt64LE(totalBudget, 40);
+  data.writeBigUInt64LE(seed, 48);
+  return data;
+}
+
+function mkCreateMilestoneData(
+  descHash: Buffer, campaignSeed: bigint, milestoneSeed: bigint,
+  tokenAmount: bigint, gameProgramId: PublicKey, recipient: PublicKey,
+): Buffer {
+  const data = Buffer.alloc(128);
+  Buffer.from([239, 58, 201, 28, 40, 186, 173, 48]).copy(data, 0); // DISC_CREATE_MILESTONE
+  descHash.copy(data, 8);
+  data.writeBigUInt64LE(campaignSeed, 40);
+  data.writeBigUInt64LE(milestoneSeed, 48);
+  data.writeBigUInt64LE(tokenAmount, 56);
+  gameProgramId.toBuffer().copy(data, 64);
+  recipient.toBuffer().copy(data, 96);
+  return data;
+}
+
+function mkSubmitProofData(milestoneSeed: bigint, proofHash: Buffer): Buffer {
+  const data = Buffer.alloc(48);
+  Buffer.from([54, 241, 46, 84, 4, 212, 46, 94]).copy(data, 0); // DISC_SUBMIT_PROOF
+  data.writeBigUInt64LE(milestoneSeed, 8);
+  proofHash.copy(data, 16);
+  return data;
+}
+
+function mkVerifyGameData(milestoneSeed: bigint, sessionResultHash: Buffer): Buffer {
+  const data = Buffer.alloc(48);
+  Buffer.from([81, 26, 37, 190, 207, 209, 205, 211]).copy(data, 0); // DISC_VERIFY_GAME
+  data.writeBigUInt64LE(milestoneSeed, 8);
+  sessionResultHash.copy(data, 16);
+  return data;
+}
+
+function mkClaimMilestoneData(milestoneSeed: bigint, campaignSeed: bigint): Buffer {
+  const data = Buffer.alloc(24);
+  Buffer.from([211, 134, 152, 37, 3, 82, 214, 189]).copy(data, 0); // DISC_CLAIM_MILESTONE
+  data.writeBigUInt64LE(milestoneSeed, 8);
+  data.writeBigUInt64LE(campaignSeed, 16);
+  return data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  Test suite
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1205,65 +1258,154 @@ describe("blockbite", () => {
   });
 
   // ── Campaign & Milestone Flow ─────────────────────────────────────────────
+  // Full proof/verify/claim e2e on the SBF validator. Replaces the previous
+  // vacuous placeholders — exercises real discriminators, account order, PDA
+  // seeds, CEI ordering, and the is_claimed / proof_submitted guards.
 
-  it("Creates a campaign with budget", async () => {
-    const founder = Keypair.generate();
-    const sig = await provider.connection.requestAirdrop(
-      founder.publicKey,
-      2 * anchor.web3.LAMPORTS_PER_SOL,
-    );
-    await provider.connection.confirmTransaction(sig, "confirmed");
-
-    const titleHash = Buffer.alloc(32, 1);
-    const campaignSeed = 1;
-
-    const [campaignPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from("campaign"), founder.publicKey.toBuffer(),
-       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(campaignSeed)]).buffer))],
-      programId,
-    );
-
-    const discriminator = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0]); // placeholder
-    const data = Buffer.concat([
-      Buffer.alloc(8), // IDL will generate correct discriminator
-      titleHash,
-      Buffer.from(new BigUint64Array([BigInt(500_000)]).buffer),
-      Buffer.from(new BigUint64Array([BigInt(campaignSeed)]).buffer),
+  it("Full milestone flow: create_campaign → create_milestone → submit_proof → verify_game → claim_milestone", async () => {
+    // 1. Setup
+    const founder   = Keypair.generate();
+    const recipient = Keypair.generate();
+    const gameProgramId = Keypair.generate().publicKey; // any pubkey will do for this test
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(founder.publicKey,   2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
     ]);
+    await Promise.all([s1, s2].map(s => provider.connection.confirmTransaction(s, "confirmed")));
 
-    const ix = new anchor.web3.TransactionInstruction({
-      keys: [
-        { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-        { pubkey: campaignPda, isSigner: false, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
+    const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
+    const founderTA   = (await getOrCreateAssociatedTokenAccount(provider.connection, founder,   mint, founder.publicKey)).address;
+    const recipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, recipient, mint, recipient.publicKey)).address;
+    const BUDGET = BigInt(500_000);
+    const AMOUNT = BigInt(100_000);
+    await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
+
+    const campaignSeed  = BigInt(100);
+    const milestoneSeed = BigInt(200);
+    const [campaignPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("campaign"), founder.publicKey.toBuffer(), Buffer.from(new BigUint64Array([campaignSeed]).buffer)],
       programId,
-      data,
-    });
+    );
+    const [campaignEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("campaign_escrow"), campaignPDA.toBuffer()], programId,
+    );
+    const [milestonePDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("milestone"), campaignPDA.toBuffer(), Buffer.from(new BigUint64Array([milestoneSeed]).buffer)],
+      programId,
+    );
 
+    // 2. create_campaign
+    await provider.sendAndConfirm(
+      new Transaction().add(new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: founder.publicKey, isSigner: true,  isWritable: true  },
+          { pubkey: mint,              isSigner: false, isWritable: false },
+          { pubkey: founderTA,         isSigner: false, isWritable: true  },
+          { pubkey: campaignEscrow,    isSigner: false, isWritable: true  },
+          { pubkey: campaignPDA,       isSigner: false, isWritable: true  },
+          { pubkey: TOKEN_PROGRAM_ID,  isSigner: false, isWritable: false },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: mkCreateCampaignData(Buffer.alloc(32, 1), BUDGET, campaignSeed),
+      })),
+      [founder],
+    );
+    const campaignInfo = await provider.connection.getAccountInfo(campaignPDA);
+    assert.ok(campaignInfo !== null, "Campaign account should exist");
+
+    // 3. create_milestone
+    await provider.sendAndConfirm(
+      new Transaction().add(new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: founder.publicKey, isSigner: true,  isWritable: true  },
+          { pubkey: campaignPDA,       isSigner: false, isWritable: true  },
+          { pubkey: milestonePDA,      isSigner: false, isWritable: true  },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: mkCreateMilestoneData(
+          Buffer.alloc(32, 2), campaignSeed, milestoneSeed, AMOUNT, gameProgramId, recipient.publicKey,
+        ),
+      })),
+      [founder],
+    );
+
+    // 4. submit_proof
+    const proofHash = Buffer.alloc(32, 42);
+    await provider.sendAndConfirm(
+      new Transaction().add(new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: recipient.publicKey, isSigner: true,  isWritable: true  },
+          { pubkey: campaignPDA,         isSigner: false, isWritable: false },
+          { pubkey: milestonePDA,        isSigner: false, isWritable: true  },
+        ],
+        programId,
+        data: mkSubmitProofData(milestoneSeed, proofHash),
+      })),
+      [recipient],
+    );
+
+    // 5. verify_game — session_result_hash must EQUAL proof_hash
+    await provider.sendAndConfirm(
+      new Transaction().add(new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: campaignPDA,   isSigner: false, isWritable: false },
+          { pubkey: milestonePDA,  isSigner: false, isWritable: true  },
+          { pubkey: gameProgramId, isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: mkVerifyGameData(milestoneSeed, proofHash), // ← same hash as proof
+      })),
+      [],
+    );
+
+    // 6. claim_milestone
+    await provider.sendAndConfirm(
+      new Transaction().add(new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: recipient.publicKey, isSigner: true,  isWritable: true  },
+          { pubkey: milestonePDA,        isSigner: false, isWritable: true  },
+          { pubkey: campaignPDA,         isSigner: false, isWritable: false },
+          { pubkey: mint,                isSigner: false, isWritable: false },
+          { pubkey: campaignEscrow,      isSigner: false, isWritable: true  },
+          { pubkey: recipientTA,         isSigner: false, isWritable: true  },
+          { pubkey: TOKEN_PROGRAM_ID,    isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: mkClaimMilestoneData(milestoneSeed, campaignSeed),
+      })),
+      [recipient],
+    );
+
+    // 7. Verify balance
+    const bal = await getAccount(provider.connection, recipientTA);
+    assert.strictEqual(Number(bal.amount), Number(AMOUNT), `Expected ${AMOUNT}, got ${bal.amount}`);
+
+    // 8. Double-claim must fail (security fix #9: is_claimed guard)
     try {
-      await provider.sendAndConfirm(new Transaction().add(ix), [founder]);
-      const info = await provider.connection.getAccountInfo(campaignPda);
-      assert.ok(info !== null, "Campaign account should exist");
-      console.log("✅ Campaign created");
+      await provider.sendAndConfirm(
+        new Transaction().add(new anchor.web3.TransactionInstruction({
+          keys: [
+            { pubkey: recipient.publicKey, isSigner: true,  isWritable: true  },
+            { pubkey: milestonePDA,        isSigner: false, isWritable: true  },
+            { pubkey: campaignPDA,         isSigner: false, isWritable: false },
+            { pubkey: mint,                isSigner: false, isWritable: false },
+            { pubkey: campaignEscrow,      isSigner: false, isWritable: true  },
+            { pubkey: recipientTA,         isSigner: false, isWritable: true  },
+            { pubkey: TOKEN_PROGRAM_ID,    isSigner: false, isWritable: false },
+          ],
+          programId,
+          data: mkClaimMilestoneData(milestoneSeed, campaignSeed),
+        })),
+        [recipient],
+      );
+      assert.fail("Double-claim should have failed");
     } catch (e: any) {
-      // IDL discriminator may differ — test structure is valid
-      console.log(`Campaign creation attempted: ${e.message.slice(0, 60)}`);
+      assert.ok(
+        e.message.includes("AlreadyClaimed") || e.message.includes("0x"),
+        `Expected AlreadyClaimed, got: ${e.message}`,
+      );
     }
-  });
-
-  it("Campaign budget tracks allocated milestones", async () => {
-    // Verified via Rust unit tests (test_campaign_budget_tracking)
-    assert.ok(true, "Budget tracking tested in Rust");
-  });
-
-  it("Milestone proof submission stores hash on-chain", async () => {
-    // Verified via Rust unit tests (test_milestone_proof_submission)
-    assert.ok(true, "Proof submission tested in Rust");
-  });
-
-  it("Game verification marks milestone as verified", async () => {
-    // Verified via Rust unit tests (test_milestone_verification_game)
-    assert.ok(true, "Game verification tested in Rust");
   });
 });
