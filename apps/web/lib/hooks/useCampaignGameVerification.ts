@@ -31,9 +31,13 @@ export function useCampaignGameVerification() {
     score: number,
     recipient: PublicKey,
     sendTransaction: SendTx,
+    campaign?: PublicKey,
+    milestoneSeed: bigint = 0n,
   ): Promise<CampaignVerificationResult> => {
     setStatus('submitting_proof');
     setError(null);
+
+    const campaignPk = campaign ?? PublicKey.default;
 
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
@@ -49,7 +53,9 @@ export function useCampaignGameVerification() {
       const proofSig = await submitProof({
         connection,
         recipient,
+        campaign: campaignPk,
         milestonePDA: milestonePda,
+        milestoneSeed,
         proofHash: sessionResultHash,
         sendTransaction,
       });
@@ -58,8 +64,10 @@ export function useCampaignGameVerification() {
       setStatus('verifying');
       const verifySig = await verifyGame({
         connection,
+        campaign: campaignPk,
         milestonePDA: milestonePda,
         gameProgram: gameProgramId,
+        milestoneSeed,
         sessionResultHash,
         sendTransaction,
       });
