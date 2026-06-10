@@ -273,8 +273,8 @@ export default function CampaignDetailPage() {
             ) : (
               milestones.map((ms, idx) => {
                 const isRecipient = publicKey && ms.recipient.equals(publicKey);
-                const isGameVerified = ms.verificationType === 1 && ms.isVerified;
-                const isGamePending = ms.verificationType === 1 && !ms.isVerified;
+                const isGameVerified = ms.isVerified;
+                const isGamePending = ms.proofSubmitted && !ms.isVerified;
 
                 return (
                   <div key={ms.pubkey.toBase58()} style={{
