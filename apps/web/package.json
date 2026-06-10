@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@blockbite/clients": "workspace:*",
     "@coral-xyz/anchor": "^0.32.1",
     "@react-three/fiber": "8.17.10",
     "@solana/spl-token": "^0.4.14",
