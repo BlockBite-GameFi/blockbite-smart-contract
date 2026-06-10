@@ -111,7 +111,7 @@ export default function CampaignDetailPage() {
 
   // Poll for milestone updates when game might be in progress
   useEffect(() => {
-    const hasPending = milestones.some(ms => !ms.isVerified && ms.verificationType === 1);
+    const hasPending = milestones.some(ms => !ms.isVerified && !ms.isClaimed);
     if (!hasPending) return;
 
     const interval = setInterval(refreshMilestones, 3000);
