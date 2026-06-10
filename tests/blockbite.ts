@@ -145,8 +145,9 @@ function mkCreateCampaignData(titleHash: Buffer, totalBudget: bigint, seed: bigi
 function mkCreateMilestoneData(
   descHash: Buffer, campaignSeed: bigint, milestoneSeed: bigint,
   tokenAmount: bigint, gameAuthority: PublicKey, recipient: PublicKey,
+  targetLevel: number, difficulty: number,
 ): Buffer {
-  const data = Buffer.alloc(128);
+  const data = Buffer.alloc(130);
   Buffer.from([239, 58, 201, 28, 40, 186, 173, 48]).copy(data, 0); // DISC_CREATE_MILESTONE
   descHash.copy(data, 8);
   data.writeBigUInt64LE(campaignSeed, 40);
@@ -154,13 +155,16 @@ function mkCreateMilestoneData(
   data.writeBigUInt64LE(tokenAmount, 56);
   gameAuthority.toBuffer().copy(data, 64);
   recipient.toBuffer().copy(data, 96);
+  data[128] = targetLevel;
+  data[129] = difficulty;
   return data;
 }
 
-function mkVerifyGameData(milestoneSeed: bigint): Buffer {
-  const data = Buffer.alloc(16);
+function mkVerifyGameData(milestoneSeed: bigint, achievedLevel: number): Buffer {
+  const data = Buffer.alloc(17);
   Buffer.from([81, 26, 37, 190, 207, 209, 205, 211]).copy(data, 0); // DISC_VERIFY_GAME
   data.writeBigUInt64LE(milestoneSeed, 8);
+  data[16] = achievedLevel;
   return data;
 }
 
@@ -1156,7 +1160,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s1, "confirmed"),
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
-    await sleep(3000);
+    await sleep(5000);
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
@@ -1213,7 +1217,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s1, "confirmed"),
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
-    await sleep(3000);
+    await sleep(5000);
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
@@ -1272,7 +1276,7 @@ describe("blockbite", () => {
     const gameAuthority = Keypair.generate(); // game server's signing keypair
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA   = (await getOrCreateAssociatedTokenAccount(provider.connection, founder,   mint, founder.publicKey)).address;
@@ -1280,7 +1284,7 @@ describe("blockbite", () => {
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed  = BigInt(100);
     const milestoneSeed = BigInt(200);
@@ -1328,6 +1332,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 2), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
@@ -1342,7 +1347,7 @@ describe("blockbite", () => {
           { pubkey: gameAuthority.publicKey, isSigner: true,  isWritable: false },
         ],
         programId,
-        data: mkVerifyGameData(milestoneSeed),
+        data: mkVerifyGameData(milestoneSeed, 10),
       })),
       [gameAuthority],
     );
@@ -1405,14 +1410,14 @@ describe("blockbite", () => {
     const fakeGameAuthority = Keypair.generate();
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed = BigInt(300);
     const milestoneSeed = BigInt(400);
@@ -1473,7 +1478,7 @@ describe("blockbite", () => {
             { pubkey: fakeGameAuthority.publicKey, isSigner: true, isWritable: false },
           ],
           programId,
-          data: mkVerifyGameData(milestoneSeed),
+          data: mkVerifyGameData(milestoneSeed, 10),
         })),
         [fakeGameAuthority],
       );
@@ -1492,14 +1497,14 @@ describe("blockbite", () => {
     const gameAuthority = Keypair.generate();
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed = BigInt(500);
     const milestoneSeed = BigInt(600);
@@ -1557,7 +1562,7 @@ describe("blockbite", () => {
           { pubkey: gameAuthority.publicKey, isSigner: true, isWritable: false },
         ],
         programId,
-        data: mkVerifyGameData(milestoneSeed),
+        data: mkVerifyGameData(milestoneSeed, 10),
       })),
       [gameAuthority],
     );
@@ -1572,7 +1577,7 @@ describe("blockbite", () => {
             { pubkey: gameAuthority.publicKey, isSigner: true, isWritable: false },
           ],
           programId,
-          data: mkVerifyGameData(milestoneSeed),
+          data: mkVerifyGameData(milestoneSeed, 10),
         })),
         [gameAuthority],
       );
@@ -1591,7 +1596,7 @@ describe("blockbite", () => {
     const gameAuthority = Keypair.generate();
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
@@ -1599,7 +1604,7 @@ describe("blockbite", () => {
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed = BigInt(700);
     const milestoneSeed = BigInt(800);
@@ -1683,7 +1688,7 @@ describe("blockbite", () => {
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(wrongRecipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
@@ -1691,7 +1696,7 @@ describe("blockbite", () => {
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed = BigInt(900);
     const milestoneSeed = BigInt(1000);
@@ -1749,7 +1754,7 @@ describe("blockbite", () => {
           { pubkey: gameAuthority.publicKey, isSigner: true, isWritable: false },
         ],
         programId,
-        data: mkVerifyGameData(milestoneSeed),
+        data: mkVerifyGameData(milestoneSeed, 10),
       })),
       [gameAuthority],
     );
@@ -1787,7 +1792,7 @@ describe("blockbite", () => {
     const gameAuthority = Keypair.generate();
     await airdropAndConfirm(founder.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL, provider);
     await airdropAndConfirm(recipient.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL, provider);
-    await sleep(3000);
+    await sleep(5000);
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
@@ -1795,7 +1800,7 @@ describe("blockbite", () => {
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
-    await sleep(3000);
+    await sleep(5000);
 
     const campaignSeed = BigInt(1100);
     const milestoneSeed = BigInt(1200);
@@ -1857,7 +1862,7 @@ describe("blockbite", () => {
           { pubkey: gameAuthority.publicKey, isSigner: true, isWritable: false },
         ],
         programId,
-        data: mkVerifyGameData(milestoneSeed),
+        data: mkVerifyGameData(milestoneSeed, 10),
       })),
       [gameAuthority],
     );
