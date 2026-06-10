@@ -1160,7 +1160,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s1, "confirmed"),
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
-    await sleep(5000);
+    await sleep(10000);
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
@@ -1217,7 +1217,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s1, "confirmed"),
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
-    await sleep(5000);
+    await sleep(10000);
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
