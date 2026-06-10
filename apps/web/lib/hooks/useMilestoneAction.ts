@@ -29,13 +29,15 @@ export function useMilestoneAction() {
     milestonePDA: PublicKey,
     proofHash: Uint8Array,
     sendTransaction: SendTx,
+    campaign: PublicKey = PublicKey.default,
+    milestoneSeed: bigint = 0n,
   ) => {
     setStatus('submitting');
     setError(null);
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
       const sig = await submitProof({
-        connection, recipient, milestonePDA, proofHash, sendTransaction,
+        connection, recipient, campaign, milestonePDA, milestoneSeed, proofHash, sendTransaction,
       });
       setResult({ sig });
       setStatus('done');
@@ -53,13 +55,15 @@ export function useMilestoneAction() {
     gameProgram: PublicKey,
     sessionResultHash: Uint8Array,
     sendTransaction: SendTx,
+    campaign: PublicKey = PublicKey.default,
+    milestoneSeed: bigint = 0n,
   ) => {
     setStatus('verifying');
     setError(null);
     try {
       const connection = new Connection(RPC_URL, 'confirmed');
       const sig = await verifyGame({
-        connection, milestonePDA, gameProgram, sessionResultHash, sendTransaction,
+        connection, campaign, milestonePDA, gameProgram, milestoneSeed, sessionResultHash, sendTransaction,
       });
       setResult({ sig });
       setStatus('done');
