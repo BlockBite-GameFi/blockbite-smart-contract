@@ -6,23 +6,27 @@ import { useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
+  getAllStreams,
   getStreamsByAuthority,
   getStreamsByBeneficiary,
   computeUnlocked,
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
-import { BN } from '@coral-xyz/anchor';
+import { getMint } from '@solana/spl-token';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
+import { KNOWN_DEVNET_TOKENS } from '@/lib/solana/token-registry';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
 import { useApp } from '@/lib/useApp';
 
-// ── Stream fetch helper ──────────────────────────────────────────────────────
-async function fetchAndDedup(
-  conn: Connection,
-  walletKey: PublicKey,
-): Promise<StreamInfo[]> {
+// ── Fetch all public streams + merge user's own streams first ────────────────
+async function fetchAllGlobal(conn: Connection): Promise<StreamInfo[]> {
+  const all = await getAllStreams(conn);
+  return all.sort((a, b) => Number(b.startTs.toString()) - Number(a.startTs.toString()));
+}
+
+async function fetchUserStreams(conn: Connection, walletKey: PublicKey): Promise<StreamInfo[]> {
   const [asCreator, asRecipient] = await Promise.all([
     getStreamsByAuthority(conn, walletKey),
     getStreamsByBeneficiary(conn, walletKey),
@@ -33,8 +37,7 @@ async function fetchAndDedup(
     const key = s.pubkey.toBase58();
     if (!seen.has(key)) { seen.add(key); all.push(s); }
   }
-  all.sort((a, b) => Number(b.endTs.toString()) - Number(a.endTs.toString()));
-  return all;
+  return all.sort((a, b) => Number(b.startTs.toString()) - Number(a.startTs.toString()));
 }
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
@@ -42,69 +45,36 @@ const TYPE_COLORS: Record<string, string> = {
   linear: T.accent, milestone: T.blue, cliff: T.gold, hybrid: '#c084fc',
 };
 
-const WSOL_MINT = 'So11111111111111111111111111111111111111112';
-
-/** Infer the correct decimal count from the stream's mint address. */
-function mintDecimals(s: StreamInfo): number {
-  try {
-    return s.mint.toBase58() === WSOL_MINT ? 9 : 6;
-  } catch { return 6; }
+function metaFor(mintB58: string, decByMint: Record<string, number>): { symbol: string; decimals: number } {
+  const k = KNOWN_DEVNET_TOKENS[mintB58];
+  if (k) return { symbol: k.symbol === 'wSOL' ? 'SOL' : k.symbol, decimals: k.decimals };
+  return { symbol: `${mintB58.slice(0, 4)}…`, decimals: decByMint[mintB58] ?? 9 };
 }
 
-/**
- * Stream type classification — based on timestamps, not milestoneCount.
- *
- * Rules:
- *  cliff   = cliffTs > startTs AND endTs ≤ cliffTs + 60 s (instant full release)
- *  hybrid  = cliffTs > startTs AND endTs >> cliffTs (cliff gate + linear decay)
- *  milestone = milestoneCount > 0 (on-chain verified milestone gates)
- *  linear  = no cliff (endTs - startTs is the full window)
- *
- * NOTE: requiredTier (game gate) does NOT change the vesting *type* — it only
- * adds an unlock requirement on top. We show it as a separate badge in the row.
- */
+function fmtAmount(raw: number, decimals: number): string {
+  const n = raw / 10 ** decimals;
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+  return n.toFixed(2);
+}
+
 function streamType(s: StreamInfo): string {
   const startTs = Number(s.startTs.toString());
   const cliffTs = Number(s.cliffTs.toString());
   const endTs   = Number(s.endTs.toString());
   const hasCliff = cliffTs > startTs;
-
-  // Pure cliff: endTs is at most 60 seconds after cliffTs (instant full release)
   if (hasCliff && endTs - cliffTs <= 60) return 'cliff';
-
-  // Hybrid: has a cliff gate AND a linear decay period after it
-  if (hasCliff && s.milestoneCount > 0) return 'hybrid';
-
-  // Milestone-only (no time cliff, but on-chain milestone percentage gates)
-  if (s.milestoneCount > 0) return 'milestone';
-
-  // Linear with cliff — cliff acts as a gate before linear decay begins
-  if (hasCliff) return 'hybrid';
-
-  // Pure linear
+  if (hasCliff && s.milestoneCount > 0)  return 'hybrid';
+  if (s.milestoneCount > 0)              return 'milestone';
+  if (hasCliff)                          return 'hybrid';
   return 'linear';
 }
 
 function streamStatus(s: StreamInfo, nowSec: number): string {
   if (s.cancelled) return 'cancelled';
   if (nowSec < Number(s.cliffTs.toString())) return 'pending';
-  if (nowSec >= Number(s.endTs.toString())) return 'completed';
+  if (nowSec >= Number(s.endTs.toString()))  return 'completed';
   return 'active';
-}
-
-function timeLeft(s: StreamInfo, nowSec: number): string {
-  if (s.cancelled) return 'Cancelled';
-  const endTs   = Number(s.endTs.toString());
-  const cliffTs = Number(s.cliffTs.toString());
-  if (nowSec >= endTs) return 'Ended';
-  if (nowSec < cliffTs) {
-    const days = Math.ceil((cliffTs - nowSec) / 86400);
-    return days > 1 ? `${days}d to cliff` : `<1d to cliff`;
-  }
-  const secs = endTs - nowSec;
-  if (secs < 86400)     return `${Math.ceil(secs / 3600)}h left`;
-  if (secs < 86400 * 7) return `${Math.ceil(secs / 86400)}d left`;
-  return `${Math.ceil(secs / (86400 * 30))}mo left`;
 }
 
 function shortKey(pk: { toBase58(): string } | null): string {
@@ -113,46 +83,21 @@ function shortKey(pk: { toBase58(): string } | null): string {
   return `${s.slice(0, 4)}…${s.slice(-4)}`;
 }
 
-/** Format a BN amount using the correct decimal count for the stream's mint. */
-function fmtTokens(bn: BN, dec = 6): string {
-  const n = Number(bn.toString()) / 10 ** dec;
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-  // Show up to 4 significant decimals, trim trailing zeros
-  return parseFloat(n.toFixed(4)).toString();
-}
-
-function fmtRaw(raw: number, dec = 6): string {
-  const n = raw / 10 ** dec;
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
-  return parseFloat(n.toFixed(4)).toString();
-}
-
-/** Token symbol from mint address — fallback to generic label. */
-function mintSymbol(s: StreamInfo): string {
-  try {
-    const addr = s.mint.toBase58();
-    if (addr === WSOL_MINT) return 'SOL';
-    if (addr === 'ZLkYWYvM4ZEDcPcvmcxmcgTgvsWRCXqg9ZYyQuf7njU') return 'USDC';
-    if (addr === '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU') return 'USDC';
-    if (addr === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') return 'USDC';
-    if (addr === '9d4hVSzi4W6VoAp5dNgxsHNiFmZpq9RiK5vHtmip8asU') return 'BBT';
-    return addr.slice(0, 4) + '…';
-  } catch { return 'TOKEN'; }
-}
-
 function Badge({ label, color }: { label: string; color: string }) {
   return (
     <span style={{
       padding: '2px 9px', borderRadius: 99, fontSize: 10.5, fontWeight: 700,
-      letterSpacing: '.04em', background: `color-mix(in srgb, ${color} 10%, transparent)`, color, border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
+      letterSpacing: '.04em',
+      background: `color-mix(in srgb, ${color} 10%, transparent)`,
+      color, border: `1px solid color-mix(in srgb, ${color} 27%, transparent)`,
     }}>{label}</span>
   );
 }
 
 function StatusDot({ status }: { status: string }) {
-  const col = ({ active: T.green, pending: T.gold, completed: T.textDim, cancelled: T.red } as Record<string, string>)[status] ?? T.textDim;
+  const col = ({
+    active: T.green, pending: T.gold, completed: T.textDim, cancelled: T.red,
+  } as Record<string, string>)[status] ?? T.textDim;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: col, boxShadow: `0 0 6px ${col}` }} />
@@ -161,8 +106,9 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
-// ─── Column layout (7 cols on desktop, card on mobile) ───────────────────────
-const GRID = '1.8fr 90px 130px 130px 120px 110px 90px';
+// ─── Column layout ───────────────────────────────────────────────────────────
+// Stream/Role | Type | Total Tokens | Creator/Team | Date Created | Status | Actions
+const GRID = '2fr 80px 120px 140px 105px 85px 130px';
 
 const MOBILE_CSS = `
 @media (max-width: 768px) {
@@ -174,10 +120,42 @@ const MOBILE_CSS = `
     padding: 16px !important;
   }
   .sd-row-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-  .sd-row-amounts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
   .sd-col-hide { display: none !important; }
+  .sd-actions-col { margin-top: 4px; }
 }
 `;
+
+// ─── Copy-to-clipboard hook helper ──────────────────────────────────────────
+function useCopy(): [Record<string, boolean>, (key: string, text: string) => void] {
+  const [copied, setCopied] = useState<Record<string, boolean>>({});
+  const copy = useCallback((key: string, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(p => ({ ...p, [key]: true }));
+      setTimeout(() => setCopied(p => ({ ...p, [key]: false })), 1800);
+    });
+  }, []);
+  return [copied, copy];
+}
+
+// ─── Small icon button ───────────────────────────────────────────────────────
+function IconBtn({
+  label, done, onClick, color = T.textDim,
+}: { label: string; done?: boolean; onClick: (e: React.MouseEvent) => void; color?: string }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        padding: '3px 8px', borderRadius: 6, border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+        background: done ? `color-mix(in srgb, ${color} 10%, transparent)` : 'rgba(255,255,255,.03)',
+        color: done ? color : T.textDim, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+        whiteSpace: 'nowrap', transition: 'all .15s',
+      }}
+    >
+      {done ? '✓ Copied' : label}
+    </button>
+  );
+}
 
 export default function StreamsPage() {
   const { lang } = useApp();
@@ -185,12 +163,13 @@ export default function StreamsPage() {
   const router = useRouter();
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
+  const [copied, doCopy] = useCopy();
 
-  const [streams,  setStreams]  = useState<StreamInfo[]>([]);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-  const [filter,   setFilter]   = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all');
-  const [nowSec,   setNowSec]   = useState(Math.floor(Date.now() / 1000));
+  const [streams,   setStreams]   = useState<StreamInfo[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [filter,    setFilter]    = useState<'all' | 'active' | 'pending' | 'completed' | 'cancelled'>('all');
+  const [nowSec,    setNowSec]    = useState(Math.floor(Date.now() / 1000));
+  const [decByMint, setDecByMint] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
@@ -198,36 +177,69 @@ export default function StreamsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!publicKey) return;
     setLoading(true);
-    setError(null);
     try {
-      const all = await withRpcFallback(conn => fetchAndDedup(conn, publicKey));
-      setStreams(all);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
+      if (publicKey) {
+        const [all, mine] = await Promise.all([
+          withRpcFallback(conn => fetchAllGlobal(conn)).catch(() => [] as StreamInfo[]),
+          withRpcFallback(conn => fetchUserStreams(conn, publicKey)).catch(() => [] as StreamInfo[]),
+        ]);
+        const myKeys = new Set(mine.map(s => s.pubkey.toBase58()));
+        const rest   = all.filter(s => !myKeys.has(s.pubkey.toBase58()));
+        setStreams([...mine, ...rest]);
+      } else {
+        const all = await withRpcFallback(conn => fetchAllGlobal(conn)).catch(() => [] as StreamInfo[]);
+        setStreams(all);
+      }
+    } catch { setStreams([]); }
+    finally  { setLoading(false); }
   }, [publicKey]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch real decimals for unknown mints
+  useEffect(() => {
+    const unknown = [...new Set(streams.map(s => s.mint.toBase58()))]
+      .filter(m => !KNOWN_DEVNET_TOKENS[m] && decByMint[m] === undefined);
+    if (unknown.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const updates: Record<string, number> = {};
+      for (const m of unknown) {
+        try {
+          const info = await withRpcFallback(c => getMint(c, new PublicKey(m)));
+          updates[m] = info.decimals;
+        } catch { updates[m] = 9; }
+      }
+      if (!cancelled) setDecByMint(prev => ({ ...prev, ...updates }));
+    })();
+    return () => { cancelled = true; };
+  }, [streams, decByMint]);
 
   const filtered = streams.filter(s => {
     if (filter === 'all') return true;
     return streamStatus(s, nowSec) === filter;
   });
 
-  // Sum locked/withdrawn normalised to 6-decimal base for display (mixed mints = approximate)
-  const totalLocked    = streams.reduce((acc, s) => {
-    const dec = mintDecimals(s);
-    return acc + Number(s.amountTotal.toString()) / 10 ** dec;
-  }, 0);
-  const totalWithdrawn = streams.reduce((acc, s) => {
-    const dec = mintDecimals(s);
-    return acc + Number(s.amountWithdrawn.toString()) / 10 ** dec;
-  }, 0);
-  const activeCount    = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
+  // KPI totals grouped by symbol
+  const lockedBySymbol:    Record<string, number> = {};
+  const withdrawnBySymbol: Record<string, number> = {};
+  for (const s of streams) {
+    const m = metaFor(s.mint.toBase58(), decByMint);
+    lockedBySymbol[m.symbol]    = (lockedBySymbol[m.symbol]    ?? 0) + Number(s.amountTotal.toString())     / 10 ** m.decimals;
+    withdrawnBySymbol[m.symbol] = (withdrawnBySymbol[m.symbol] ?? 0) + Number(s.amountWithdrawn.toString()) / 10 ** m.decimals;
+  }
+  const fmtTotal = (bySym: Record<string, number>): string => {
+    const syms = Object.keys(bySym);
+    if (syms.length === 0) return '0.00';
+    if (syms.length === 1) return `${bySym[syms[0]].toFixed(2)} ${syms[0]}`;
+    return syms.map(s => `${bySym[s].toFixed(2)} ${s}`).join(' · ');
+  };
+  const activeCount         = streams.filter(s => streamStatus(s, nowSec) === 'active').length;
+  const totalLockedLabel    = fmtTotal(lockedBySymbol);
+  const totalWithdrawnLabel = fmtTotal(withdrawnBySymbol);
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://blockbite.vercel.app';
 
   return (
     <main style={{ minHeight: '100vh', background: T.bg, color: T.text }}>
@@ -237,7 +249,9 @@ export default function StreamsPage() {
       {/* ── Header ── */}
       <div style={{ padding: '80px 24px 32px', background: T.header, borderBottom: `1px solid ${T.border}` }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>{tx.badge}</div>
+          <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
+            {tx.badge}
+          </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(26px,5vw,44px)', fontWeight: 900, letterSpacing: '-0.5px', marginBottom: 8, color: T.text }}>
@@ -256,7 +270,7 @@ export default function StreamsPage() {
               }}>
                 {tx.demoBtn}
               </Link>
-              <Link href="/new" style={{
+              <Link href="/streams/new" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px',
                 background: T.grad, color: T.text, borderRadius: 12,
                 fontWeight: 700, fontSize: 13, textDecoration: 'none', boxShadow: `0 0 20px ${T.accentA4}`,
@@ -273,10 +287,10 @@ export default function StreamsPage() {
         {/* ── KPI row ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 32 }}>
           {[
-            { label: tx.kpi.streams, value: String(streams.length),               sub: tx.kpi.streamsSub, color: T.accent },
-            { label: tx.kpi.active,  value: String(activeCount),                  sub: tx.kpi.activeSub,  color: T.green  },
-            { label: tx.kpi.locked,  value: totalLocked.toFixed(2) + ' TOKEN',    sub: tx.kpi.lockedSub,  color: T.gold   },
-            { label: tx.kpi.claimed, value: totalWithdrawn.toFixed(2) + ' TOKEN', sub: tx.kpi.claimedSub, color: T.blue   },
+            { label: tx.kpi.streams, value: String(streams.length),   sub: tx.kpi.streamsSub, color: T.accent },
+            { label: tx.kpi.active,  value: String(activeCount),       sub: tx.kpi.activeSub,  color: T.green  },
+            { label: tx.kpi.locked,  value: totalLockedLabel,          sub: tx.kpi.lockedSub,  color: T.gold   },
+            { label: tx.kpi.claimed, value: totalWithdrawnLabel,       sub: tx.kpi.claimedSub, color: T.blue   },
           ].map(s => (
             <div key={s.label} style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '18px 20px' }}>
               <div style={{ fontSize: 10, color: T.textDim, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
@@ -286,36 +300,25 @@ export default function StreamsPage() {
           ))}
         </div>
 
-        {/* ── Wallet gate ── */}
+        {/* ── Connect wallet CTA (soft, non-blocking) ── */}
         {!connected && (
-          <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, padding: '48px 24px', textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>◈</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>{tx.walletTitle}</div>
-            <div style={{ fontSize: 13, color: T.textDim, marginBottom: 20 }}>
-              {tx.walletSub}
-            </div>
+          <div style={{
+            background: `color-mix(in srgb, ${T.accent} 5%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${T.accent} 18%, transparent)`,
+            borderRadius: 12, padding: '14px 20px', marginBottom: 20,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+          }}>
+            <span style={{ fontSize: 13, color: T.textDim }}>
+              {lang === 'id'
+                ? 'Hubungkan wallet untuk menyorot stream kamu + buat stream baru'
+                : 'Connect wallet to see your streams highlighted + create new streams'}
+            </span>
             <button
               onClick={() => setVisible(true)}
-              style={{
-                padding: '11px 28px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                background: T.grad, color: T.text,
-                fontWeight: 700, fontSize: 13,
-              }}
+              style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: T.grad, color: T.text, fontWeight: 700, fontSize: 12 }}
             >
-              {tx.connectBtn}
+              {lang === 'id' ? 'Hubungkan Wallet' : 'Connect Wallet'}
             </button>
-            <div style={{ marginTop: 14 }}>
-              <Link href="/demo" style={{ fontSize: 12, color: T.accent, textDecoration: 'none' }}>
-                {tx.orDemo}
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* ── Error ── */}
-        {error && (
-          <div style={{ background: T.redA1, border: `1px solid ${T.accentA4}`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, fontSize: 13, color: T.red }}>
-            ✗ {error} — <button onClick={load} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.accent, fontSize: 13 }}>Retry</button>
           </div>
         )}
 
@@ -327,7 +330,7 @@ export default function StreamsPage() {
         )}
 
         {/* ── Streams table ── */}
-        {connected && !loading && (
+        {!loading && (
           <>
             {/* Filter tabs */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -352,9 +355,13 @@ export default function StreamsPage() {
             </div>
 
             <div style={{ background: T.bg1, border: `1px solid ${T.border}`, borderRadius: 16, overflow: 'hidden' }}>
-              {/* Table header — hidden on mobile via MOBILE_CSS */}
-              <div className="sd-table-header" style={{ display: 'grid', gridTemplateColumns: GRID, padding: '10px 20px', borderBottom: `1px solid ${T.border}`, background: 'rgba(255,255,255,.03)' }}>
-                {tx.headers.map(h => (
+              {/* Table header */}
+              <div className="sd-table-header" style={{
+                display: 'grid', gridTemplateColumns: GRID,
+                padding: '10px 20px', borderBottom: `1px solid ${T.border}`,
+                background: 'rgba(255,255,255,.03)',
+              }}>
+                {[...tx.headers, lang === 'id' ? 'AKSI' : 'ACTIONS'].map(h => (
                   <div key={h} style={{ fontSize: 9.5, color: T.textDim, fontWeight: 700, letterSpacing: '.06em' }}>{h}</div>
                 ))}
               </div>
@@ -363,27 +370,30 @@ export default function StreamsPage() {
               {filtered.length === 0 && (
                 <div style={{ padding: '60px 20px', textAlign: 'center', color: T.textDim, fontSize: 14 }}>
                   {streams.length === 0
-                    ? <><Link href="/new" style={{ color: T.accent }}>{tx.createFirst}</Link></>
+                    ? <><Link href="/streams/new" style={{ color: T.accent }}>{tx.createFirst}</Link></>
                     : tx.noMatch
                   }
                 </div>
               )}
 
-              {/* Rows — click to open stream detail */}
+              {/* Rows */}
               {filtered.map((s, i) => {
-                const type       = streamType(s);
-                const status     = streamStatus(s, nowSec);
-                const typeCol    = TYPE_COLORS[type] ?? T.accent;
-                const dec        = mintDecimals(s);
-                const sym        = mintSymbol(s);
-                const total      = Number(s.amountTotal.toString());
-                const withdrawn  = Number(s.amountWithdrawn.toString());
-                const claimable  = Number(computeUnlocked(s, nowSec));
-                const isCreator  = publicKey && s.authority.toBase58() === publicKey.toBase58();
-                const href       = `/streams/${s.pubkey.toBase58()}`;
-                const tLeft      = timeLeft(s, nowSec);
-                const hasGameGate = (s as unknown as { requiredTier?: number }).requiredTier != null
-                  && ((s as unknown as { requiredTier: number }).requiredTier > 0);
+                const type    = streamType(s);
+                const status  = streamStatus(s, nowSec);
+                const typeCol = TYPE_COLORS[type] ?? T.accent;
+                const meta    = metaFor(s.mint.toBase58(), decByMint);
+                const total   = Number(s.amountTotal.toString());
+                const href    = `/streams/${s.pubkey.toBase58()}`;
+                const isOwner = publicKey && s.authority.toBase58() === publicKey.toBase58();
+                const isUser  = publicKey && (
+                  s.authority.toBase58() === publicKey.toBase58() ||
+                  s.beneficiary.toBase58() === publicKey.toBase58()
+                );
+                const canCancel = isOwner && !s.cancelled && (status === 'active' || status === 'pending');
+                const streamUrl  = `${origin}/streams/${s.pubkey.toBase58()}`;
+                const mintAddr   = s.mint.toBase58();
+                const linkKey    = `link-${s.pubkey.toBase58()}`;
+                const mintKey    = `mint-${s.pubkey.toBase58()}`;
 
                 return (
                   <div
@@ -400,62 +410,88 @@ export default function StreamsPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = T.accentA1)}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 ? 'rgba(255,255,255,.01)' : 'transparent')}
                   >
-                    {/* Stream PDA + role — always visible */}
+                    {/* Col 1: Stream / Role */}
                     <div className="sd-row-meta">
                       <div>
-                        <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.text, marginBottom: 2 }}>
+                        <div style={{ fontFamily: T.mono, fontSize: 11, color: T.text, marginBottom: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                           {shortKey(s.pubkey)}
+                          {isUser && (
+                            <span style={{
+                              fontSize: 9, background: `color-mix(in srgb, ${T.accent} 15%, transparent)`,
+                              color: T.accent, padding: '1px 5px', borderRadius: 4,
+                            }}>
+                              {isOwner ? (lang === 'id' ? 'ANDA' : 'YOU') : (lang === 'id' ? 'PENERIMA' : 'RCPT')}
+                            </span>
+                          )}
                         </div>
-                        <div style={{ fontSize: 10, color: isCreator ? T.accent : T.green, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                          {isCreator ? tx.youCreated : tx.youReceive}
-                          {s.milestoneCount > 0 && <span style={{ color: T.blue }}> · {tx.milestone(s.milestoneCount)}</span>}
-                          {hasGameGate && <span style={{ color: '#c084fc' }}> · 🎮 Game Gate</span>}
-                          <span style={{ color: T.textDim, fontFamily: 'monospace', fontSize: 9 }}>· {sym}</span>
+                        <div style={{ fontFamily: T.mono, fontSize: 9.5, color: T.textDim }}>
+                          → {shortKey(s.beneficiary)}
+                          {s.milestoneCount > 0 && <span style={{ color: T.blue, marginLeft: 4 }}>· {s.milestoneCount} milestone</span>}
                         </div>
                       </div>
-                      {/* On mobile, show type + status inline */}
+                      {/* Mobile: type + status inline */}
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <Badge label={type.toUpperCase()} color={typeCol} />
                         <StatusDot status={status} />
                       </div>
                     </div>
 
-                    {/* Type — hidden on mobile (shown above) */}
+                    {/* Col 2: Type (hidden on mobile) */}
                     <div className="sd-col-hide"><Badge label={type.toUpperCase()} color={typeCol} /></div>
 
-                    {/* Amounts row — shown as grid on mobile */}
-                    <div className="sd-row-amounts">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>TOTAL</div>
-                        {fmtTokens(s.amountTotal, dec)} <span style={{ fontSize: 9, color: T.textDim }}>{sym}</span>
-                      </div>
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>CLAIMED</div>
-                        {fmtRaw(withdrawn, dec)}
-                      </div>
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>
-                        <div style={{ fontSize: 9, color: T.textDim, marginBottom: 2 }}>UNLOCKED</div>
-                        {fmtRaw(claimable, dec)}
-                      </div>
+                    {/* Col 3: Total Tokens */}
+                    <div style={{ fontFamily: T.mono, fontSize: 12, color: T.text, fontWeight: 600 }}>
+                      {fmtAmount(total, meta.decimals)}
+                      <span style={{ color: T.textDim, fontSize: 10, marginLeft: 3 }}>{meta.symbol}</span>
                     </div>
 
-                    {/* These 3 are hidden on mobile (merged into sd-row-amounts above) */}
-                    <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: withdrawn > 0 ? T.green : T.textDim }}>{fmtRaw(withdrawn, dec)}</div>
-                      <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>{total > 0 ? `${Math.round((withdrawn / total) * 100)}% withdrawn` : '—'}</div>
-                    </div>
-                    <div className="sd-col-hide">
-                      <div style={{ fontFamily: T.mono, fontSize: 12, color: claimable > 0 ? T.gold : T.textDim }}>{fmtRaw(claimable, dec)}</div>
-                      <div style={{ fontSize: 9.5, color: T.textDim, marginTop: 1 }}>claimable now</div>
+                    {/* Col 4: Creator / Team */}
+                    <div style={{ fontFamily: T.mono, fontSize: 10, color: isOwner ? T.accent : T.textDim }}>
+                      {shortKey(s.authority)}
                     </div>
 
-                    {/* Time left */}
-                    <div style={{ fontFamily: T.mono, fontSize: 11, color: status === 'active' ? T.blue : T.textDim }}>
-                      {tLeft}
+                    {/* Col 5: Date Created */}
+                    <div style={{ fontFamily: T.mono, fontSize: 10.5, color: T.textDim }}>
+                      {new Date(Number(s.startTs.toString()) * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </div>
 
-                    {/* Status — hidden on mobile (shown in meta row above) */}
-                    <div className="sd-col-hide"><StatusDot status={status} /></div>
+                    {/* Col 6: Status */}
+                    <div><StatusDot status={status} /></div>
+
+                    {/* Col 7: Actions — stopPropagation so row click doesn't fire */}
+                    <div
+                      className="sd-actions-col"
+                      style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <IconBtn
+                        label={lang === 'id' ? '⎘ Salin Link' : '⎘ Copy Link'}
+                        done={copied[linkKey]}
+                        color={T.accent}
+                        onClick={() => doCopy(linkKey, streamUrl)}
+                      />
+                      <IconBtn
+                        label={lang === 'id' ? '◈ Salin CA' : '◈ Copy CA'}
+                        done={copied[mintKey]}
+                        color={T.gold}
+                        onClick={() => doCopy(mintKey, mintAddr)}
+                      />
+                      {canCancel && (
+                        <button
+                          title={lang === 'id' ? 'Batalkan stream ini' : 'Cancel this stream'}
+                          onClick={e => { e.stopPropagation(); router.push(`${href}?cancel=1`); }}
+                          style={{
+                            padding: '3px 8px', borderRadius: 6,
+                            border: `1px solid color-mix(in srgb, ${T.red} 28%, transparent)`,
+                            background: `color-mix(in srgb, ${T.red} 6%, transparent)`,
+                            color: T.red, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {lang === 'id' ? '✕ Batalkan' : '✕ Cancel'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

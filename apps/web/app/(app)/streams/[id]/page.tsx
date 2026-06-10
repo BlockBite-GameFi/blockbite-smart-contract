@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useApp } from '@/lib/useApp';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -121,8 +121,9 @@ type RawStream = NonNullable<Awaited<ReturnType<typeof fetchStream>>>;
 
 export default function StreamDetailPage() {
   const { lang } = useApp();
-  const params   = useParams();
-  const idParam  = params?.id as string | undefined;
+  const params      = useParams();
+  const searchParams = useSearchParams();
+  const idParam     = params?.id as string | undefined;
 
   const { connection }                 = useConnection();
   const { publicKey, sendTransaction } = useWallet();
@@ -149,8 +150,17 @@ export default function StreamDetailPage() {
   const cancelling = cancelStage === 'approving' || cancelStage === 'confirming';
   const closing   = closeStage  === 'approving' || closeStage  === 'confirming';
   const [nowSec,         setNowSec]         = useState(Math.floor(Date.now() / 1000));
+  const [copiedLink,     setCopiedLink]     = useState(false);
+  const [copiedMint,     setCopiedMint]     = useState(false);
   const router = useRouter();
   const { status: gameStatus, submitScore, submitMilestoneOnChain } = useGameVerification();
+
+  // Auto-open cancel modal when navigated from list with ?cancel=1
+  useEffect(() => {
+    if (searchParams?.get('cancel') === '1') {
+      setConfirmCancel(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);
@@ -468,9 +478,58 @@ export default function StreamDetailPage() {
           <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: 'var(--p-text)', margin: 0 }}>
             Stream Detail
           </h1>
-          <p style={{ fontSize: 11, color: C.muted, margin: '4px 0 0', fontFamily: C.mono, wordBreak: 'break-all' }}>
-            {streamPda.toBase58()}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+            <p style={{ fontSize: 11, color: C.muted, margin: 0, fontFamily: C.mono, wordBreak: 'break-all' }}>
+              {streamPda.toBase58()}
+            </p>
+            {/* Copy stream link */}
+            <button
+              onClick={() => {
+                const url = typeof window !== 'undefined'
+                  ? `${window.location.origin}/streams/${streamPda.toBase58()}`
+                  : '';
+                navigator.clipboard.writeText(url).then(() => {
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 1800);
+                });
+              }}
+              title={lang === 'id' ? 'Salin link stream ini' : 'Copy stream link'}
+              style={{
+                padding: '3px 10px', borderRadius: 7, border: `1px solid color-mix(in srgb, ${C.accent} 25%, transparent)`,
+                background: copiedLink ? `color-mix(in srgb, ${C.accent} 10%, transparent)` : 'rgba(255,255,255,.03)',
+                color: copiedLink ? C.accent : C.muted, fontSize: 10.5, fontWeight: 600,
+                cursor: 'pointer', flexShrink: 0, transition: 'all .15s',
+              }}
+            >
+              {copiedLink
+                ? (lang === 'id' ? '✓ Link Disalin!' : '✓ Link Copied!')
+                : (lang === 'id' ? '⎘ Salin Link' : '⎘ Copy Link')}
+            </button>
+            {/* Copy contract address (mint) */}
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(streamPda.toBase58()).then(() => {
+                  // use copiedLink slot for stream PDA copy feedback
+                });
+                // copy mint address
+                navigator.clipboard.writeText(stream?.mint.toBase58() ?? '').then(() => {
+                  setCopiedMint(true);
+                  setTimeout(() => setCopiedMint(false), 1800);
+                });
+              }}
+              title={lang === 'id' ? 'Salin alamat kontrak (mint)' : 'Copy contract address (mint)'}
+              style={{
+                padding: '3px 10px', borderRadius: 7, border: `1px solid color-mix(in srgb, ${C.gold} 25%, transparent)`,
+                background: copiedMint ? `color-mix(in srgb, ${C.gold} 10%, transparent)` : 'rgba(255,255,255,.03)',
+                color: copiedMint ? C.gold : C.muted, fontSize: 10.5, fontWeight: 600,
+                cursor: 'pointer', flexShrink: 0, transition: 'all .15s',
+              }}
+            >
+              {copiedMint
+                ? (lang === 'id' ? '✓ CA Disalin!' : '✓ CA Copied!')
+                : (lang === 'id' ? '◈ Salin CA' : '◈ Copy CA')}
+            </button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Game gate — shown when stream requires game play AND user hasn't played yet */}
