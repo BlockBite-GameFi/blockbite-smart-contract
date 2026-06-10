@@ -18,6 +18,7 @@ const MAGENTA = '#b12c84';
 const TEAL    = '#3d7c91';
 const GOLD    = '#e1a438';
 const PURPLE  = '#7c80e8';
+const RED     = '#c0392b';
 const BG      = '#08080f';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -64,6 +65,11 @@ function shortPk(pk: PublicKey) {
   return `${s.slice(0, 4)}...${s.slice(-4)}`;
 }
 
+function cliffLabel(row: StreamRow): string {
+  if (row.cliffTs > row.startTs) return 'CLIFF';
+  return 'LINEAR';
+}
+
 // ── StreamCard ────────────────────────────────────────────────────────────────
 function StreamCard({ row, nowSec, walletKey, onCancel, cancelling }: {
   row: StreamRow;
@@ -72,14 +78,18 @@ function StreamCard({ row, nowSec, walletKey, onCancel, cancelling }: {
   onCancel: (r: StreamRow) => void;
   cancelling: boolean;
 }) {
-  const frac     = calcUnlockedFrac(row, nowSec);
-  const pct      = Math.round(frac * 100);
-  const total    = Number(row.amountTotal.toString());
-  const taken    = Number(row.amountWithdrawn.toString());
+  const [copiedCA, setCopiedCA] = useState(false);
+  const [copiedBenef, setCopiedBenef] = useState(false);
+
+  const frac      = calcUnlockedFrac(row, nowSec);
+  const pct       = Math.round(frac * 100);
+  const total     = Number(row.amountTotal.toString());
+  const taken     = Number(row.amountWithdrawn.toString());
   const claimable = Math.max(0, Math.floor(total * frac) - taken);
-  const isCreator = walletKey?.equals(row.authority);
-  const isBenef   = walletKey?.equals(row.beneficiary);
+  const isCreator  = walletKey?.equals(row.authority);
+  const isBenef    = walletKey?.equals(row.beneficiary);
   const beforeCliff = nowSec < row.cliffTs;
+  const canCancel   = isCreator && !row.cancelled && nowSec < row.endTs;
 
   const status = row.cancelled   ? 'CANCELLED'
     : nowSec >= row.endTs        ? 'FULLY VESTED'
@@ -91,95 +101,137 @@ function StreamCard({ row, nowSec, walletKey, onCancel, cancelling }: {
     : beforeCliff                   ? PURPLE
     : TEAL;
 
+  const copyText = (text: string, setter: (v: boolean) => void) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setter(true);
+      setTimeout(() => setter(false), 1600);
+    });
+  };
+
   return (
     <div style={{
-      background: '#0d0d1a', border: '1px solid #1e1e3a',
-      borderRadius: 12, padding: '20px 24px', marginBottom: 14,
+      background: '#0b0b18', border: `1px solid ${canCancel ? '#2a1a1a' : '#18182a'}`,
+      borderRadius: 10, padding: '16px 20px', marginBottom: 10,
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#666' }}>
-            STREAM #{row.streamId.toString()}
-          </span>
-          <span style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-            color: statusColor, background: `${statusColor}22`,
-            padding: '2px 8px', borderRadius: 4,
-          }}>
-            {status}
-          </span>
-        </div>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#333' }}>
-          {shortPk(row.pda)}
+      {/* Row 1: ID, cliff label, status, time remaining */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#555' }}>
+          #{row.streamId.toString()}
+        </span>
+        <span style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600,
+          color: PURPLE, background: `${PURPLE}20`, padding: '2px 7px', borderRadius: 4,
+        }}>
+          {cliffLabel(row)}
+        </span>
+        <span style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+          color: statusColor, background: `${statusColor}18`,
+          padding: '2px 7px', borderRadius: 4,
+        }}>
+          {status}
+        </span>
+        <span style={{ marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#444' }}>
+          {pct}% · {timeRemaining(row.endTs, nowSec)}
         </span>
       </div>
 
       {/* Progress bar */}
-      <div style={{ background: '#1a1a2e', borderRadius: 4, height: 6, overflow: 'hidden', marginBottom: 4 }}>
+      <div style={{ background: '#151525', borderRadius: 3, height: 4, overflow: 'hidden', marginBottom: 12 }}>
         <div style={{
           width: `${pct}%`, height: '100%',
-          background: row.cancelled ? '#333' : `linear-gradient(90deg, ${TEAL}, ${GOLD})`,
-          transition: 'width 0.5s ease',
+          background: row.cancelled ? '#2a2a2a' : `linear-gradient(90deg, ${TEAL}, ${GOLD})`,
         }} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#666' }}>{pct}% vested</span>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#666' }}>{timeRemaining(row.endTs, nowSec)}</span>
+
+      {/* Row 2: From wallet */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#444', width: 36 }}>FROM</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#666' }}>
+          {shortPk(row.authority)}
+        </span>
+        <button
+          onClick={() => copyText(row.authority.toBase58(), setCopiedBenef)}
+          style={{
+            padding: '2px 8px', background: 'transparent', border: '1px solid #252535',
+            borderRadius: 4, color: '#444', fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 10, cursor: 'pointer',
+          }}
+        >
+          {copiedBenef ? '✓' : '⎘'}
+        </button>
       </div>
 
-      {/* Token amounts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
-        {[
-          { label: 'TOTAL',     value: fmtTokens(row.amountTotal),     color: '#aaa' },
-          { label: 'WITHDRAWN', value: fmtTokens(row.amountWithdrawn), color: '#888' },
-          { label: 'CLAIMABLE', value: (claimable / 1e6).toFixed(2),    color: claimable > 0 ? GOLD : '#555' },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#555', marginBottom: 2 }}>{label}</div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16, color }}>{value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Addresses */}
-      <div style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: '#444', marginBottom: 12 }}>
-        FROM: {shortPk(row.authority)} -&gt; TO: {shortPk(row.beneficiary)}
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {isBenef && !row.cancelled && (
-          <Link
-            href={`/claim/${row.pda.toBase58()}`}
-            style={{
-              flex: 1, padding: '10px 0', textAlign: 'center',
-              background: claimable > 0 ? `linear-gradient(135deg, ${TEAL}, ${GOLD})` : 'rgba(255,255,255,0.05)',
-              border: claimable > 0 ? 'none' : '1px solid #2a2a3e',
-              borderRadius: 8,
-              color: claimable > 0 ? '#000' : '#555',
-              fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 13,
-              textDecoration: 'none', display: 'block',
-            }}
-          >
-            {claimable > 0 ? `CLAIM ${(claimable / 1e6).toFixed(2)}` : beforeCliff ? 'CLIFF PENDING' : 'NOTHING TO CLAIM'}
-          </Link>
-        )}
-        {isCreator && !row.cancelled && nowSec < row.endTs && (
+      {/* Row 3: Recipient wallet + Cancel button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: '#444', width: 36 }}>TO</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#aaa', fontWeight: 600 }}>
+          {row.beneficiary.toBase58()}
+        </span>
+        {canCancel && (
           <button
             onClick={() => onCancel(row)}
             disabled={cancelling}
             style={{
-              padding: '10px 16px', background: 'transparent',
-              border: '1px solid #3a1a1a', borderRadius: 8,
-              color: '#833', fontFamily: 'Space Grotesk, sans-serif',
-              fontWeight: 600, fontSize: 12, cursor: cancelling ? 'wait' : 'pointer',
-              opacity: cancelling ? 0.5 : 1,
+              marginLeft: 'auto', padding: '4px 14px',
+              background: cancelling ? 'transparent' : `${RED}22`,
+              border: `1px solid ${RED}66`, borderRadius: 6,
+              color: RED, fontFamily: 'Space Grotesk, sans-serif',
+              fontWeight: 700, fontSize: 12, cursor: cancelling ? 'wait' : 'pointer',
+              opacity: cancelling ? 0.5 : 1, whiteSpace: 'nowrap',
             }}
           >
-            {cancelling ? '...' : 'CANCEL'}
+            {cancelling ? '...' : '✕ Cancel'}
           </button>
         )}
+      </div>
+
+      {/* Row 4: Token info + Copy CA + Claim */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#666' }}>
+          {fmtTokens(row.amountTotal)} total
+        </span>
+        <span style={{ color: '#2a2a3e' }}>·</span>
+        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555' }}>
+          {fmtTokens(row.amountWithdrawn)} claimed
+        </span>
+        {claimable > 0 && (
+          <>
+            <span style={{ color: '#2a2a3e' }}>·</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: GOLD }}>
+              {(claimable / 1e6).toFixed(2)} unlocked
+            </span>
+          </>
+        )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => copyText(row.mint.toBase58(), setCopiedCA)}
+            style={{
+              padding: '4px 10px', background: 'transparent',
+              border: `1px solid ${GOLD}44`, borderRadius: 6,
+              color: copiedCA ? GOLD : '#666', fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 10, cursor: 'pointer',
+            }}
+          >
+            {copiedCA ? '✓ CA Copied' : '◈ Copy CA'}
+          </button>
+          {isBenef && !row.cancelled && (
+            <Link
+              href={`/claim/${row.pda.toBase58()}`}
+              style={{
+                padding: '4px 12px',
+                background: claimable > 0 ? `linear-gradient(135deg, ${TEAL}, ${GOLD})` : 'transparent',
+                border: claimable > 0 ? 'none' : '1px solid #2a2a3e',
+                borderRadius: 6, color: claimable > 0 ? '#000' : '#555',
+                fontFamily: 'Space Grotesk, sans-serif', fontWeight: 700, fontSize: 11,
+                textDecoration: 'none',
+              }}
+            >
+              {claimable > 0 ? `CLAIM` : 'CLAIM'}
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
