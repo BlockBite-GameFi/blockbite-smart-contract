@@ -7,7 +7,6 @@ import { CallToAction } from './CallToAction';
 import { FAQ } from './FAQ';
 import { Waitlist } from './Waitlist';
 import { Footer } from './Footer';
-import { ScrollReveal } from './ScrollReveal';
 
 export function LandingPage() {
   return (
@@ -23,7 +22,6 @@ export function LandingPage() {
         <Waitlist />
       </div>
       <Footer />
-      <ScrollReveal />
     </>
   );
 }
