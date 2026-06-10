@@ -18,8 +18,10 @@ function GamePageContent() {
   const requiredLevel = parseInt(searchParams.get('level') || '1', 10);
 
   // Campaign verification params (new)
-  const milestonePda = searchParams.get('milestone');
+  const milestonePda     = searchParams.get('milestone');
   const gameProgramIdStr = searchParams.get('gameProgram');
+  const campaignPdaStr   = searchParams.get('campaign');
+  const milestoneSeedStr = searchParams.get('milestoneSeed');
 
   const { submitScore } = useGameVerification();
   const { verify } = useCampaignGameVerification();
@@ -28,7 +30,7 @@ function GamePageContent() {
   const [campaignVerified, setCampaignVerified] = useState(false);
   const [autoTriggered, setAutoTriggered] = useState(false);
 
-  const isCampaignMode = !!(milestonePda && gameProgramIdStr && publicKey);
+  const isCampaignMode = !!(milestonePda && gameProgramIdStr && campaignPdaStr && publicKey);
 
   // Stream verification handler
   const handleStreamVerified = useCallback(async (level: number, score: number) => {
@@ -41,18 +43,20 @@ function GamePageContent() {
 
   // Campaign verification handler
   const handleCampaignVerified = useCallback(async (level: number, score: number) => {
-    if (campaignVerified || !milestonePda || !gameProgramIdStr || !publicKey || autoTriggered) return;
+    if (campaignVerified || !milestonePda || !gameProgramIdStr || !campaignPdaStr || !publicKey || autoTriggered) return;
 
     try {
-      const milestonePk = new PublicKey(milestonePda);
+      const milestonePk   = new PublicKey(milestonePda);
       const gameProgramPk = new PublicKey(gameProgramIdStr);
+      const campaignPk    = new PublicKey(campaignPdaStr);
+      const mSeed         = milestoneSeedStr ? BigInt(milestoneSeedStr) : 0n;
 
-      await verify(milestonePk, gameProgramPk, level, score, publicKey, sendTransaction);
+      await verify(milestonePk, gameProgramPk, level, score, publicKey, sendTransaction, campaignPk, mSeed);
       setCampaignVerified(true);
     } catch {
       // Error handled by hook
     }
-  }, [milestonePda, gameProgramIdStr, publicKey, sendTransaction, verify, campaignVerified, autoTriggered]);
+  }, [milestonePda, gameProgramIdStr, campaignPdaStr, milestoneSeedStr, publicKey, sendTransaction, verify, campaignVerified, autoTriggered]);
 
   // Auto-trigger campaign verification when game completes
   useEffect(() => {

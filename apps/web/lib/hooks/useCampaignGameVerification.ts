@@ -2,22 +2,20 @@
 
 import { useState, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { Connection } from '@solana/web3.js';
-import { RPC_URL } from '@/lib/solana/config';
-import {
-  submitProof,
-  verifyGame,
-  type SendTx,
-} from '@/lib/anchor/campaign-client';
+import type { SendTx } from '@/lib/anchor/campaign-client';
 
-export type CampaignVerificationStatus = 'none' | 'playing' | 'submitting_proof' | 'verifying' | 'verified' | 'failed';
+export type CampaignVerificationStatus = 'none' | 'playing' | 'verifying' | 'verified' | 'failed';
 
 export interface CampaignVerificationResult {
-  verified: boolean;
-  proofSig?: string;
+  verified:  boolean;
   verifySig?: string;
+  /** @deprecated No session result hash is used in the current program. Always empty. */
   sessionResultHash: Uint8Array;
 }
+
+const GAME_SERVER_URL =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GAME_SERVER_URL) ||
+  'http://localhost:3001';
 
 export function useCampaignGameVerification() {
   const [status, setStatus] = useState<CampaignVerificationStatus>('none');
@@ -25,62 +23,57 @@ export function useCampaignGameVerification() {
   const [error, setError] = useState<string | null>(null);
 
   const verify = useCallback(async (
-    milestonePda: PublicKey,
-    gameProgramId: PublicKey,
-    level: number,
-    score: number,
-    recipient: PublicKey,
-    sendTransaction: SendTx,
-    campaign?: PublicKey,
-    milestoneSeed: bigint = 0n,
+    milestonePda:    PublicKey,
+    gameProgramId:   PublicKey,   // ignored — game server uses its own keypair
+    level:           number,
+    score:           number,
+    recipient:       PublicKey,
+    sendTransaction: SendTx,      // unused — game server signs the tx
+    campaign?:       PublicKey,
+    milestoneSeed:   bigint = 0n,
   ): Promise<CampaignVerificationResult> => {
-    setStatus('submitting_proof');
+    setStatus('verifying');
     setError(null);
 
     const campaignPk = campaign ?? PublicKey.default;
+    const userId     = recipient.toBase58();
+    const sessionId  = `${userId}-${milestonePda.toBase58()}-${Date.now()}`;
 
     try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-
-      // Build session result hash from game data
-      const sessionData = `${level}:${score}:${recipient.toBase58()}:${milestonePda.toBase58()}`;
-      const encoder = new TextEncoder();
-      const encoded = encoder.encode(sessionData);
-      const sessionResultHash = new Uint8Array(32);
-      sessionResultHash.set(encoded.slice(0, 32));
-
-      // Step 1: Submit proof hash on-chain
-      const proofSig = await submitProof({
-        connection,
-        recipient,
-        campaign: campaignPk,
-        milestonePDA: milestonePda,
-        milestoneSeed,
-        proofHash: sessionResultHash,
-        sendTransaction,
+      // Step 1: Register the game session on the game server (demo mode).
+      // In production, replace this with real game-engine session validation.
+      await fetch(`${GAME_SERVER_URL}/api/test/simulate-game`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId, sessionId, level }),
       });
 
-      // Step 2: Verify game on-chain
-      setStatus('verifying');
-      const verifySig = await verifyGame({
-        connection,
-        campaign: campaignPk,
-        milestonePDA: milestonePda,
-        gameProgram: gameProgramId,
-        milestoneSeed,
-        sessionResultHash,
-        sendTransaction,
+      // Step 2: Ask the game server to sign and submit verify_game on-chain.
+      const res = await fetch(`${GAME_SERVER_URL}/api/verify`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          userId,
+          campaignPda:   campaignPk.toBase58(),
+          milestoneSeed: milestoneSeed.toString(),
+          achievedLevel: level,
+          gameSessionId: sessionId,
+        }),
       });
 
-      const res = {
-        verified: true,
-        proofSig,
-        verifySig,
-        sessionResultHash,
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body?.message || body?.error || 'Game verification failed');
+      }
+
+      const out: CampaignVerificationResult = {
+        verified:          true,
+        verifySig:         body.signature,
+        sessionResultHash: new Uint8Array(32),
       };
-      setResult(res);
+      setResult(out);
       setStatus('verified');
-      return res;
+      return out;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);

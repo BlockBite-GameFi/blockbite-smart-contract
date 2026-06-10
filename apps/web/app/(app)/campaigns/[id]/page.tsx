@@ -12,6 +12,8 @@ import {
   fetchCampaign,
   getMilestonesByCampaign,
   deriveCampaignEscrowPDA,
+  findMilestoneSeedSync,
+  findCampaignSeedSync,
   type CampaignInfo,
   type MilestoneInfo,
 } from '@/lib/anchor/campaign-client';
@@ -138,10 +140,13 @@ export default function CampaignDetailPage() {
 
   const handleClaim = async (ms: MilestoneInfo) => {
     if (!publicKey || !campaign || !tokenMint) return;
-    const campaignSeed = BigInt(0);
-    const milestoneSeed = BigInt(0);
+
+    // Derive seeds by matching known PDAs — avoids storing seeds separately.
+    const milestoneSeed = findMilestoneSeedSync(campaign.pubkey, ms.pubkey) ?? 0n;
+    const campaignSeed  = findCampaignSeedSync(campaign.founder, campaign.pubkey) ?? 0n;
 
     const [campaignEscrow] = deriveCampaignEscrowPDA(campaign.pubkey);
+    void campaignEscrow;
 
     await claimMilestoneAction(
       publicKey,
@@ -274,7 +279,8 @@ export default function CampaignDetailPage() {
               milestones.map((ms, idx) => {
                 const isRecipient = publicKey && ms.recipient.equals(publicKey);
                 const isGameVerified = ms.isVerified;
-                const isGamePending = ms.proofSubmitted && !ms.isVerified;
+                // No submit_proof step exists — "pending" means not yet verified and not claimed
+                const isGamePending = !ms.isVerified && !ms.isClaimed;
 
                 return (
                   <div key={ms.pubkey.toBase58()} style={{
@@ -321,7 +327,7 @@ export default function CampaignDetailPage() {
                     {isRecipient && isGamePending && (
                       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <Link
-                          href={`/game?milestone=${ms.pubkey.toBase58()}&gameProgram=${ms.gameProgramId.toBase58()}&campaign=${campaign.pubkey.toBase58()}&level=1`}
+                          href={`/game?milestone=${ms.pubkey.toBase58()}&gameProgram=${ms.gameProgramId.toBase58()}&campaign=${campaign.pubkey.toBase58()}&milestoneSeed=${findMilestoneSeedSync(campaign.pubkey, ms.pubkey) ?? 0}&level=${ms.targetLevel || 1}`}
                           style={{
                             flex: 1, minWidth: 160,
                             padding: '12px 20px', borderRadius: 10, textAlign: 'center',

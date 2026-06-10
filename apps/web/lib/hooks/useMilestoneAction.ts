@@ -5,9 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
 import { RPC_URL } from '@/lib/solana/config';
 import {
-  submitProof,
   claimMilestone,
-  verifyGame,
   deriveCampaignEscrowPDA,
   type SendTx,
 } from '@/lib/anchor/campaign-client';
@@ -24,56 +22,28 @@ export function useMilestoneAction() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MilestoneActionResult | null>(null);
 
+  /** @deprecated submit_proof instruction does not exist in the current program. */
   const submitProofAction = useCallback(async (
-    recipient: PublicKey,
-    milestonePDA: PublicKey,
-    proofHash: Uint8Array,
-    sendTransaction: SendTx,
-    campaign: PublicKey = PublicKey.default,
-    milestoneSeed: bigint = 0n,
+    _recipient: PublicKey,
+    _milestonePDA: PublicKey,
+    _proofHash: Uint8Array,
+    _sendTransaction: SendTx,
+    _campaign: PublicKey = PublicKey.default,
+    _milestoneSeed: bigint = 0n,
   ) => {
-    setStatus('submitting');
-    setError(null);
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const sig = await submitProof({
-        connection, recipient, campaign, milestonePDA, milestoneSeed, proofHash, sendTransaction,
-      });
-      setResult({ sig });
-      setStatus('done');
-      return sig;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      setStatus('error');
-      throw e;
-    }
+    throw new Error('submit_proof is not implemented in the current program. Use the game server /api/verify endpoint.');
   }, []);
 
+  /** @deprecated verify_game requires game_authority signature — use game server endpoint instead. */
   const verifyGameAction = useCallback(async (
-    milestonePDA: PublicKey,
-    gameProgram: PublicKey,
-    sessionResultHash: Uint8Array,
-    sendTransaction: SendTx,
-    campaign: PublicKey = PublicKey.default,
-    milestoneSeed: bigint = 0n,
+    _milestonePDA: PublicKey,
+    _gameAuthority: PublicKey,
+    _achievedLevel: number,
+    _sendTransaction: SendTx,
+    _campaign: PublicKey = PublicKey.default,
+    _milestoneSeed: bigint = 0n,
   ) => {
-    setStatus('verifying');
-    setError(null);
-    try {
-      const connection = new Connection(RPC_URL, 'confirmed');
-      const sig = await verifyGame({
-        connection, campaign, milestonePDA, gameProgram, milestoneSeed, sessionResultHash, sendTransaction,
-      });
-      setResult({ sig });
-      setStatus('done');
-      return sig;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      setStatus('error');
-      throw e;
-    }
+    throw new Error('verifyGame must be called server-side. Use the game server /api/verify endpoint.');
   }, []);
 
   const claimMilestoneAction = useCallback(async (

@@ -32,7 +32,8 @@ export const CAMPAIGN_PROGRAM_ID = new PublicKey(
 );
 
 export const CAMPAIGN_ACCOUNT_SIZE = 90;
-export const MILESTONE_ACCOUNT_SIZE = 180;
+// Rust: 8 (disc) + 32+32+32+32 (pubkeys) + 8 (u64) + 6 (u8 fields) = 150
+export const MILESTONE_ACCOUNT_SIZE = 150;
 
 // Instruction discriminators: sha256("global:<name>")[0..8]
 const DISC_CREATE_CAMPAIGN  = Buffer.from([111, 131, 187, 98, 160, 193, 114, 244]);
@@ -91,13 +92,19 @@ export interface MilestoneInfo {
   campaign:         PublicKey;
   recipient:        PublicKey;
   descriptionHash:  Uint8Array;
+  /** On-chain field is `game_authority` — the game server's signing pubkey. */
   gameProgramId:    PublicKey;
   tokenAmount:      BN;
+  targetLevel:      number;
+  achievedLevel:    number;
+  difficulty:       number;
   isVerified:       boolean;
-  proofHash:        Uint8Array;
-  proofSubmitted:   boolean;
   isClaimed:        boolean;
   bump:             number;
+  /** Always false — submit_proof instruction does not exist in the current program. */
+  proofSubmitted:   boolean;
+  /** Always empty — no proof hash is stored on-chain. */
+  proofHash:        Uint8Array;
 }
 
 export type SendTx = (
@@ -128,20 +135,27 @@ function decodeMilestone(pubkey: PublicKey, rawData: Uint8Array): MilestoneInfo 
   const data = Buffer.from(rawData);
   if (data.length < MILESTONE_ACCOUNT_SIZE) return null;
   try {
+    // Rust layout (after 8-byte discriminator):
+    // campaign(32) recipient(32) description_hash(32) game_authority(32)
+    // token_amount(8) target_level(1) achieved_level(1) difficulty(1)
+    // is_verified(1) is_claimed(1) bump(1)
     let off = 8;
-    const campaign        = new PublicKey(data.slice(off, off + 32)); off += 32;
-    const recipient       = new PublicKey(data.slice(off, off + 32)); off += 32;
-    const descriptionHash = new Uint8Array(data.slice(off, off + 32)); off += 32;
-    const gameProgramId   = new PublicKey(data.slice(off, off + 32)); off += 32;
-    const tokenAmount     = new BN(data.readBigUInt64LE(off).toString()); off += 8;
-    const isVerified      = data[off] !== 0; off += 1;
-    const proofHash       = new Uint8Array(data.slice(off, off + 32)); off += 32;
-    const proofSubmitted  = data[off] !== 0; off += 1;
-    const isClaimed       = data[off] !== 0; off += 1;
-    const bump            = data[off];
+    const campaign        = new PublicKey(data.slice(off, off + 32)); off += 32; // 40
+    const recipient       = new PublicKey(data.slice(off, off + 32)); off += 32; // 72
+    const descriptionHash = new Uint8Array(data.slice(off, off + 32)); off += 32; // 104
+    const gameProgramId   = new PublicKey(data.slice(off, off + 32)); off += 32; // 136
+    const tokenAmount     = new BN(data.readBigUInt64LE(off).toString()); off += 8; // 144
+    const targetLevel     = data[off]; off += 1; // 145
+    const achievedLevel   = data[off]; off += 1; // 146
+    const difficulty      = data[off]; off += 1; // 147
+    const isVerified      = data[off] !== 0; off += 1; // 148
+    const isClaimed       = data[off] !== 0; off += 1; // 149
+    const bump            = data[off]; // 150
     return {
       pubkey, campaign, recipient, descriptionHash, gameProgramId, tokenAmount,
-      isVerified, proofHash, proofSubmitted, isClaimed, bump,
+      targetLevel, achievedLevel, difficulty, isVerified, isClaimed, bump,
+      proofSubmitted: false,
+      proofHash: new Uint8Array(32),
     };
   } catch {
     return null;
@@ -230,6 +244,50 @@ export async function fetchMilestone(
   } catch { return null; }
 }
 
+// ─── Seed-finding utilities ───────────────────────────────────────────────────
+
+/**
+ * Brute-force the milestone seed by matching the known PDA address.
+ * Tries seeds 0..maxSeed synchronously (~1ms per attempt).
+ */
+export function findMilestoneSeedSync(
+  campaignPDA: PublicKey,
+  milestonePDA: PublicKey,
+  maxSeed = 2000,
+): bigint | null {
+  for (let seed = 0n; seed <= BigInt(maxSeed); seed++) {
+    const buf = Buffer.alloc(8);
+    buf.writeBigUInt64LE(seed);
+    const [derived] = PublicKey.findProgramAddressSync(
+      [Buffer.from('milestone'), campaignPDA.toBuffer(), buf],
+      CAMPAIGN_PROGRAM_ID,
+    );
+    if (derived.equals(milestonePDA)) return seed;
+  }
+  return null;
+}
+
+/**
+ * Brute-force the campaign seed by matching the known PDA address.
+ * Tries seeds 0..maxSeed synchronously (~1ms per attempt).
+ */
+export function findCampaignSeedSync(
+  founder: PublicKey,
+  campaignPDA: PublicKey,
+  maxSeed = 2000,
+): bigint | null {
+  for (let seed = 0n; seed <= BigInt(maxSeed); seed++) {
+    const buf = Buffer.alloc(8);
+    buf.writeBigUInt64LE(seed);
+    const [derived] = PublicKey.findProgramAddressSync(
+      [Buffer.from('campaign'), founder.toBuffer(), buf],
+      CAMPAIGN_PROGRAM_ID,
+    );
+    if (derived.equals(campaignPDA)) return seed;
+  }
+  return null;
+}
+
 // ─── Instruction builders ─────────────────────────────────────────────────────
 
 function mkCreateCampaignIx(
@@ -315,23 +373,26 @@ function mkSubmitProofIx(
   });
 }
 
+// NOTE: verify_game requires game_authority to sign — must be called server-side.
 function mkVerifyGameIx(
   campaign: PublicKey,
   milestonePDA: PublicKey,
-  gameProgram: PublicKey,
+  gameAuthority: PublicKey,
   milestoneSeed: bigint,
-  sessionResultHash: Uint8Array,
+  achievedLevel: number,
 ): TransactionInstruction {
-  const data = Buffer.alloc(48);
+  // Rust: #[instruction(milestone_seed: u64, achieved_level: u8)]
+  // = 8 (disc) + 8 (seed) + 1 (level) = 17 bytes total
+  const data = Buffer.alloc(17);
   DISC_VERIFY_GAME.copy(data, 0);
   data.writeBigUInt64LE(milestoneSeed, 8);
-  Buffer.from(sessionResultHash).copy(data, 16);
+  data[16] = achievedLevel;
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
-      { pubkey: campaign,     isSigner: false, isWritable: false },
-      { pubkey: milestonePDA, isSigner: false, isWritable: true  },
-      { pubkey: gameProgram,  isSigner: false, isWritable: false },
+      { pubkey: campaign,      isSigner: false, isWritable: false },
+      { pubkey: milestonePDA,  isSigner: false, isWritable: true  },
+      { pubkey: gameAuthority, isSigner: true,  isWritable: false },
     ],
     data,
   });
@@ -457,24 +518,30 @@ export async function submitProof(p: SubmitProofParams): Promise<string> {
 }
 
 export interface VerifyGameParams {
-  connection:         Connection;
-  campaign:           PublicKey;
-  milestonePDA:       PublicKey;
-  gameProgram:        PublicKey;
-  milestoneSeed:      bigint;
-  sessionResultHash:  Uint8Array;
-  sendTransaction:    SendTx;
+  connection:      Connection;
+  campaign:        PublicKey;
+  milestonePDA:    PublicKey;
+  /** game_authority pubkey — must be the signer. Use from game server only, not browser. */
+  gameAuthority:   PublicKey;
+  milestoneSeed:   bigint;
+  achievedLevel:   number;
+  sendTransaction: SendTx;
 }
 
+/**
+ * Builds and sends a verify_game transaction.
+ * MUST be called server-side: game_authority private key is required to sign.
+ * From the browser, use the game server's POST /api/verify endpoint instead.
+ */
 export async function verifyGame(p: VerifyGameParams): Promise<string> {
   const tx = new Transaction();
   tx.add(mkVerifyGameIx(
-    p.campaign, p.milestonePDA, p.gameProgram, p.milestoneSeed, p.sessionResultHash,
+    p.campaign, p.milestonePDA, p.gameAuthority, p.milestoneSeed, p.achievedLevel,
   ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;
-  tx.feePayer = p.gameProgram;
+  tx.feePayer = p.gameAuthority;
 
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
