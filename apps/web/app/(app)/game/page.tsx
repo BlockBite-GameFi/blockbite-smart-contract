@@ -1,7 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import GameCanvas from '@/components/game/GameCanvas';
 import { useGameVerification } from '@/lib/hooks/useGameVerification';
@@ -10,7 +9,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { useState, useCallback, useEffect } from 'react';
 
-export default function GamePage() {
+function GamePageContent() {
   const searchParams = useSearchParams();
   const { publicKey, sendTransaction } = useWallet();
 
@@ -19,12 +18,11 @@ export default function GamePage() {
   const requiredLevel = parseInt(searchParams.get('level') || '1', 10);
 
   // Campaign verification params (new)
-  const campaignId = searchParams.get('campaign');
   const milestonePda = searchParams.get('milestone');
   const gameProgramIdStr = searchParams.get('gameProgram');
 
-  const { submitScore, status: streamStatus } = useGameVerification();
-  const { verify, status: campaignStatus, error: campaignError } = useCampaignGameVerification();
+  const { submitScore } = useGameVerification();
+  const { verify } = useCampaignGameVerification();
 
   const [verified, setVerified] = useState(false);
   const [campaignVerified, setCampaignVerified] = useState(false);
@@ -32,7 +30,7 @@ export default function GamePage() {
 
   const isCampaignMode = !!(milestonePda && gameProgramIdStr && publicKey);
 
-  // Stream verification handler (existing)
+  // Stream verification handler
   const handleStreamVerified = useCallback(async (level: number, score: number) => {
     if (verified || !streamPda) return;
     const result = await submitScore(level, score, 'player', streamPda);
@@ -41,7 +39,7 @@ export default function GamePage() {
     }
   }, [streamPda, submitScore, verified]);
 
-  // Campaign verification handler (new)
+  // Campaign verification handler
   const handleCampaignVerified = useCallback(async (level: number, score: number) => {
     if (campaignVerified || !milestonePda || !gameProgramIdStr || !publicKey || autoTriggered) return;
 
@@ -49,14 +47,7 @@ export default function GamePage() {
       const milestonePk = new PublicKey(milestonePda);
       const gameProgramPk = new PublicKey(gameProgramIdStr);
 
-      await verify(
-        milestonePk,
-        gameProgramPk,
-        level,
-        score,
-        publicKey,
-        sendTransaction,
-      );
+      await verify(milestonePk, gameProgramPk, level, score, publicKey, sendTransaction);
       setCampaignVerified(true);
     } catch {
       // Error handled by hook
@@ -67,7 +58,6 @@ export default function GamePage() {
   useEffect(() => {
     if (!isCampaignMode || !publicKey || autoTriggered) return;
 
-    // Listen for game completion via custom event
     const handleGameComplete = (e: Event) => {
       if (autoTriggered) return;
       setAutoTriggered(true);
@@ -81,10 +71,7 @@ export default function GamePage() {
 
   const handleGameVerified = useCallback((level: number, score: number) => {
     if (isCampaignMode) {
-      // Dispatch custom event for auto-trigger
-      window.dispatchEvent(new CustomEvent('blockbite-game-complete', {
-        detail: { level, score },
-      }));
+      window.dispatchEvent(new CustomEvent('blockbite-game-complete', { detail: { level, score } }));
     } else {
       handleStreamVerified(level, score);
     }
@@ -103,5 +90,13 @@ export default function GamePage() {
           : undefined
       }
     />
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense>
+      <GamePageContent />
+    </Suspense>
   );
 }
