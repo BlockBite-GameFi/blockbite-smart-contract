@@ -41,7 +41,7 @@ export default function GamePage() {
 
   // Campaign verification handler (new)
   const handleCampaignVerified = useCallback(async (level: number, score: number) => {
-    if (campaignVerified || !milestonePda || !publicKey || autoTriggered) return;
+    if (campaignVerified || !milestonePda || !gameProgramIdStr || !publicKey || autoTriggered) return;
 
     try {
       const milestonePk = new PublicKey(milestonePda);
