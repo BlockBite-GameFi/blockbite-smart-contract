@@ -531,10 +531,6 @@ export type Blockbite = {
           }
         },
         {
-          "name": "verificationType",
-          "type": "u8"
-        },
-        {
           "name": "campaignSeed",
           "type": "u64"
         },
@@ -547,29 +543,20 @@ export type Blockbite = {
           "type": "u64"
         },
         {
-          "name": "oraclePubkey",
-          "type": "pubkey"
-        },
-        {
-          "name": "signerCount",
-          "type": "u8"
-        },
-        {
-          "name": "signers",
-          "type": {
-            "array": [
-              "pubkey",
-              5
-            ]
-          }
-        },
-        {
-          "name": "gameProgramId",
+          "name": "gameAuthority",
           "type": "pubkey"
         },
         {
           "name": "recipient",
           "type": "pubkey"
+        },
+        {
+          "name": "targetLevel",
+          "type": "u8"
+        },
+        {
+          "name": "difficulty",
+          "type": "u8"
         }
       ]
     },
@@ -747,41 +734,6 @@ export type Blockbite = {
       "args": []
     },
     {
-      "name": "submitProof",
-      "discriminator": [
-        54,
-        241,
-        46,
-        84,
-        4,
-        212,
-        46,
-        94
-      ],
-      "accounts": [
-        {
-          "name": "recipient",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "milestone",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "proofHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
       "name": "verifyGame",
       "discriminator": [
         81,
@@ -795,103 +747,57 @@ export type Blockbite = {
       ],
       "accounts": [
         {
-          "name": "milestone"
-        },
-        {
-          "name": "gameProgram",
+          "name": "campaign",
           "docs": [
-            "The game program that produced the session result.",
-            "declared game_program_id in the milestone. No data is read or written."
+            "Not read or written by this instruction."
           ]
+        },
+        {
+          "name": "milestone",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  108,
+                  101,
+                  115,
+                  116,
+                  111,
+                  110,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              },
+              {
+                "kind": "arg",
+                "path": "milestoneSeed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "gameAuthority",
+          "docs": [
+            "The game server's signing key — must match milestone.game_authority."
+          ],
+          "signer": true
         }
       ],
       "args": [
         {
-          "name": "sessionResultHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "verifyMultisig",
-      "discriminator": [
-        102,
-        41,
-        114,
-        189,
-        224,
-        156,
-        108,
-        191
-      ],
-      "accounts": [
-        {
-          "name": "signer0",
-          "signer": true
+          "name": "milestoneSeed",
+          "type": "u64"
         },
         {
-          "name": "signer1",
-          "signer": true,
-          "optional": true
-        },
-        {
-          "name": "signer2",
-          "signer": true,
-          "optional": true
-        },
-        {
-          "name": "signer3",
-          "signer": true,
-          "optional": true
-        },
-        {
-          "name": "signer4",
-          "signer": true,
-          "optional": true
-        },
-        {
-          "name": "milestone",
-          "writable": true
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "verifyOracle",
-      "discriminator": [
-        252,
-        110,
-        246,
-        149,
-        183,
-        159,
-        204,
-        245
-      ],
-      "accounts": [
-        {
-          "name": "oracle",
-          "signer": true
-        },
-        {
-          "name": "milestone",
-          "writable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "signature",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
+          "name": "achievedLevel",
+          "type": "u8"
         }
       ]
     },
@@ -1075,33 +981,43 @@ export type Blockbite = {
     },
     {
       "code": 6013,
-      "name": "invalidProof",
-      "msg": "Proof is invalid or does not match expected hash"
-    },
-    {
-      "code": 6014,
-      "name": "unauthorizedVerifier",
-      "msg": "Signer is not an authorized verifier"
-    },
-    {
-      "code": 6015,
-      "name": "insufficientSigners",
-      "msg": "Insufficient signers for multisig verification"
-    },
-    {
-      "code": 6016,
       "name": "insufficientBudget",
       "msg": "Campaign budget is insufficient for this milestone"
     },
     {
-      "code": 6017,
+      "code": 6014,
       "name": "milestoneNotVerified",
       "msg": "Milestone has not been verified yet"
     },
     {
-      "code": 6018,
+      "code": 6015,
       "name": "streamNotSettled",
       "msg": "Stream must be fully withdrawn or cancelled before closing"
+    },
+    {
+      "code": 6016,
+      "name": "invalidGameAuthority",
+      "msg": "Provided game authority does not match the milestone's declared game authority"
+    },
+    {
+      "code": 6017,
+      "name": "alreadyClaimed",
+      "msg": "Milestone reward has already been claimed"
+    },
+    {
+      "code": 6018,
+      "name": "invalidLevel",
+      "msg": "Target level must be between 1 and 30"
+    },
+    {
+      "code": 6019,
+      "name": "levelNotReached",
+      "msg": "Achieved level does not meet the target level requirement"
+    },
+    {
+      "code": 6020,
+      "name": "invalidDifficulty",
+      "msg": "Difficulty must be 1 (easy), 2 (medium), or 3 (hard)"
     }
   ],
   "types": [
@@ -1165,28 +1081,7 @@ export type Blockbite = {
             }
           },
           {
-            "name": "verificationType",
-            "type": "u8"
-          },
-          {
-            "name": "oraclePubkey",
-            "type": "pubkey"
-          },
-          {
-            "name": "signerCount",
-            "type": "u8"
-          },
-          {
-            "name": "signers",
-            "type": {
-              "array": [
-                "pubkey",
-                5
-              ]
-            }
-          },
-          {
-            "name": "gameProgramId",
+            "name": "gameAuthority",
             "type": "pubkey"
           },
           {
@@ -1194,17 +1089,24 @@ export type Blockbite = {
             "type": "u64"
           },
           {
+            "name": "targetLevel",
+            "type": "u8"
+          },
+          {
+            "name": "achievedLevel",
+            "type": "u8"
+          },
+          {
+            "name": "difficulty",
+            "type": "u8"
+          },
+          {
             "name": "isVerified",
             "type": "bool"
           },
           {
-            "name": "proofHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
+            "name": "isClaimed",
+            "type": "bool"
           },
           {
             "name": "bump",

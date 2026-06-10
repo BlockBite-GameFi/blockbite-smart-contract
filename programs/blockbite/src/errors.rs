@@ -39,4 +39,10 @@ pub enum ErrorCode {
     InvalidGameAuthority,
     #[msg("Milestone reward has already been claimed")]
     AlreadyClaimed,
+    #[msg("Target level must be between 1 and 30")]
+    InvalidLevel,
+    #[msg("Achieved level does not meet the target level requirement")]
+    LevelNotReached,
+    #[msg("Difficulty must be 1 (easy), 2 (medium), or 3 (hard)")]
+    InvalidDifficulty,
 }

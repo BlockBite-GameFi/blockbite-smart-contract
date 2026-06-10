@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod errors;
 pub mod instructions;
 pub mod state;
@@ -69,6 +70,8 @@ pub mod blockbite {
         token_amount: u64,
         game_authority: Pubkey,
         recipient: Pubkey,
+        target_level: u8,
+        difficulty: u8,
     ) -> Result<()> {
         create_milestone::handler(
             ctx,
@@ -78,14 +81,17 @@ pub mod blockbite {
             token_amount,
             game_authority,
             recipient,
+            target_level,
+            difficulty,
         )
     }
 
     pub fn verify_game(
         ctx: Context<VerifyGame>,
         milestone_seed: u64,
+        achieved_level: u8,
     ) -> Result<()> {
-        verify_game::handler(ctx, milestone_seed)
+        verify_game::handler(ctx, milestone_seed, achieved_level)
     }
 
     pub fn claim_milestone(

@@ -33,6 +33,15 @@ test-unit:
 
 test: test-unit ## Run unit tests (alias)
 
+test-surfpool: ## Run full anchor test suite on Surfpool (no blockhash issues)
+	@echo "Starting Surfpool..."
+	@surfpool start --legacy-anchor-compatibility --ci --no-tui --daemon
+	@sleep 3
+	@echo "Running anchor test on Surfpool..."
+	@anchor test --skip-local-validator || (pkill -f surfpool; exit 1)
+	@echo "Stopping Surfpool..."
+	@pkill -f surfpool
+
 fmt:
 	cargo fmt --all
 

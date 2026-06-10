@@ -60,6 +60,9 @@ fn empty_milestone() -> MilestoneAccount {
         description_hash: [0u8; 32],
         game_authority:   Pubkey::new_unique(),
         token_amount:     0,
+        target_level:     10,
+        achieved_level:   0,
+        difficulty:       2,
         is_verified:      false,
         is_claimed:       false,
         bump:             0,
@@ -382,13 +385,16 @@ fn test_init_milestone_happy_path() {
     init_milestone(
         &mut c, &mut m,
         campaign_key, recipient, [1u8; 32], game,
-        10_000, 252,
+        10_000, 10, 2, 252,
     ).unwrap();
 
     assert_eq!(m.campaign, campaign_key);
     assert_eq!(m.recipient, recipient);
     assert_eq!(m.game_authority, game);
     assert_eq!(m.token_amount, 10_000);
+    assert_eq!(m.target_level, 10);
+    assert_eq!(m.achieved_level, 0);
+    assert_eq!(m.difficulty, 2);
     assert!(!m.is_verified);
     assert!(!m.is_claimed);
     assert_eq!(m.bump, 252);
@@ -404,7 +410,7 @@ fn test_init_milestone_rejects_zero_amount() {
     let err = init_milestone(
         &mut c, &mut m,
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
-        0, 0,
+        0, 10, 2, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidAmount));
 }
@@ -417,7 +423,7 @@ fn test_init_milestone_rejects_budget_overflow() {
     let err = init_milestone(
         &mut c, &mut m,
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
-        20_000, 0,
+        20_000, 10, 2, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InsufficientBudget));
 }
@@ -432,7 +438,7 @@ fn test_init_milestone_rejects_budget_overflow_arithmetic() {
     let err = init_milestone(
         &mut c, &mut m,
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
-        1, 0,
+        1, 10, 2, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InsufficientBudget));
 }
@@ -447,12 +453,12 @@ fn test_init_milestone_accumulates_allocated() {
     init_milestone(
         &mut c, &mut m1,
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
-        30_000, 0,
+        30_000, 10, 1, 0,
     ).unwrap();
     init_milestone(
         &mut c, &mut m2,
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
-        20_000, 0,
+        20_000, 15, 2, 0,
     ).unwrap();
 
     assert_eq!(c.allocated_amount, 50_000);
@@ -468,8 +474,10 @@ fn test_verify_game_happy_path() {
     let game = Pubkey::new_unique();
     let mut m = empty_milestone();
     m.game_authority = game;
-    verify_game_impl(&mut m, game).unwrap();
+    m.target_level = 10;
+    verify_game_impl(&mut m, game, 10).unwrap();
     assert!(m.is_verified);
+    assert_eq!(m.achieved_level, 10);
 }
 
 #[test]
@@ -478,8 +486,30 @@ fn test_verify_game_rejects_wrong_authority() {
     let other = Pubkey::new_unique();
     let mut m = empty_milestone();
     m.game_authority = game;
-    let err = verify_game_impl(&mut m, other).unwrap_err();
+    m.target_level = 10;
+    let err = verify_game_impl(&mut m, other, 10).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidGameAuthority));
+}
+
+#[test]
+fn test_verify_game_rejects_level_not_reached() {
+    let game = Pubkey::new_unique();
+    let mut m = empty_milestone();
+    m.game_authority = game;
+    m.target_level = 15;
+    let err = verify_game_impl(&mut m, game, 10).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::LevelNotReached));
+}
+
+#[test]
+fn test_verify_game_accepts_higher_level() {
+    let game = Pubkey::new_unique();
+    let mut m = empty_milestone();
+    m.game_authority = game;
+    m.target_level = 10;
+    verify_game_impl(&mut m, game, 20).unwrap();
+    assert!(m.is_verified);
+    assert_eq!(m.achieved_level, 20);
 }
 
 #[test]
@@ -487,8 +517,9 @@ fn test_verify_game_rejects_already_verified() {
     let game = Pubkey::new_unique();
     let mut m = empty_milestone();
     m.game_authority = game;
+    m.target_level = 10;
     m.is_verified = true;
-    let err = verify_game_impl(&mut m, game).unwrap_err();
+    let err = verify_game_impl(&mut m, game, 10).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::MilestoneAlreadyVerified));
 }
 

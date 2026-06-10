@@ -27,6 +27,9 @@ fn make_milestone(
         description_hash: [2u8; 32],
         game_authority,
         token_amount,
+        target_level: 10,
+        achieved_level: 0,
+        difficulty: 2,
         is_verified: false,
         is_claimed: false,
         bump: 0,
@@ -53,6 +56,9 @@ fn test_milestone_initial_state() {
     assert_eq!(milestone.campaign, campaign);
     assert_eq!(milestone.recipient, recipient);
     assert_eq!(milestone.token_amount, 5_000);
+    assert_eq!(milestone.target_level, 10);
+    assert_eq!(milestone.achieved_level, 0);
+    assert_eq!(milestone.difficulty, 2);
     assert!(!milestone.is_verified);
     assert!(!milestone.is_claimed);
     assert_eq!(milestone.game_authority, game);
@@ -65,9 +71,11 @@ fn test_milestone_verification_game() {
     let game = Pubkey::new_unique();
 
     let mut milestone = make_milestone(campaign, recipient, 5_000, game);
+    milestone.achieved_level = 10;
     milestone.is_verified = true;
     assert!(milestone.is_verified);
     assert_eq!(milestone.game_authority, game);
+    assert_eq!(milestone.achieved_level, 10);
 }
 
 #[test]
@@ -105,5 +113,5 @@ fn test_campaign_budget_overflow_protection() {
 
 #[test]
 fn test_milestone_account_size() {
-    assert_eq!(MilestoneAccount::LEN, 147);
+    assert_eq!(MilestoneAccount::LEN, 150);
 }

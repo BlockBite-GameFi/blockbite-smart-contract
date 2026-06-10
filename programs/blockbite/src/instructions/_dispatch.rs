@@ -490,7 +490,7 @@ pub fn create_campaign_handler(
 }
 
 #[derive(Accounts)]
-#[instruction(description_hash: [u8; 32], campaign_seed: u64, milestone_seed: u64, token_amount: u64, game_authority: Pubkey, recipient: Pubkey)]
+#[instruction(description_hash: [u8; 32], campaign_seed: u64, milestone_seed: u64, token_amount: u64, game_authority: Pubkey, recipient: Pubkey, target_level: u8, difficulty: u8)]
 pub struct CreateMilestone<'info> {
     #[account(mut)]
     pub founder: Signer<'info>,
@@ -523,6 +523,8 @@ pub fn create_milestone_handler(
     token_amount: u64,
     game_authority: Pubkey,
     recipient: Pubkey,
+    target_level: u8,
+    difficulty: u8,
 ) -> Result<()> {
     // ── Effects (CEI): initialise milestone + update campaign via pure function
     let campaign_key = ctx.accounts.campaign.key();
@@ -534,21 +536,25 @@ pub fn create_milestone_handler(
         description_hash,
         game_authority,
         token_amount,
+        target_level,
+        difficulty,
         ctx.bumps.milestone,
     )?;
 
     msg!(
-        "Milestone created: amount={} game_authority={} recipient={}",
+        "Milestone created: amount={} game_authority={} recipient={} target_level={} difficulty={}",
         token_amount,
         game_authority,
-        recipient
+        recipient,
+        target_level,
+        difficulty
     );
 
     Ok(())
 }
 
 #[derive(Accounts)]
-#[instruction(milestone_seed: u64)]
+#[instruction(milestone_seed: u64, achieved_level: u8)]
 pub struct VerifyGame<'info> {
     /// CHECK: only used as a PDA seed for milestone derivation.
     /// Not read or written by this instruction.
@@ -569,12 +575,18 @@ pub struct VerifyGame<'info> {
 pub fn verify_game_handler(
     ctx: Context<VerifyGame>,
     _milestone_seed: u64,
+    achieved_level: u8,
 ) -> Result<()> {
     verify_game_impl(
         &mut ctx.accounts.milestone,
         ctx.accounts.game_authority.key(),
+        achieved_level,
     )?;
-    msg!("Game verified by game_authority={}", ctx.accounts.game_authority.key());
+    msg!(
+        "Game verified by game_authority={} achieved_level={}",
+        ctx.accounts.game_authority.key(),
+        achieved_level
+    );
     Ok(())
 }
 
