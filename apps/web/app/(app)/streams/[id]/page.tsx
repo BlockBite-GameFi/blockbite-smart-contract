@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useApp } from '@/lib/useApp';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -121,9 +121,8 @@ type RawStream = NonNullable<Awaited<ReturnType<typeof fetchStream>>>;
 
 export default function StreamDetailPage() {
   const { lang } = useApp();
-  const params      = useParams();
-  const searchParams = useSearchParams();
-  const idParam     = params?.id as string | undefined;
+  const params   = useParams();
+  const idParam  = params?.id as string | undefined;
 
   const { connection }                 = useConnection();
   const { publicKey, sendTransaction } = useWallet();
@@ -155,12 +154,13 @@ export default function StreamDetailPage() {
   const router = useRouter();
   const { status: gameStatus, submitScore, submitMilestoneOnChain } = useGameVerification();
 
-  // Auto-open cancel modal when navigated from list with ?cancel=1
+  // Auto-open cancel modal when navigated from list via URL hash #cancel
   useEffect(() => {
-    if (searchParams?.get('cancel') === '1') {
+    if (typeof window !== 'undefined' && window.location.hash === '#cancel') {
       setConfirmCancel(true);
+      window.history.replaceState(null, '', window.location.pathname);
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 5000);

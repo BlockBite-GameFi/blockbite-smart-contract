@@ -479,7 +479,7 @@ export default function StreamsPage() {
                       {canCancel && (
                         <button
                           title={lang === 'id' ? 'Batalkan stream ini' : 'Cancel this stream'}
-                          onClick={e => { e.stopPropagation(); router.push(`${href}?cancel=1`); }}
+                          onClick={e => { e.stopPropagation(); router.push(`${href}#cancel`); }}
                           style={{
                             padding: '3px 8px', borderRadius: 6,
                             border: `1px solid color-mix(in srgb, ${T.red} 28%, transparent)`,
