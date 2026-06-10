@@ -217,7 +217,7 @@ describe("blockbite", () => {
       );
       await provider.connection.confirmTransaction(sig, "confirmed");
     }
-
+    await sleep(10000);
     mint = await createMint(
       provider.connection,
       creator,
@@ -333,6 +333,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const fwMint = await createMint(provider.connection, fwC, fwC.publicKey, null, 6);
     const fwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwC, fwMint, fwC.publicKey)).address;
     const fwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwR, fwMint, fwR.publicKey)).address;
@@ -377,6 +378,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const dwMint = await createMint(provider.connection, dwC, dwC.publicKey, null, 6);
     const dwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwC, dwMint, dwC.publicKey)).address;
     const dwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwR, dwMint, dwR.publicKey)).address;
@@ -459,6 +461,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
@@ -533,6 +536,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
@@ -580,6 +584,7 @@ describe("blockbite", () => {
     const sig = await provider.connection.requestAirdrop(zc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig, "confirmed");
 
+    await sleep(5000);
     const zMint = await createMint(provider.connection, zc, zc.publicKey, null, 6);
     const zcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, zc, zMint, zc.publicKey)).address;
 
@@ -623,6 +628,7 @@ describe("blockbite", () => {
     const sig = await provider.connection.requestAirdrop(sc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig, "confirmed");
 
+    await sleep(5000);
     const sMint = await createMint(provider.connection, sc, sc.publicKey, null, 6);
     const scTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, sc, sMint, sc.publicKey)).address;
 
@@ -673,6 +679,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
@@ -725,6 +732,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
@@ -774,6 +782,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
@@ -824,6 +833,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
     const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
@@ -904,6 +914,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const fMint = await createMint(provider.connection, fc, fc.publicKey, null, 6);
     const fcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fc, fMint, fc.publicKey)).address;
     const frTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fr, fMint, fr.publicKey)).address;
@@ -961,6 +972,7 @@ describe("blockbite", () => {
     const sig = await provider.connection.requestAirdrop(ic.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig, "confirmed");
 
+    await sleep(5000);
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
     await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
@@ -1007,6 +1019,7 @@ describe("blockbite", () => {
     const sig = await provider.connection.requestAirdrop(ic.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig, "confirmed");
 
+    await sleep(5000);
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
     await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
@@ -1059,6 +1072,7 @@ describe("blockbite", () => {
       provider.connection.confirmTransaction(s2, "confirmed"),
     ]);
 
+    await sleep(5000);
     const nMint = await createMint(provider.connection, nc, nc.publicKey, null, 6);
     const ncTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nc, nMint, nc.publicKey)).address;
     const nrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nr, nMint, nr.publicKey)).address;
@@ -1106,6 +1120,7 @@ describe("blockbite", () => {
     ]);
     await Promise.all(sigs.map(s => provider.connection.confirmTransaction(s, "confirmed")));
 
+    await sleep(5000);
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
     await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
