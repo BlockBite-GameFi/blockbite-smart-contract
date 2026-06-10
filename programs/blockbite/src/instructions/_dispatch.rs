@@ -27,7 +27,6 @@ use super::create_campaign::init_campaign;
 use super::create_milestone::init_milestone;
 use super::create_stream::init_stream;
 use super::set_milestone::set_milestone_reached;
-use super::submit_proof::submit_proof_impl;
 use super::verify_game::verify_game_impl;
 use super::withdraw::{build_stream_signer_seeds, compute_withdraw};
 
@@ -491,7 +490,7 @@ pub fn create_campaign_handler(
 }
 
 #[derive(Accounts)]
-#[instruction(description_hash: [u8; 32], token_amount: u64, milestone_seed: u64, campaign_seed: u64)]
+#[instruction(description_hash: [u8; 32], campaign_seed: u64, milestone_seed: u64, token_amount: u64, game_authority: Pubkey, recipient: Pubkey)]
 pub struct CreateMilestone<'info> {
     #[account(mut)]
     pub founder: Signer<'info>,
@@ -522,7 +521,7 @@ pub fn create_milestone_handler(
     _campaign_seed: u64,
     _milestone_seed: u64,
     token_amount: u64,
-    game_program_id: Pubkey,
+    game_authority: Pubkey,
     recipient: Pubkey,
 ) -> Result<()> {
     // ── Effects (CEI): initialise milestone + update campaign via pure function
@@ -533,48 +532,18 @@ pub fn create_milestone_handler(
         campaign_key,
         recipient,
         description_hash,
-        game_program_id,
+        game_authority,
         token_amount,
         ctx.bumps.milestone,
     )?;
 
     msg!(
-        "Milestone created: amount={} game_program={} recipient={}",
+        "Milestone created: amount={} game_authority={} recipient={}",
         token_amount,
-        game_program_id,
+        game_authority,
         recipient
     );
 
-    Ok(())
-}
-
-#[derive(Accounts)]
-#[instruction(milestone_seed: u64)]
-pub struct SubmitProof<'info> {
-    #[account(mut)]
-    pub recipient: Signer<'info>,
-
-    /// CHECK: only used as a PDA seed for milestone derivation.
-    /// Not read or written by this instruction.
-    pub campaign: UncheckedAccount<'info>,
-
-    #[account(
-        mut,
-        seeds = [b"milestone", campaign.key().as_ref(), &milestone_seed.to_le_bytes()],
-        bump = milestone.bump,
-        constraint = milestone.recipient == recipient.key() @ crate::errors::ErrorCode::Unauthorized,
-        constraint = !milestone.is_verified @ crate::errors::ErrorCode::MilestoneAlreadyVerified,
-        constraint = !milestone.proof_submitted @ crate::errors::ErrorCode::AlreadySubmitted,
-    )]
-    pub milestone: Box<Account<'info, MilestoneAccount>>,
-}
-
-pub fn submit_proof_handler(
-    ctx: Context<SubmitProof>,
-    proof_hash: [u8; 32],
-) -> Result<()> {
-    submit_proof_impl(&mut ctx.accounts.milestone, proof_hash)?;
-    msg!("Proof submitted: hash={:?}", proof_hash);
     Ok(())
 }
 
@@ -593,22 +562,19 @@ pub struct VerifyGame<'info> {
     )]
     pub milestone: Box<Account<'info, MilestoneAccount>>,
 
-    /// The game program that produced the session result.
-    /// CHECK: This account is only used for key comparison against the
-    /// declared game_program_id in the milestone. No data is read or written.
-    pub game_program: UncheckedAccount<'info>,
+    /// The game server's signing key — must match milestone.game_authority.
+    pub game_authority: Signer<'info>,
 }
 
 pub fn verify_game_handler(
     ctx: Context<VerifyGame>,
-    session_result_hash: [u8; 32],
+    _milestone_seed: u64,
 ) -> Result<()> {
     verify_game_impl(
         &mut ctx.accounts.milestone,
-        ctx.accounts.game_program.key(),
-        session_result_hash,
+        ctx.accounts.game_authority.key(),
     )?;
-    msg!("Game verification passed");
+    msg!("Game verified by game_authority={}", ctx.accounts.game_authority.key());
     Ok(())
 }
 

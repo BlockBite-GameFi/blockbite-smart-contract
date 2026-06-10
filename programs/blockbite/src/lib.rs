@@ -67,7 +67,7 @@ pub mod blockbite {
         campaign_seed: u64,
         milestone_seed: u64,
         token_amount: u64,
-        game_program_id: Pubkey,
+        game_authority: Pubkey,
         recipient: Pubkey,
     ) -> Result<()> {
         create_milestone::handler(
@@ -76,25 +76,16 @@ pub mod blockbite {
             campaign_seed,
             milestone_seed,
             token_amount,
-            game_program_id,
+            game_authority,
             recipient,
         )
     }
 
-    pub fn submit_proof(
-        ctx: Context<SubmitProof>,
-        _milestone_seed: u64,
-        proof_hash: [u8; 32],
-    ) -> Result<()> {
-        submit_proof::handler(ctx, proof_hash)
-    }
-
     pub fn verify_game(
         ctx: Context<VerifyGame>,
-        _milestone_seed: u64,
-        session_result_hash: [u8; 32],
+        milestone_seed: u64,
     ) -> Result<()> {
-        verify_game::handler(ctx, session_result_hash)
+        verify_game::handler(ctx, milestone_seed)
     }
 
     pub fn claim_milestone(

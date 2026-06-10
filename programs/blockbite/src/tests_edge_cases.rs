@@ -32,11 +32,9 @@ fn make_milestone() -> MilestoneAccount {
         campaign: Pubkey::new_unique(),
         recipient: Pubkey::new_unique(),
         description_hash: [2u8; 32],
-        game_program_id: Pubkey::new_unique(),
+        game_authority: Pubkey::new_unique(),
         token_amount: 10_000,
         is_verified: true,
-        proof_hash: [42u8; 32],
-        proof_submitted: true,
         is_claimed: false,
         bump: 0,
     }
@@ -101,38 +99,4 @@ fn test_milestone_claim_requires_verified() {
     milestone.is_verified = false;
     assert!(!milestone.is_verified, "unverified milestone cannot be claimed");
     assert!(!milestone.is_claimed,  "guard prevents double-claim");
-}
-
-#[test]
-fn test_milestone_proof_immutability_guard() {
-    // Fresh milestone: proof_submitted=false, proof_hash=zero.
-    let mut milestone = MilestoneAccount {
-        campaign: Pubkey::new_unique(),
-        recipient: Pubkey::new_unique(),
-        description_hash: [2u8; 32],
-        game_program_id: Pubkey::new_unique(),
-        token_amount: 10_000,
-        is_verified: false,
-        proof_hash: [0u8; 32],
-        proof_submitted: false,
-        is_claimed: false,
-        bump: 0,
-    };
-    assert!(!milestone.proof_submitted, "fresh milestone must have proof_submitted=false");
-    assert_eq!(milestone.proof_hash, [0u8; 32], "fresh milestone must have zero proof_hash");
-
-    // Simulate the first submit_proof call: store hash + flip the guard
-    // (the handler does `milestone.proof_submitted = true` per the fix).
-    let real_proof = [99u8; 32];
-    milestone.proof_hash = real_proof;
-    milestone.proof_submitted = true;
-    assert_eq!(milestone.proof_hash, real_proof);
-    assert!(milestone.proof_submitted, "guard must flip to true after first submit_proof");
-
-    // The on-chain constraint `!milestone.proof_submitted @ ErrorCode::AlreadySubmitted`
-    // would now reject any resubmission. This prevents griefing: a recipient could
-    // otherwise overwrite the proof right before verify_game runs.
-    let fake_proof = [7u8; 32];
-    let _ = fake_proof; // the resubmit is rejected at the constraint level
-    assert_eq!(milestone.proof_hash, real_proof, "stored proof must be immutable");
 }

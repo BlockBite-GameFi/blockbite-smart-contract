@@ -19,17 +19,15 @@ fn make_milestone(
     campaign: Pubkey,
     recipient: Pubkey,
     token_amount: u64,
-    game_program_id: Pubkey,
+    game_authority: Pubkey,
 ) -> MilestoneAccount {
     MilestoneAccount {
         campaign,
         recipient,
         description_hash: [2u8; 32],
-        game_program_id,
+        game_authority,
         token_amount,
         is_verified: false,
-        proof_hash: [0u8; 32],
-        proof_submitted: false,
         is_claimed: false,
         bump: 0,
     }
@@ -56,21 +54,8 @@ fn test_milestone_initial_state() {
     assert_eq!(milestone.recipient, recipient);
     assert_eq!(milestone.token_amount, 5_000);
     assert!(!milestone.is_verified);
-    assert!(!milestone.proof_submitted);
     assert!(!milestone.is_claimed);
-    assert_eq!(milestone.proof_hash, [0u8; 32]);
-}
-
-#[test]
-fn test_milestone_proof_submission() {
-    let campaign = Pubkey::new_unique();
-    let recipient = Pubkey::new_unique();
-    let game = Pubkey::new_unique();
-
-    let mut milestone = make_milestone(campaign, recipient, 5_000, game);
-    let proof = [42u8; 32];
-    milestone.proof_hash = proof;
-    assert_eq!(milestone.proof_hash, proof);
+    assert_eq!(milestone.game_authority, game);
 }
 
 #[test]
@@ -80,10 +65,9 @@ fn test_milestone_verification_game() {
     let game = Pubkey::new_unique();
 
     let mut milestone = make_milestone(campaign, recipient, 5_000, game);
-    milestone.proof_hash = [42u8; 32];
     milestone.is_verified = true;
     assert!(milestone.is_verified);
-    assert_eq!(milestone.game_program_id, game);
+    assert_eq!(milestone.game_authority, game);
 }
 
 #[test]
@@ -121,5 +105,5 @@ fn test_campaign_budget_overflow_protection() {
 
 #[test]
 fn test_milestone_account_size() {
-    assert_eq!(MilestoneAccount::LEN, 180);
+    assert_eq!(MilestoneAccount::LEN, 147);
 }

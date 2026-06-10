@@ -15,7 +15,7 @@ pub fn init_milestone(
     campaign_key: Pubkey,
     recipient: Pubkey,
     description_hash: [u8; 32],
-    game_program_id: Pubkey,
+    game_authority: Pubkey,
     token_amount: u64,
     bump: u8,
 ) -> Result<()> {
@@ -30,11 +30,9 @@ pub fn init_milestone(
     milestone.campaign = campaign_key;
     milestone.recipient = recipient;
     milestone.description_hash = description_hash;
-    milestone.game_program_id = game_program_id;
+    milestone.game_authority = game_authority;
     milestone.token_amount = token_amount;
     milestone.is_verified = false;
-    milestone.proof_hash = [0u8; 32];
-    milestone.proof_submitted = false;
     milestone.is_claimed = false;
     milestone.bump = bump;
 

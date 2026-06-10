@@ -17,7 +17,6 @@ use crate::instructions::{
     create_milestone::init_milestone,
     create_stream::init_stream,
     set_milestone::set_milestone_reached,
-    submit_proof::submit_proof_impl,
     verify_game::verify_game_impl,
     withdraw::{build_stream_signer_seeds, compute_withdraw},
 };
@@ -59,11 +58,9 @@ fn empty_milestone() -> MilestoneAccount {
         campaign:         Pubkey::new_unique(),
         recipient:        Pubkey::new_unique(),
         description_hash: [0u8; 32],
-        game_program_id:  Pubkey::new_unique(),
+        game_authority:   Pubkey::new_unique(),
         token_amount:     0,
         is_verified:      false,
-        proof_hash:       [0u8; 32],
-        proof_submitted:  false,
         is_claimed:       false,
         bump:             0,
     }
@@ -390,13 +387,11 @@ fn test_init_milestone_happy_path() {
 
     assert_eq!(m.campaign, campaign_key);
     assert_eq!(m.recipient, recipient);
-    assert_eq!(m.game_program_id, game);
+    assert_eq!(m.game_authority, game);
     assert_eq!(m.token_amount, 10_000);
     assert!(!m.is_verified);
-    assert!(!m.proof_submitted);
     assert!(!m.is_claimed);
     assert_eq!(m.bump, 252);
-    assert_eq!(m.proof_hash, [0u8; 32]);
 
     assert_eq!(c.allocated_amount, 10_000);
     assert_eq!(c.milestone_count, 1);
@@ -465,35 +460,6 @@ fn test_init_milestone_accumulates_allocated() {
 }
 
 // =============================================================================
-// submit_proof.rs :: submit_proof_impl
-// =============================================================================
-
-#[test]
-fn test_submit_proof_happy_path() {
-    let mut m = empty_milestone();
-    let hash = [42u8; 32];
-    submit_proof_impl(&mut m, hash).unwrap();
-    assert_eq!(m.proof_hash, hash);
-    assert!(m.proof_submitted);
-}
-
-#[test]
-fn test_submit_proof_rejects_already_submitted() {
-    let mut m = empty_milestone();
-    m.proof_submitted = true;
-    let err = submit_proof_impl(&mut m, [0u8; 32]).unwrap_err();
-    assert_eq!(err_code(err), err_for(ErrorCode::AlreadySubmitted));
-}
-
-#[test]
-fn test_submit_proof_rejects_already_verified() {
-    let mut m = empty_milestone();
-    m.is_verified = true;
-    let err = submit_proof_impl(&mut m, [0u8; 32]).unwrap_err();
-    assert_eq!(err_code(err), err_for(ErrorCode::MilestoneAlreadyVerified));
-}
-
-// =============================================================================
 // verify_game.rs :: verify_game_impl
 // =============================================================================
 
@@ -501,41 +467,28 @@ fn test_submit_proof_rejects_already_verified() {
 fn test_verify_game_happy_path() {
     let game = Pubkey::new_unique();
     let mut m = empty_milestone();
-    m.game_program_id = game;
-    m.proof_hash = [1u8; 32];
-    verify_game_impl(&mut m, game, [1u8; 32]).unwrap();
+    m.game_authority = game;
+    verify_game_impl(&mut m, game).unwrap();
     assert!(m.is_verified);
 }
 
 #[test]
-fn test_verify_game_rejects_wrong_program() {
+fn test_verify_game_rejects_wrong_authority() {
     let game = Pubkey::new_unique();
     let other = Pubkey::new_unique();
     let mut m = empty_milestone();
-    m.game_program_id = game;
-    m.proof_hash = [1u8; 32];
-    let err = verify_game_impl(&mut m, other, [1u8; 32]).unwrap_err();
-    assert_eq!(err_code(err), err_for(ErrorCode::InvalidGameProgram));
-}
-
-#[test]
-fn test_verify_game_rejects_wrong_session_hash() {
-    let game = Pubkey::new_unique();
-    let mut m = empty_milestone();
-    m.game_program_id = game;
-    m.proof_hash = [1u8; 32];
-    let err = verify_game_impl(&mut m, game, [2u8; 32]).unwrap_err();
-    assert_eq!(err_code(err), err_for(ErrorCode::InvalidProof));
+    m.game_authority = game;
+    let err = verify_game_impl(&mut m, other).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InvalidGameAuthority));
 }
 
 #[test]
 fn test_verify_game_rejects_already_verified() {
     let game = Pubkey::new_unique();
     let mut m = empty_milestone();
-    m.game_program_id = game;
-    m.proof_hash = [1u8; 32];
+    m.game_authority = game;
     m.is_verified = true;
-    let err = verify_game_impl(&mut m, game, [1u8; 32]).unwrap_err();
+    let err = verify_game_impl(&mut m, game).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::MilestoneAlreadyVerified));
 }
 

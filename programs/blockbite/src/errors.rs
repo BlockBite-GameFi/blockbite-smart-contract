@@ -29,18 +29,14 @@ pub enum ErrorCode {
     MilestoneNotFound,
     #[msg("Milestone has already been verified")]
     MilestoneAlreadyVerified,
-    #[msg("Proof is invalid or does not match expected hash")]
-    InvalidProof,
     #[msg("Campaign budget is insufficient for this milestone")]
     InsufficientBudget,
     #[msg("Milestone has not been verified yet")]
     MilestoneNotVerified,
     #[msg("Stream must be fully withdrawn or cancelled before closing")]
     StreamNotSettled,
-    #[msg("Provided game program does not match the milestone's declared game program")]
-    InvalidGameProgram,
+    #[msg("Provided game authority does not match the milestone's declared game authority")]
+    InvalidGameAuthority,
     #[msg("Milestone reward has already been claimed")]
     AlreadyClaimed,
-    #[msg("Proof has already been submitted for this milestone")]
-    AlreadySubmitted,
 }
