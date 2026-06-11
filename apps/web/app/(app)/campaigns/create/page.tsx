@@ -10,6 +10,7 @@ import { RPC_URL } from '@/lib/solana/config';
 import { useCampaignCreate } from '@/lib/hooks/useCampaignCreate';
 import TokenSelector from '@/components/TokenSelector';
 import { IS_DEVNET } from '@/lib/solana/config';
+import { GAME_AUTHORITY_PUBKEY } from '@/lib/anchor/campaign-client';
 
 // ─── Design tokens ───────────────────────────────────────────────────────────────
 const C = {
@@ -160,6 +161,7 @@ export default function CreateCampaignPage() {
   const [budget, setBudget] = useState('');
   const [gameGate, setGameGate] = useState(true);
   const [gameLevel, setGameLevel] = useState(10);
+  const [gameDifficulty, setGameDifficulty] = useState(1); // 1=Easy, 2=Medium, 3=Hard
   const [recipient, setRecipient] = useState('');
   const [milestoneAmount, setMilestoneAmount] = useState('');
   const [milestoneDesc, setMilestoneDesc] = useState('');
@@ -201,7 +203,8 @@ export default function CreateCampaignPage() {
 
     const seed = BigInt(Date.now());
     const milestoneSeed = BigInt(Date.now() + 1);
-    const gameProgramId = new PublicKey('Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq');
+    // game_authority is the game server's signing keypair pubkey.
+    // Configure via NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY env var.
     const recipientPk = new PublicKey(recipient || publicKey.toBase58());
 
     await create(
@@ -212,14 +215,16 @@ export default function CreateCampaignPage() {
       seed,
       [{
         descriptionHash: descHash,
-        tokenAmount: toLamports(milestoneAmt, tokenDecimals),
-        gameProgramId,
-        recipient: recipientPk,
+        tokenAmount:     toLamports(milestoneAmt, tokenDecimals),
+        gameProgramId:   GAME_AUTHORITY_PUBKEY,
+        recipient:       recipientPk,
         milestoneSeed,
+        targetLevel:     gameGate ? Math.max(1, Math.min(30, gameLevel)) : 1,
+        difficulty:      gameGate ? gameDifficulty : 1,
       }],
       sendTransaction,
     );
-  }, [publicKey, selectedMint, name, milestoneDesc, totalBudget, milestoneAmt, tokenDecimals, recipient, gameLevel, sendTransaction, create]);
+  }, [publicKey, selectedMint, name, milestoneDesc, totalBudget, milestoneAmt, tokenDecimals, recipient, gameLevel, gameDifficulty, gameGate, sendTransaction, create]);
 
   // ── Success screen ─────────────────────────────────────────────────────────
   if (result) {

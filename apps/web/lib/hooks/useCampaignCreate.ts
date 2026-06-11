@@ -34,10 +34,12 @@ export function useCampaignCreate() {
     seed: bigint,
     milestones: Array<{
       descriptionHash: Uint8Array;
-      tokenAmount: bigint;
-      gameProgramId: PublicKey;
-      recipient: PublicKey;
-      milestoneSeed: bigint;
+      tokenAmount:     bigint;
+      gameProgramId:   PublicKey;
+      recipient:       PublicKey;
+      milestoneSeed:   bigint;
+      targetLevel:     number;
+      difficulty:      number;
     }>,
     sendTransaction: SendTx,
   ) => {
@@ -60,14 +62,16 @@ export function useCampaignCreate() {
         await createMilestone({
           connection,
           founder,
-          campaignPDA: campaignPda,
-          milestonePDA: milestonePda,
+          campaignPDA:     campaignPda,
+          milestonePDA:    milestonePda,
           descriptionHash: ms.descriptionHash,
-          campaignSeed: seed,
-          milestoneSeed: ms.milestoneSeed,
-          tokenAmount: ms.tokenAmount,
-          gameProgramId: ms.gameProgramId,
-          recipient: ms.recipient,
+          campaignSeed:    seed,
+          milestoneSeed:   ms.milestoneSeed,
+          tokenAmount:     ms.tokenAmount,
+          gameProgramId:   ms.gameProgramId,
+          recipient:       ms.recipient,
+          targetLevel:     ms.targetLevel,
+          difficulty:      ms.difficulty,
           sendTransaction,
         });
         milestonePdas.push(milestonePda);

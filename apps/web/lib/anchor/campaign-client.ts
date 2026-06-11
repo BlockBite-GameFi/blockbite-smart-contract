@@ -27,8 +27,20 @@ import {
 } from '@solana/spl-token';
 
 // ─── Program constants ────────────────────────────────────────────────────────
+// Override via NEXT_PUBLIC_CAMPAIGN_PROGRAM_ID for localnet (Surfpool) testing.
 export const CAMPAIGN_PROGRAM_ID = new PublicKey(
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_CAMPAIGN_PROGRAM_ID) ||
   'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
+);
+
+/**
+ * Game server's signing authority pubkey.
+ * Must match the keypair held by the game server (GAME_AUTHORITY_SECRET_KEY).
+ * Set NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY in .env.local or Vercel dashboard.
+ */
+export const GAME_AUTHORITY_PUBKEY = new PublicKey(
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY) ||
+  'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',  // placeholder — MUST be overridden
 );
 
 export const CAMPAIGN_ACCOUNT_SIZE = 90;
@@ -328,17 +340,24 @@ function mkCreateMilestoneIx(
   campaignSeed: bigint,
   milestoneSeed: bigint,
   tokenAmount: bigint,
-  gameProgramId: PublicKey,
+  gameAuthority: PublicKey,
   recipient: PublicKey,
+  targetLevel: number,
+  difficulty: number,
 ): TransactionInstruction {
-  const data = Buffer.alloc(128);
+  // Rust: description_hash(32) + campaign_seed(8) + milestone_seed(8) + token_amount(8)
+  //       + game_authority(32) + recipient(32) + target_level(1) + difficulty(1) = 122
+  // + 8 discriminator = 130 bytes total
+  const data = Buffer.alloc(130);
   DISC_CREATE_MILESTONE.copy(data, 0);
   Buffer.from(descriptionHash).copy(data, 8);
   data.writeBigUInt64LE(campaignSeed, 40);
   data.writeBigUInt64LE(milestoneSeed, 48);
   data.writeBigUInt64LE(tokenAmount, 56);
-  gameProgramId.toBuffer().copy(data, 64);
+  gameAuthority.toBuffer().copy(data, 64);
   recipient.toBuffer().copy(data, 96);
+  data[128] = targetLevel;
+  data[129] = difficulty;
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
@@ -468,8 +487,13 @@ export interface CreateMilestoneParams {
   campaignSeed:    bigint;
   milestoneSeed:   bigint;
   tokenAmount:     bigint;
+  /** Game server's signing public key. Must match game server's GAME_AUTHORITY_SECRET_KEY. */
   gameProgramId:   PublicKey;
   recipient:       PublicKey;
+  /** Level recipient must reach to unlock claim. Range: 1–30. */
+  targetLevel:     number;
+  /** 1=Easy, 2=Medium, 3=Hard */
+  difficulty:      number;
   sendTransaction: SendTx;
 }
 
@@ -481,6 +505,8 @@ export async function createMilestone(p: CreateMilestoneParams): Promise<string>
     p.campaignSeed, p.milestoneSeed, p.tokenAmount,
     p.gameProgramId,
     p.recipient,
+    p.targetLevel,
+    p.difficulty,
   ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
