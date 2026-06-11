@@ -313,6 +313,20 @@ export default function StreamDetailPage() {
     }
   };
 
+  // ── Game verification handler — must be before any early return (Rules of Hooks) ──
+  const handleGameVerified = useCallback(async (level: number, score: number) => {
+    if (!publicKey || !streamPda || !stream) return;
+    const result = await submitScore(level, score, publicKey.toBase58(), streamPda.toBase58());
+    if (result.verified && sendTransaction) {
+      try {
+        await submitMilestoneOnChain(stream.authority, streamPda, sendTransaction);
+        setStream({ ...stream, milestoneReached: true });
+      } catch (e) {
+        console.error('Failed to submit milestone on-chain:', e);
+      }
+    }
+  }, [publicKey, streamPda, stream, submitScore, submitMilestoneOnChain]);
+
   // ── Loading state ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -328,20 +342,6 @@ export default function StreamDetailPage() {
       </div>
     );
   }
-
-  // ── Game verification handler ────────────────────────────────────────────
-  const handleGameVerified = useCallback(async (level: number, score: number) => {
-    if (!publicKey || !streamPda || !stream) return;
-    const result = await submitScore(level, score, publicKey.toBase58(), streamPda.toBase58());
-    if (result.verified && sendTransaction) {
-      try {
-        await submitMilestoneOnChain(stream.authority, streamPda, sendTransaction);
-        setStream({ ...stream, milestoneReached: true });
-      } catch (e) {
-        console.error('Failed to submit milestone on-chain:', e);
-      }
-    }
-  }, [publicKey, streamPda, stream, submitScore, submitMilestoneOnChain]);
 
   // ── Not found / error state ──────────────────────────────────────────────
   if (fetchErr || !stream || !streamPda) {
