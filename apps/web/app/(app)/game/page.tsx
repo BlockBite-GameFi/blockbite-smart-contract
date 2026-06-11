@@ -24,7 +24,7 @@ function GamePageContent() {
   const milestoneSeedStr = searchParams.get('milestoneSeed');
 
   const { submitScore } = useGameVerification();
-  const { verify } = useCampaignGameVerification();
+  const { verify, status: verifyStatus, error: verifyError } = useCampaignGameVerification();
 
   const [verified, setVerified] = useState(false);
   const [campaignVerified, setCampaignVerified] = useState(false);
@@ -82,18 +82,51 @@ function GamePageContent() {
   }, [isCampaignMode, handleStreamVerified]);
 
   return (
-    <GameCanvas
-      initialLevel={requiredLevel}
-      verificationContext={
-        (streamPda || isCampaignMode)
-          ? {
-              streamPda: streamPda || milestonePda || '',
-              requiredLevel,
-              onVerified: handleGameVerified,
-            }
-          : undefined
-      }
-    />
+    <div style={{ position: 'relative' }}>
+      {/* Campaign verification status banner */}
+      {isCampaignMode && verifyStatus === 'verifying' && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 100, padding: '10px 22px', borderRadius: 10,
+          background: 'rgba(0,194,255,0.15)', border: '1px solid rgba(0,194,255,0.4)',
+          color: '#00C2FF', fontSize: 13, fontWeight: 700,
+        }}>
+          ◌ Submitting verification on-chain…
+        </div>
+      )}
+      {isCampaignMode && verifyStatus === 'verified' && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 100, padding: '10px 22px', borderRadius: 10,
+          background: 'rgba(20,241,149,0.15)', border: '1px solid rgba(20,241,149,0.4)',
+          color: '#14F195', fontSize: 13, fontWeight: 700,
+        }}>
+          ✓ Milestone verified! Go back to claim your tokens.
+        </div>
+      )}
+      {isCampaignMode && verifyStatus === 'failed' && verifyError && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 100, padding: '10px 22px', borderRadius: 10,
+          background: 'rgba(255,51,102,0.15)', border: '1px solid rgba(255,51,102,0.4)',
+          color: '#FF3366', fontSize: 13, fontWeight: 700, maxWidth: 400, textAlign: 'center',
+        }}>
+          ✗ Verification failed: {verifyError}
+        </div>
+      )}
+      <GameCanvas
+        initialLevel={requiredLevel}
+        verificationContext={
+          (streamPda || isCampaignMode)
+            ? {
+                streamPda: streamPda || milestonePda || '',
+                requiredLevel,
+                onVerified: handleGameVerified,
+              }
+            : undefined
+        }
+      />
+    </div>
   );
 }
 
