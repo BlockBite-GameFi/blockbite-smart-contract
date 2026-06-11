@@ -147,6 +147,7 @@ export default function GameCanvas({
 
   const { state, placePiece, newGame, newGameAt, clearAnimationDone, removeScorePop, mysteryBoxPicked, levelName } = useGameEngine(initialLevel);
   const sessionTokenRef = useRef<string | null>(null);
+  const verificationFiredRef = useRef(false);
 
   // Board origin
   const originX = 12;
@@ -182,6 +183,14 @@ export default function GameCanvas({
   const handleStartGame = async () => {
     if (!connected || !publicKey) {
       // Free play — no wallet required, no ticket consumed, no session
+      setHasStartedGame(true);
+      if (initialLevel > 1) newGameAt(initialLevel);
+      else newGame();
+      return;
+    }
+    // Campaign mode: no ticket consumed — milestone reward already funded by campaign
+    if (verificationContext) {
+      verificationFiredRef.current = false; // allow re-trigger if replaying
       setHasStartedGame(true);
       if (initialLevel > 1) newGameAt(initialLevel);
       else newGame();
@@ -275,10 +284,11 @@ export default function GameCanvas({
     if (!state.isGameOver) gameOverHandledRef.current = false;
   }, [state.isGameOver, connected, publicKey, state.level, state.score, state.sessionId, state.placements]);
 
-  // Auto-trigger verification when player reaches required level
+  // Auto-trigger verification once when player reaches required level
   useEffect(() => {
-    if (!verificationContext) return;
+    if (!verificationContext || verificationFiredRef.current) return;
     if (state.level >= verificationContext.requiredLevel && !state.isGameOver) {
+      verificationFiredRef.current = true;
       verificationContext.onVerified(state.level, state.score);
     }
   }, [state.level, state.score, state.isGameOver, verificationContext]);
@@ -588,8 +598,9 @@ export default function GameCanvas({
     );
   }
 
-  // Only block connected wallets that have run out of tickets (free play still allowed when not connected)
-  if (connected && state.score === 0 && !state.isGameOver && ticketBalance === 0) {
+  // Only block connected wallets that have run out of tickets.
+  // Campaign mode (verificationContext) is ticket-free — campaign founder pays for verification.
+  if (connected && state.score === 0 && !state.isGameOver && ticketBalance === 0 && !verificationContext) {
     return (
       <div className={styles.overlay}>
         <div className={styles.noTickets}>
@@ -700,7 +711,7 @@ export default function GameCanvas({
         <span className={styles.hintKey}>1-3</span> SELECT PIECE · <span className={styles.hintKey}>CLICK</span> BOARD TO PLACE · <span className={styles.hintKey}>ESC</span> DESELECT
       </div>
 
-      {!hasStartedGame && (state.isGameOver || (connected ? (ticketBalance !== null && ticketBalance > 0) : true)) && (
+      {!hasStartedGame && (state.isGameOver || (connected ? (verificationContext ? true : (ticketBalance !== null && ticketBalance > 0)) : true)) && (
         <div className={styles.gameOverActions}>
           <button type="button" className="btn btn-primary btn-lg" onClick={handleStartGame}>
             {state.isGameOver

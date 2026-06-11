@@ -342,8 +342,19 @@ export default function CampaignDetailPage() {
                       </div>
                     )}
 
-                    {/* Actions for recipient - verified, ready to claim */}
-                    {isRecipient && ms.isVerified && (
+                    {/* Already claimed indicator */}
+                    {ms.isClaimed && (
+                      <div style={{
+                        padding: '10px 14px', borderRadius: 10, textAlign: 'center',
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        fontSize: 12, color: T.textDim, fontWeight: 600,
+                      }}>
+                        ✓ Tokens Claimed
+                      </div>
+                    )}
+
+                    {/* Actions for recipient - verified and not yet claimed */}
+                    {isRecipient && ms.isVerified && !ms.isClaimed && (
                       <button
                         onClick={() => handleClaim(ms)}
                         disabled={status === 'claiming'}
