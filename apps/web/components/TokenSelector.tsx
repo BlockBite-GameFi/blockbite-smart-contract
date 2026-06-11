@@ -164,19 +164,21 @@ export default function TokenSelector({ value, onChange, isDevnet = true, error 
             />
           </div>
 
-          {/* Token list */}
+          {/* Token list — popular tokens render immediately; wallet balance loads in background */}
           <div style={{ overflowY: 'auto', flex: 1, maxHeight: 260 }}>
+            {/* Loading indicator: small pill, doesn't block token list */}
             {loading && (
-              <div style={{ padding: 16, textAlign: 'center', color: T.textDim, fontSize: 12 }}>
-                Loading wallet tokens…
+              <div style={{ padding: '6px 14px', fontSize: 10, color: T.textDim, display: 'flex', alignItems: 'center', gap: 5, borderBottom: `1px solid ${T.border}22` }}>
+                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>◆</span>
+                Fetching wallet balances…
               </div>
             )}
-            {!loading && filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <div style={{ padding: 16, textAlign: 'center', color: T.textDim, fontSize: 12 }}>
                 No tokens found
               </div>
             )}
-            {!loading && filtered.map(t => (
+            {filtered.map(t => (
               <button
                 key={t.mint}
                 type="button"
