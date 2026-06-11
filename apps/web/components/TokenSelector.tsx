@@ -48,14 +48,19 @@ export default function TokenSelector({ value, onChange, isDevnet = true, error 
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Fetch wallet tokens when opened
+  // Fetch wallet tokens when opened — with 8s timeout and cleanup on re-render
   useEffect(() => {
     if (!open || !publicKey) return;
+    let cancelled = false;
     setLoading(true);
-    fetchWalletTokens(connection, publicKey, isDevnet)
-      .then(setWalletTokens)
-      .catch(() => setWalletTokens([]))
-      .finally(() => setLoading(false));
+    const timeout = new Promise<WalletToken[]>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 8000),
+    );
+    Promise.race([fetchWalletTokens(connection, publicKey, isDevnet), timeout])
+      .then(tokens  => { if (!cancelled) setWalletTokens(tokens); })
+      .catch(()     => { if (!cancelled) setWalletTokens([]); })
+      .finally(()   => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [open, publicKey, connection, isDevnet]);
 
   const popular = isDevnet ? POPULAR_DEVNET : POPULAR_MAINNET;

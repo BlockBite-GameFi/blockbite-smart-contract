@@ -143,11 +143,20 @@ export function useStreamCreate() {
         setTxStatus('wrapping');
         setTxErr(null);
         setTxSig(null);
+        // Fetch blockhash before sending so confirmTransaction gets a proper expiry
+        // (the old confirmTransaction(sig, commitment) API can hang forever on devnet)
+        const { blockhash: wrapBlockhash, lastValidBlockHeight: wrapLvbh } =
+          await connection.getLatestBlockhash('confirmed');
+        wrapTx.recentBlockhash = wrapBlockhash;
+        wrapTx.feePayer = publicKey;
         const wrapSig = await sendTransaction(wrapTx, connection);
 
         // 4. Wait for wrap to confirm before creating stream
         setTxStatus('confirming');
-        await connection.confirmTransaction(wrapSig, 'confirmed');
+        await connection.confirmTransaction(
+          { signature: wrapSig, blockhash: wrapBlockhash, lastValidBlockHeight: wrapLvbh },
+          'confirmed',
+        );
 
         // Wrap done — fall through to createStream below
         setTxStatus('approving');
