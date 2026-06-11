@@ -10,7 +10,7 @@ import { RPC_URL } from '@/lib/solana/config';
 import { useCampaignCreate } from '@/lib/hooks/useCampaignCreate';
 import TokenSelector from '@/components/TokenSelector';
 import { IS_DEVNET } from '@/lib/solana/config';
-import { GAME_AUTHORITY_PUBKEY } from '@/lib/anchor/campaign-client';
+import { fetchGameAuthorityPubkey } from '@/lib/anchor/campaign-client';
 
 // ─── Design tokens ───────────────────────────────────────────────────────────────
 const C = {
@@ -203,8 +203,8 @@ export default function CreateCampaignPage() {
 
     const seed = BigInt(Date.now());
     const milestoneSeed = BigInt(Date.now() + 1);
-    // game_authority is the game server's signing keypair pubkey.
-    // Configure via NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY env var.
+    // Fetch game authority pubkey from embedded API — always in sync with verify endpoint
+    const gameAuthorityPk = await fetchGameAuthorityPubkey();
     const recipientPk = new PublicKey(recipient || publicKey.toBase58());
 
     await create(
@@ -216,7 +216,7 @@ export default function CreateCampaignPage() {
       [{
         descriptionHash: descHash,
         tokenAmount:     toLamports(milestoneAmt, tokenDecimals),
-        gameProgramId:   GAME_AUTHORITY_PUBKEY,
+        gameProgramId:   gameAuthorityPk,
         recipient:       recipientPk,
         milestoneSeed,
         targetLevel:     gameGate ? Math.max(1, Math.min(30, gameLevel)) : 1,

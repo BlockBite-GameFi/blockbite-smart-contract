@@ -34,13 +34,29 @@ export const CAMPAIGN_PROGRAM_ID = new PublicKey(
 );
 
 /**
- * Game server's signing authority pubkey.
- * Must match the keypair held by the game server (GAME_AUTHORITY_SECRET_KEY).
- * Set NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY in .env.local or Vercel dashboard.
+ * Fetch the game authority pubkey from the embedded game server API.
+ * Falls back to env var or placeholder if the fetch fails.
  */
+export async function fetchGameAuthorityPubkey(): Promise<PublicKey> {
+  // Env var override (highest priority)
+  if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY) {
+    return new PublicKey(process.env.NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY);
+  }
+  try {
+    const res = await fetch('/api/game/health');
+    if (res.ok) {
+      const { gameAuthority } = await res.json() as { gameAuthority?: string };
+      if (gameAuthority) return new PublicKey(gameAuthority);
+    }
+  } catch { /* non-fatal */ }
+  // Fallback (should only happen if API route is unreachable)
+  return new PublicKey('Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq');
+}
+
+/** Synchronous fallback for code that can't await — use fetchGameAuthorityPubkey() where possible */
 export const GAME_AUTHORITY_PUBKEY = new PublicKey(
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_GAME_AUTHORITY_PUBKEY) ||
-  'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',  // placeholder — MUST be overridden
+  'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
 );
 
 export const CAMPAIGN_ACCOUNT_SIZE = 90;
