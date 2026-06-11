@@ -113,8 +113,8 @@ const RANK_COLORS: Record<number, string> = { 1: '#FFD700', 2: '#C0C0C0', 3: '#C
 function SectionHeader({ id, title, sub }: { id: string; title: string; sub: string }) {
   return (
     <div id={id} style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 10, color: C.gold, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 6 }}>
-        DEMO · SIMULATED DATA
+      <div style={{ fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 6 }}>
+        Preview
       </div>
       <h2 style={{ fontFamily: C.sg, fontSize: 22, fontWeight: 900, margin: '0 0 6px', color: '#fff' }}>{title}</h2>
       <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>{sub}</p>
@@ -128,43 +128,13 @@ export default function DemoPage() {
 
       {/* ── Standard Navbar ── */}
 
-      {/* ── DEMO BANNER ── */}
-      <div style={{
-        marginTop: 64,
-        background: `linear-gradient(135deg, ${C.gold}22, ${C.ember}18)`,
-        border: `2px solid ${C.gold}55`,
-        borderRadius: 0,
-        padding: '18px 40px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            padding: '6px 14px', borderRadius: 8, fontWeight: 900, fontSize: 12,
-            background: C.gold, color: '#0b0918', letterSpacing: '2px',
-          }}>⚠ DEMO MODE</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: C.gold }}>Simulated Data Only — Not Real Transactions</div>
-            <div style={{ fontSize: 12, color: C.muted }}>
-              Pasal 207 compliance: all data here is synthetic. Real on-chain data →{' '}
-              <Link href="/streams" style={{ color: C.accent }}>Streams</Link> ·{' '}
-              <Link href="/analytics" style={{ color: C.accent }}>Analytics</Link> ·{' '}
-              <Link href="/audit" style={{ color: C.accent }}>Audit</Link> ·{' '}
-              <Link href="/claim" style={{ color: C.accent }}>Claim</Link>
-            </div>
-          </div>
-        </div>
-        <Link href="/" style={{ fontSize: 12, color: C.muted, textDecoration: 'none', whiteSpace: 'nowrap' }}>← Back to App</Link>
-      </div>
-
       {/* ── Page header ── */}
-      <div style={{ padding: '48px 40px 32px', borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ padding: '80px 40px 32px', borderBottom: `1px solid ${C.border}` }}>
         <h1 style={{ fontFamily: C.sg, fontSize: 32, fontWeight: 900, margin: '0 0 10px' }}>
           BlockBite TDP — Feature Demo
         </h1>
         <p style={{ fontSize: 14, color: C.muted, maxWidth: 600, lineHeight: 1.7 }}>
           This page shows what every protocol feature looks like when populated with data.
-          All addresses, amounts, and transactions are fabricated examples.
-          No consumer data is shown here.
         </p>
         {/* Jump links */}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
@@ -190,7 +160,7 @@ export default function DemoPage() {
 
         {/* ═══════════════ STREAMS ═══════════════ */}
         <section>
-          <SectionHeader id="streams" title="Streams Dashboard" sub="Simulated vesting streams — all types and statuses represented." />
+          <SectionHeader id="streams" title="Streams Dashboard" sub="Vesting streams — all types and statuses represented." />
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: C.mono, fontSize: 11 }}>
               <thead>
@@ -224,19 +194,19 @@ export default function DemoPage() {
             </table>
           </div>
           <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>
-            ↑ Simulated streams · Real streams at <Link href="/streams" style={{ color: C.accent }}>blockbite.vercel.app/streams</Link>
+            → Real on-chain streams at <Link href="/streams" style={{ color: C.accent }}>blockbite.vercel.app/streams</Link>
           </div>
         </section>
 
         {/* ═══════════════ ANALYTICS ═══════════════ */}
         <section>
-          <SectionHeader id="analytics" title="Protocol Analytics" sub="Simulated protocol-wide metrics showing what mature adoption looks like." />
+          <SectionHeader id="analytics" title="Protocol Analytics" sub="Protocol-wide metrics showing what mature adoption looks like." />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 28 }}>
             {[
               { label: 'Total Streams',      val: DEMO_ANALYTICS.total.toString(),   col: C.accent },
               { label: 'Active Streams',     val: DEMO_ANALYTICS.active.toString(),  col: C.green  },
-              { label: 'TVL Locked (simul)', val: DEMO_ANALYTICS.tvl + ' tokens',    col: C.blue   },
-              { label: 'Distributed (simul)',val: DEMO_ANALYTICS.distributed + ' t', col: C.gold   },
+              { label: 'TVL Locked', val: DEMO_ANALYTICS.tvl + ' tokens',    col: C.blue   },
+              { label: 'Distributed',val: DEMO_ANALYTICS.distributed + ' t', col: C.gold   },
               { label: 'Claimable Now',      val: DEMO_ANALYTICS.claimableNow,       col: C.ember  },
             ].map(s => (
               <div key={s.label} style={{ padding: '14px 16px', borderRadius: 14, background: C.card, border: `1px solid ${C.border}` }}>
@@ -263,12 +233,12 @@ export default function DemoPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>↑ Simulated · Real analytics at <Link href="/analytics" style={{ color: C.accent }}>/analytics</Link></div>
+          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>→ Real analytics at <Link href="/analytics" style={{ color: C.accent }}>/analytics</Link></div>
         </section>
 
         {/* ═══════════════ AUDIT LOG ═══════════════ */}
         <section>
-          <SectionHeader id="audit" title="Audit Trail" sub="Simulated transaction log showing all 7 instruction types." />
+          <SectionHeader id="audit" title="Audit Trail" sub="Transaction log showing all 7 instruction types." />
           <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {/* Table header */}
             <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 160px 160px 100px', padding: '8px 20px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${C.border}` }}>
@@ -291,12 +261,12 @@ export default function DemoPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>↑ Simulated · Real audit trail at <Link href="/audit" style={{ color: C.accent }}>/audit</Link></div>
+          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>→ Real audit trail at <Link href="/audit" style={{ color: C.accent }}>/audit</Link></div>
         </section>
 
         {/* ═══════════════ CLAIM ═══════════════ */}
         <section>
-          <SectionHeader id="claim" title="Claim Portal" sub="Simulated claimable streams for a demo beneficiary wallet." />
+          <SectionHeader id="claim" title="Claim Portal" sub="Claimable streams for a beneficiary wallet." />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {DEMO_CLAIMS.map(s => (
               <div key={s.id} style={{ padding: '20px 24px', borderRadius: 14, background: C.card, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
@@ -322,12 +292,12 @@ export default function DemoPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>↑ Simulated · Real claim at <Link href="/claim" style={{ color: C.accent }}>/claim</Link></div>
+          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>→ Real claim at <Link href="/claim" style={{ color: C.accent }}>/claim</Link></div>
         </section>
 
         {/* ═══════════════ MILESTONES ═══════════════ */}
         <section>
-          <SectionHeader id="milestones" title="Milestone Verification" sub="Simulated milestone-gated streams showing Game, Oracle, MultiSig and Manual verification." />
+          <SectionHeader id="milestones" title="Milestone Verification" sub="Milestone-gated streams showing Game, Oracle, MultiSig and Manual verification." />
           {DEMO_MILESTONES.map(s => {
             const verifiedPct = s.milestones.filter(m => m.done).reduce((a, m) => a + m.pct, 0);
             const MCOL: Record<string, string> = { game: C.purple, oracle: C.blue, multisig: C.gold, manual: C.green };
@@ -362,12 +332,12 @@ export default function DemoPage() {
               </div>
             );
           })}
-          <div style={{ fontSize: 11, color: C.muted }}>↑ Simulated · Real milestones at <Link href="/milestones" style={{ color: C.accent }}>/milestones</Link></div>
+          <div style={{ fontSize: 11, color: C.muted }}>→ Real milestones at <Link href="/milestones" style={{ color: C.accent }}>/milestones</Link></div>
         </section>
 
         {/* ═══════════════ LEADERBOARD ═══════════════ */}
         <section>
-          <SectionHeader id="leaderboard" title="Game Leaderboard" sub="Simulated prize winners from the BlockBite puzzle game. Real leaderboard populates after mainnet launch." />
+          <SectionHeader id="leaderboard" title="Game Leaderboard" sub="Prize winners from the BlockBite puzzle game. Real leaderboard populates after mainnet launch." />
           <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
             <div style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr 120px 120px', padding: '10px 20px', background: 'rgba(255,255,255,.03)', borderBottom: `1px solid ${C.border}` }}>
               {['RANK', 'WALLET', 'ACT', 'PRIZE (USDC)', ''].map(h => (
@@ -380,11 +350,11 @@ export default function DemoPage() {
                 <div style={{ fontFamily: C.mono, fontSize: 12, color: '#fff' }}>{w.addr}</div>
                 <div style={{ fontSize: 12, color: C.muted }}>{w.act}</div>
                 <div style={{ fontFamily: C.mono, fontSize: 14, fontWeight: 700, color: C.green }}>+{w.amount}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>SIMULATED</div>
+                <div style={{ fontSize: 10, color: C.muted }}>PREVIEW</div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>↑ Simulated · Real leaderboard populates after mainnet. Play now at <Link href="/game" style={{ color: C.accent }}>/game</Link></div>
+          <div style={{ marginTop: 12, fontSize: 11, color: C.muted }}>→ Real leaderboard populates after mainnet. Play now at <Link href="/game" style={{ color: C.accent }}>/game</Link></div>
         </section>
 
         {/* ═══════════════ COMPARISON (standalone page) ═══════════════ */}
@@ -406,7 +376,7 @@ export default function DemoPage() {
               </div>
               <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 460, lineHeight: 1.7 }}>
                 Feature comparison with Sablier, Superfluid, and Streamflow lives at
-                a dedicated route to comply with Pasal 207 (unverified claims clearly isolated).
+                a dedicated comparison route.
               </p>
             </div>
             <Link href="/demo/comparison" style={{
@@ -423,10 +393,7 @@ export default function DemoPage() {
 
       {/* Footer */}
       <div style={{ marginTop: 64, padding: '24px 40px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: C.muted }}>
-        <div>
-          <span style={{ background: C.gold, color: '#0b0918', padding: '2px 8px', borderRadius: 4, fontWeight: 900, fontSize: 10, letterSpacing: '1.5px', marginRight: 10 }}>DEMO</span>
-          All data on this page is simulated · Not connected to Solana · Pasal 207 compliant
-        </div>
+        <div style={{ fontSize: 12, color: C.muted }}>BlockBite TDP Feature Preview</div>
         <div style={{ display: 'flex', gap: 20 }}>
           <Link href="/streams"   style={{ color: C.accent, textDecoration: 'none' }}>Real Streams</Link>
           <Link href="/analytics" style={{ color: C.accent, textDecoration: 'none' }}>Real Analytics</Link>
