@@ -284,10 +284,12 @@ export default function GameCanvas({
     if (!state.isGameOver) gameOverHandledRef.current = false;
   }, [state.isGameOver, connected, publicKey, state.level, state.score, state.sessionId, state.placements]);
 
-  // Auto-trigger verification once when player reaches required level
+  // Auto-trigger verification once when player reaches required level.
+  // Intentionally fires even during isGameOver so a player who hits the level
+  // on their final placement still gets credited.
   useEffect(() => {
     if (!verificationContext || verificationFiredRef.current) return;
-    if (state.level >= verificationContext.requiredLevel && !state.isGameOver) {
+    if (state.level >= verificationContext.requiredLevel) {
       verificationFiredRef.current = true;
       verificationContext.onVerified(state.level, state.score);
     }
