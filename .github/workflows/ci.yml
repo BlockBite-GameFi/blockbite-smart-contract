@@ -5,6 +5,7 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  workflow_dispatch:   # ← allows manual trigger from GitHub Actions UI (Windows dev workaround)
 
 concurrency:
   group: ci-${{ github.ref }}

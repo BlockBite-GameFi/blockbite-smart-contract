@@ -31,9 +31,14 @@ const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 // TIER 2 — auth/freetier issues but worth trying (withRpcFallback retries)
 // TIER 3 — community / unknown uptime
 const DEVNET_ENDPOINTS: readonly string[] = [
+  // ── TIER 0: Custom RPC (set NEXT_PUBLIC_RPC_URL in Vercel for best results) ──
   // ── TIER 1: Official + reliably free ────────────────────────────────────
   'https://api.devnet.solana.com',            // Solana Labs official devnet
   'https://api.devnet.solana.com/',           // trailing-slash variant (some clients differ)
+  // Helius free tier — supports getProgramAccounts unlike official devnet
+  ...(process.env.NEXT_PUBLIC_HELIUS_API_KEY
+    ? [`https://devnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`]
+    : []),
 
   // ── TIER 2: Provider free tiers (may need API key for full access) ───────
   'https://rpc.ankr.com/solana_devnet',               // Ankr (needs key since 2026)
