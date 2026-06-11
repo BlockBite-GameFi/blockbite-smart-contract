@@ -1478,6 +1478,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 4), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
@@ -1563,6 +1564,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 6), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
@@ -1663,6 +1665,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 8), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
@@ -1755,6 +1758,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 10), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
@@ -1859,6 +1863,7 @@ describe("blockbite", () => {
         programId,
         data: mkCreateMilestoneData(
           Buffer.alloc(32, 12), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
+          10, 1,
         ),
       })),
       [founder],
