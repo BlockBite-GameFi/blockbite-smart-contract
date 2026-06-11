@@ -464,6 +464,19 @@ export default function StreamsPage() {
                       style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}
                       onClick={e => e.stopPropagation()}
                     >
+                      <button
+                        title={lang === 'id' ? 'Buka detail & klaim token' : 'Open detail & claim tokens'}
+                        onClick={e => { e.stopPropagation(); router.push(href); }}
+                        style={{
+                          padding: '3px 10px', borderRadius: 6,
+                          border: `1px solid color-mix(in srgb, ${T.accent} 35%, transparent)`,
+                          background: `color-mix(in srgb, ${T.accent} 10%, transparent)`,
+                          color: T.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {lang === 'id' ? 'Buka →' : 'View →'}
+                      </button>
                       <IconBtn
                         label={lang === 'id' ? '⎘ Salin Link' : '⎘ Copy Link'}
                         done={copied[linkKey]}
