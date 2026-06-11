@@ -284,12 +284,13 @@ export default function GameCanvas({
     if (!state.isGameOver) gameOverHandledRef.current = false;
   }, [state.isGameOver, connected, publicKey, state.level, state.score, state.sessionId, state.placements]);
 
-  // Auto-trigger verification once when player reaches required level.
-  // Intentionally fires even during isGameOver so a player who hits the level
-  // on their final placement still gets credited.
+  // Auto-trigger verification once when player ADVANCES PAST the required level.
+  // Uses strict > so the game starting at initialLevel=requiredLevel does not
+  // immediately count — the player must actually score enough to level up.
+  // Fires even during isGameOver so a last-placement level-up still counts.
   useEffect(() => {
     if (!verificationContext || verificationFiredRef.current) return;
-    if (state.level >= verificationContext.requiredLevel) {
+    if (state.level > verificationContext.requiredLevel) {
       verificationFiredRef.current = true;
       verificationContext.onVerified(state.level, state.score);
     }
@@ -637,8 +638,8 @@ export default function GameCanvas({
           color: '#c4b5fd',
         }}>
           <span style={{ fontSize: 16 }}>◈</span>
-          <span>Verify Stream — Reach Level {verificationContext.requiredLevel} to unlock tokens</span>
-          {state.level >= verificationContext.requiredLevel && (
+          <span>Verify Milestone — Score past Level {verificationContext.requiredLevel} to unlock tokens</span>
+          {state.level > verificationContext.requiredLevel && (
             <span style={{
               padding: '4px 12px',
               borderRadius: 999,

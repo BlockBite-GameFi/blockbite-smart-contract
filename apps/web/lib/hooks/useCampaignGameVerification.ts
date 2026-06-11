@@ -39,13 +39,16 @@ export function useCampaignGameVerification() {
     const userId     = recipient.toBase58();
     const sessionId  = `${userId}-${milestonePda.toBase58()}-${Date.now()}`;
 
+    // Cap achievedLevel at 30 — the on-chain MAX_LEVEL constant.
+    const cappedLevel = Math.min(level, 30);
+
     try {
       // Step 1: Register the game session on the game server (demo mode).
       // In production, replace this with real game-engine session validation.
       await fetch(`${GAME_SERVER_URL}/api/test/simulate-game`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ userId, sessionId, level }),
+        body:    JSON.stringify({ userId, sessionId, level: cappedLevel }),
       });
 
       // Step 2: Ask the game server to sign and submit verify_game on-chain.
@@ -56,7 +59,7 @@ export function useCampaignGameVerification() {
           userId,
           campaignPda:   campaignPk.toBase58(),
           milestoneSeed: milestoneSeed.toString(),
-          achievedLevel: level,
+          achievedLevel: cappedLevel,
           gameSessionId: sessionId,
         }),
       });
