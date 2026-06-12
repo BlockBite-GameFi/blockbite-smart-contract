@@ -45,9 +45,8 @@ const STERILE_RPC = PRIMARY ?? (IS_DEVNET
  */
 export const RPC_CHAIN: readonly string[] = Object.freeze([STERILE_RPC]);
 
-// ── localStorage cache keys ──────────────────────────────────────────────────
-const LS_KEY_OK       = 'bb_rpc_ok';       // last working URL
-const LS_KEY_BLACKLIST = 'bb_rpc_blacklist'; // pipe-separated failed URLs (cleared on refresh)
+// ── localStorage cache key ───────────────────────────────────────────────────
+const LS_KEY_OK = 'bb_rpc_ok'; // last working URL (always the sterile endpoint)
 
 // ── Error classification ─────────────────────────────────────────────────────
 /**
@@ -133,75 +132,45 @@ function sleep(ms: number): Promise<void> {
 
 // ── withRpcFallback ──────────────────────────────────────────────────────────
 /**
- * Execute `fn(connection)` with automatic multi-tier RPC fallback.
+ * Execute `fn(connection)` against the single sterile endpoint, retrying on
+ * transient infrastructure errors. (Name kept for call-site compatibility —
+ * there is no longer any cross-provider "fallback"; Pasal 87 forbids it.)
  *
  * Algorithm:
- *   1. Skip URLs that are session-blacklisted (failed this page load).
- *   2. Prefer the localStorage-cached working URL, if still in chain.
- *   3. On any infra error, move to the next endpoint.
- *   4. On 429, wait 600ms before moving on.
- *   5. On success, persist the URL to localStorage + remove from blacklist.
- *   6. If ALL endpoints fail, throw the last error.
- *   7. On non-infra error (account not found, bad key, etc.), fail fast.
+ *   1. Build ONE Connection on the sterile endpoint.
+ *   2. Run fn under a 7s per-attempt timeout. On success, cache + return.
+ *   3. On an APPLICATION error (account not found, bad input, program error),
+ *      fail fast — retrying the same endpoint can't change the outcome.
+ *   4. On a transient INFRA error (429 / timeout / transport / 5xx), back off
+ *      and retry the SAME endpoint up to `maxAttempts` times.
+ *   5. After the last attempt, throw the last error.
  */
 export async function withRpcFallback<T>(
   fn: (conn: Connection) => Promise<T>,
   commitment: Commitment = 'confirmed',
+  maxAttempts = 4,
 ): Promise<T> {
-  // Load session blacklist (URLs that failed this page load)
-  const blacklistRaw = typeof window !== 'undefined'
-    ? (sessionStorage.getItem(LS_KEY_BLACKLIST) ?? '')
-    : '';
-  const blacklist = new Set(blacklistRaw ? blacklistRaw.split('|') : []);
+  const conn = getHealthyConnection(commitment);
+  let lastErr: Error = new Error('Sterile RPC endpoint unreachable.');
 
-  // Prefer cached working URL — skip if blacklisted
-  const cached = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY_OK) : null;
-
-  // Build ordered trial list: cached first, then remainder; skip blacklisted
-  const all = [...RPC_CHAIN];
-  const ordered: string[] = cached && RPC_CHAIN.includes(cached) && !blacklist.has(cached)
-    ? [cached, ...all.filter(r => r !== cached && !blacklist.has(r))]
-    : all.filter(r => !blacklist.has(r));
-
-  let lastErr: Error = new Error('All RPC endpoints exhausted — check your network connection.');
-
-  for (const url of ordered) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const conn = new Connection(url, {
-        commitment,
-        confirmTransactionInitialTimeout: 60_000,
-        disableRetryOnRateLimit: true, // we handle retries ourselves
-      });
       const endpointTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 7_000),
       );
       const result = await Promise.race([fn(conn), endpointTimeout]);
 
-      // ✅ Success — cache this URL and remove from blacklist
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LS_KEY_OK, url);
-        blacklist.delete(url);
-        sessionStorage.setItem(LS_KEY_BLACKLIST, [...blacklist].join('|'));
-      }
+      if (typeof window !== 'undefined') localStorage.setItem(LS_KEY_OK, RPC_CHAIN[0]);
       return result;
 
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
 
-      // Non-infra error → same result on every RPC, fail fast
+      // Application error → same result on every retry, fail fast.
       if (!isInfraError(lastErr)) throw lastErr;
 
-      // Blacklist this URL for the rest of the session
-      if (typeof window !== 'undefined') {
-        blacklist.add(url);
-        sessionStorage.setItem(LS_KEY_BLACKLIST, [...blacklist].join('|'));
-      }
-
-      // Rate-limited → brief pause before hammering the next endpoint
-      const isRateLimit = lastErr.message.includes('429')
-        || lastErr.message.toLowerCase().includes('rate limit')
-        || lastErr.message.toLowerCase().includes('too many requests');
-      if (isRateLimit) await sleep(600);
+      // Transient infra error → exponential-ish backoff, retry SAME endpoint.
+      if (attempt < maxAttempts) await sleep(400 * attempt); // 400, 800, 1200ms
     }
   }
 
