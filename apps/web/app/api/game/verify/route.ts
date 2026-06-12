@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  Connection, PublicKey, Transaction, TransactionInstruction,
+  Connection, PublicKey, Transaction, TransactionInstruction, LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
 import { gameAuthorityKeypair, validateSession } from '@/lib/server/game-authority';
 
@@ -13,6 +13,19 @@ const PROGRAM_ID = new PublicKey(
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com';
 
 const DISCRIMINATOR_VERIFY_GAME = [81, 26, 37, 190, 207, 209, 205, 211];
+const MIN_BALANCE_LAMPORTS = 0.05 * LAMPORTS_PER_SOL; // 0.05 SOL threshold
+const AIRDROP_AMOUNT = 1 * LAMPORTS_PER_SOL;           // 1 SOL top-up
+
+/** Auto-airdrop on devnet when game_authority balance drops below threshold. */
+async function ensureFunded(connection: Connection, pubkey: PublicKey): Promise<void> {
+  const balance = await connection.getBalance(pubkey);
+  if (balance >= MIN_BALANCE_LAMPORTS) return;
+
+  console.log(`[game/verify] game_authority balance ${balance / LAMPORTS_PER_SOL} SOL — requesting airdrop`);
+  const sig = await connection.requestAirdrop(pubkey, AIRDROP_AMOUNT);
+  await connection.confirmTransaction(sig, 'confirmed');
+  console.log(`[game/verify] airdrop confirmed: ${sig}`);
+}
 
 function buildVerifyIx(
   campaignPda:   PublicKey,
@@ -74,6 +87,10 @@ export async function POST(req: NextRequest) {
 
     // Build + sign + send tx
     const connection = new Connection(RPC_URL, 'confirmed');
+
+    // Auto-fund game_authority on devnet if balance is low
+    await ensureFunded(connection, gameAuthorityKeypair.publicKey);
+
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
     const tx = new Transaction();
@@ -99,7 +116,7 @@ export async function POST(req: NextRequest) {
     if (lower.includes('no record of a prior credit') || lower.includes('insufficient')) {
       return NextResponse.json({
         error:   'Game authority not funded',
-        message: `The game authority wallet (${gameAuthorityKeypair.publicKey.toBase58()}) has no devnet SOL to pay the verification fee. Fund it with ~0.1 SOL or set GAME_AUTHORITY_SECRET_KEY to a funded keypair.`,
+        message: `The game authority wallet (${gameAuthorityKeypair.publicKey.toBase58()}) has no SOL to pay the verification fee. On devnet, auto-airdrop should have triggered — check RPC. On mainnet, fund it with ~0.1 SOL.`,
       }, { status: 503 });
     }
     if (lower.includes('could not find account') || lower.includes('account does not exist')) {

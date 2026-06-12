@@ -8,6 +8,7 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
@@ -33,6 +34,18 @@ const gameAuthorityKeypair = Keypair.fromSecretKey(
 );
 
 const connection = new Connection(RPC_URL, "confirmed");
+
+const MIN_BALANCE_LAMPORTS = 0.05 * LAMPORTS_PER_SOL;
+const AIRDROP_AMOUNT = 1 * LAMPORTS_PER_SOL;
+
+async function ensureFunded(): Promise<void> {
+  const balance = await connection.getBalance(gameAuthorityKeypair.publicKey);
+  if (balance >= MIN_BALANCE_LAMPORTS) return;
+  console.log(`[game-server] balance ${balance / LAMPORTS_PER_SOL} SOL — requesting airdrop`);
+  const sig = await connection.requestAirdrop(gameAuthorityKeypair.publicKey, AIRDROP_AMOUNT);
+  await connection.confirmTransaction(sig, "confirmed");
+  console.log(`[game-server] airdrop confirmed: ${sig}`);
+}
 
 // ── Validation Schemas ───────────────────────────────────────────────────────
 
@@ -216,7 +229,10 @@ app.post("/api/verify", async (req, res) => {
       PROGRAM_ID
     );
 
-    // 3. Sign and submit verify_game transaction
+    // 3. Ensure game_authority is funded (auto-airdrop on devnet)
+    await ensureFunded();
+
+    // 4. Sign and submit verify_game transaction
     const signature = await submitVerifyGame(
       campaignPda,
       milestonePda,

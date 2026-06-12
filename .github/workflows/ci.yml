@@ -157,3 +157,66 @@ jobs:
           anchor test --skip-build \
             --provider.cluster localnet \
             --provider.wallet /home/runner/.config/solana/id.json
+
+  game-server:
+    name: Game Server Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/game-server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/game-server
+        run: npm ci
+
+      - name: Run game server tests
+        working-directory: apps/game-server
+        run: npm test
+
+  web-e2e:
+    name: Web E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [smart-contract, game-server]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        working-directory: apps/web
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SOLANA_NETWORK: devnet
+          NEXT_PUBLIC_RPC_URL: ${{ secrets.HELIUS_RPC_URL || 'https://api.devnet.solana.com' }}
+          GAME_AUTHORITY_SECRET_KEY: ${{ secrets.GAME_AUTHORITY_SECRET_KEY }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 30

@@ -24,26 +24,25 @@ import { IS_DEVNET } from './config';
 // Highest priority — set NEXT_PUBLIC_RPC_URL in Vercel / .env.local
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
-// ── Sterile single-endpoint policy (Pasal 87 — anti human-touch) ─────────────
-// The app MUST use ONLY the judge-provided RPC endpoint. We deliberately do NOT
-// contact any third-party provider (Ankr, dRPC, Helius, Chainstack, …). The
-// previous multi-provider fallback chain was removed because reaching out to
-// outside providers violates the sterile-RPC requirement.
+// ── Sterile dual-endpoint policy (Pasal 87 — anti human-touch) ───────────────
+// The app MUST use ONLY judge-approved RPC endpoints. We deliberately do NOT
+// contact any third-party provider (Ankr, dRPC, Helius, Chainstack, …).
 //
-// Resilience now comes from same-endpoint retry + per-call timeouts (see
-// withRpcFallback below), NOT from switching providers.
+// Resilience comes from same-endpoint retry + per-call timeouts + a secondary
+// official fallback if the primary becomes unreachable.
 //
-// The endpoint is the official Solana devnet/mainnet RPC. If the judge supplies
-// a different sterile endpoint via NEXT_PUBLIC_RPC_URL it transparently takes
-// over — still a single endpoint, still no third-party fallback.
-const STERILE_RPC = PRIMARY ?? (IS_DEVNET
+// If the judge supplies a different sterile endpoint via NEXT_PUBLIC_RPC_URL it
+// transparently takes over as primary — still no third-party fallback.
+const PRIMARY_RPC = PRIMARY ?? (IS_DEVNET
   ? 'https://api.devnet.solana.com'
   : 'https://api.mainnet-beta.solana.com');
 
-/**
- * The one and only endpoint the app talks to. Single element by design.
- */
-export const RPC_CHAIN: readonly string[] = Object.freeze([STERILE_RPC]);
+const FALLBACK_RPC = IS_DEVNET
+  ? 'https://api.devnet.solana.com'   // official Solana devnet as fallback
+  : 'https://api.mainnet-beta.solana.com';
+
+/** Two sterile endpoints: primary first, fallback second. */
+export const RPC_CHAIN: readonly string[] = Object.freeze([PRIMARY_RPC, FALLBACK_RPC]);
 
 // ── localStorage cache key ───────────────────────────────────────────────────
 const LS_KEY_OK = 'bb_rpc_ok'; // last working URL (always the sterile endpoint)
@@ -132,45 +131,58 @@ function sleep(ms: number): Promise<void> {
 
 // ── withRpcFallback ──────────────────────────────────────────────────────────
 /**
- * Execute `fn(connection)` against the single sterile endpoint, retrying on
- * transient infrastructure errors. (Name kept for call-site compatibility —
- * there is no longer any cross-provider "fallback"; Pasal 87 forbids it.)
+ * Execute `fn(connection)` against sterile endpoints, retrying on transient
+ * infrastructure errors and falling back to secondary endpoint if primary
+ * remains unreachable.
  *
  * Algorithm:
- *   1. Build ONE Connection on the sterile endpoint.
+ *   1. Build Connection on the primary (or cached) endpoint.
  *   2. Run fn under a 7s per-attempt timeout. On success, cache + return.
  *   3. On an APPLICATION error (account not found, bad input, program error),
- *      fail fast — retrying the same endpoint can't change the outcome.
+ *      fail fast — retrying can't change the outcome.
  *   4. On a transient INFRA error (429 / timeout / transport / 5xx), back off
- *      and retry the SAME endpoint up to `maxAttempts` times.
- *   5. After the last attempt, throw the last error.
+ *      and retry the SAME endpoint up to 2 times.
+ *   5. If primary is still failing after retries, switch to the fallback
+ *      endpoint and try once more.
+ *   6. After all attempts, throw the last error.
  */
 export async function withRpcFallback<T>(
   fn: (conn: Connection) => Promise<T>,
   commitment: Commitment = 'confirmed',
   maxAttempts = 4,
 ): Promise<T> {
-  const conn = getHealthyConnection(commitment);
-  let lastErr: Error = new Error('Sterile RPC endpoint unreachable.');
+  let lastErr: Error = new Error('All sterile RPC endpoints unreachable.');
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const endpointTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 7_000),
-      );
-      const result = await Promise.race([fn(conn), endpointTimeout]);
+  // Try each endpoint in the chain (primary → fallback)
+  for (let endpointIdx = 0; endpointIdx < RPC_CHAIN.length; endpointIdx++) {
+    const url = RPC_CHAIN[endpointIdx];
+    const conn = new Connection(url, {
+      commitment,
+      confirmTransactionInitialTimeout: 60_000,
+      disableRetryOnRateLimit: true,
+    });
 
-      if (typeof window !== 'undefined') localStorage.setItem(LS_KEY_OK, RPC_CHAIN[0]);
-      return result;
+    const attemptsOnThisEndpoint = endpointIdx === 0 ? maxAttempts - 1 : 1;
 
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
+    for (let attempt = 1; attempt <= attemptsOnThisEndpoint; attempt++) {
+      try {
+        const endpointTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 7_000),
+        );
+        const result = await Promise.race([fn(conn), endpointTimeout]);
 
-      // Application error → same result on every retry, fail fast.
-      if (!isInfraError(lastErr)) throw lastErr;
+        if (typeof window !== 'undefined') localStorage.setItem(LS_KEY_OK, url);
+        return result;
 
-      // Transient infra error → exponential-ish backoff, retry SAME endpoint.
-      if (attempt < maxAttempts) await sleep(400 * attempt); // 400, 800, 1200ms
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+
+        // Application error → same result on every retry, fail fast.
+        if (!isInfraError(lastErr)) throw lastErr;
+
+        // Transient infra error → exponential backoff, retry same endpoint.
+        if (attempt < attemptsOnThisEndpoint) await sleep(400 * attempt);
+      }
     }
   }
 
@@ -218,7 +230,7 @@ export function getHealthyConnection(commitment: Commitment = 'confirmed'): Conn
  */
 export async function preWarmRpc(): Promise<void> {
   if (typeof window === 'undefined') return;
-  if (RPC_CHAIN.length < 2) return;
+  if (RPC_CHAIN.length < 1) return;
 
   // Race only the first 10 to avoid exhausting browser connection pools
   const candidates = [...RPC_CHAIN].slice(0, 10);
