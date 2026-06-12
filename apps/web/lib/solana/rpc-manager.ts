@@ -24,103 +24,29 @@ import { IS_DEVNET } from './config';
 // Highest priority — set NEXT_PUBLIC_RPC_URL in Vercel / .env.local
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
-// ── DEVNET endpoints (ordered: most reliable first) ──────────────────────────
-// Last verified: 2026-05.  Add new ones at top of the relevant tier.
+// ── Sterile single-endpoint policy (Pasal 87 — anti human-touch) ─────────────
+// The app MUST use ONLY the judge-provided RPC endpoint. We deliberately do NOT
+// contact any third-party provider (Ankr, dRPC, Helius, Chainstack, …). The
+// previous multi-provider fallback chain was removed because reaching out to
+// outside providers violates the sterile-RPC requirement.
 //
-// TIER 1 — no auth, proven working
-// TIER 2 — auth/freetier issues but worth trying (withRpcFallback retries)
-// TIER 3 — community / unknown uptime
-const DEVNET_ENDPOINTS: readonly string[] = [
-  // ── TIER 0: Custom RPC (set NEXT_PUBLIC_RPC_URL in Vercel for best results) ──
-  // ── TIER 1: Official + reliably free ────────────────────────────────────
-  'https://api.devnet.solana.com',            // Solana Labs official devnet
-  'https://api.devnet.solana.com/',           // trailing-slash variant (some clients differ)
-  // Helius free tier — supports getProgramAccounts unlike official devnet
-  ...(process.env.NEXT_PUBLIC_HELIUS_API_KEY
-    ? [`https://devnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`]
-    : []),
-
-  // ── TIER 2: Provider free tiers (may need API key for full access) ───────
-  'https://rpc.ankr.com/solana_devnet',               // Ankr (needs key since 2026)
-  'https://solana-devnet.drpc.org',                   // dRPC (freetier method limits)
-  'https://rpc.surfpool.run',                         // Surfpool
-  'https://devnet.genesysgo.net/',                    // GenesysGo Shadow
-  'https://devnet.solana.rpcpool.com',                // Triton RPC Pool
-  'https://solana-devnet.rpc.extrnode.com',           // ExtrNode
-  'https://solana-devnet.g.alchemy.com/v2/demo',      // Alchemy demo key
-  'https://devnet.helius-rpc.com/',                   // Helius (no key — limited)
-  'https://solana-devnet.publicnode.com',             // PublicNode
-  'https://solana-devnet.api.onfinality.io/public',   // OnFinality
-  'https://api.devnet.rpcfast.com',                   // RPCFast devnet
-  'https://solana.devnet.rpcfast.com',                // RPCFast alt
-  'https://mango.devnet.rpcpool.com',                 // Mango RPC Pool
-  'https://api.devnet.aptosrpc.com/solana',           // AptosRPC Solana devnet
-  'https://solana-devnet.core.chainstack.com',        // Chainstack public devnet
-  'https://solana.getblock.io/devnet/',               // GetBlock devnet
-  'https://solanadevnet.orb.local',                   // Orb local devnet
-  'https://devnet-rpc.shyft.to',                      // Shyft devnet
-  'https://api.devnet.solanalabs.xyz',                // Solana Labs alt
-
-  // ── TIER 3: Community / proxy / uncertain uptime ─────────────────────────
-  'https://swr.xnfts.dev/rpc-proxy/?cluster=devnet', // xNFTs proxy
-  'https://solana.rpc.thirdweb.com',                  // Thirdweb proxy
-  'https://www.solanatracker.io/rpc',                 // Solana Tracker
-  'https://solanaapi.nfshost.com',                    // Community NFSHost
-  'https://rpc.ironforge.network/devnet',             // IronForge
-  'https://solana-devnet.quiknode.pro',               // QuickNode public (no auth)
-  'https://api.devnet.solana.validatornode.com',      // ValidatorNode
-];
-
-// ── MAINNET endpoints (ordered: most reliable first) ─────────────────────────
-const MAINNET_ENDPOINTS: readonly string[] = [
-  // ── TIER 1: Official + reliably free ────────────────────────────────────
-  'https://api.mainnet-beta.solana.com',              // Solana Labs official
-  'https://solana-api.projectserum.com',              // Project Serum (Project OpenBook)
-
-  // ── TIER 2: Provider free tiers ──────────────────────────────────────────
-  'https://rpc.ankr.com/solana',                      // Ankr (needs key since 2026)
-  'https://solana-mainnet.drpc.org',                  // dRPC
-  'https://solana-mainnet.rpc.extrnode.com',          // ExtrNode
-  'https://solana-mainnet.g.alchemy.com/v2/demo',     // Alchemy demo
-  'https://mainnet.helius-rpc.com/',                  // Helius (limited w/o key)
-  'https://solana.publicnode.com',                    // PublicNode
-  'https://solana-mainnet.api.onfinality.io/public',  // OnFinality
-  'https://solana-mainnet.publicnode.com',            // PublicNode alt
-  'https://mainnet.solana.rpcpool.com',               // Triton RPC Pool
-  'https://ssc-dao.genesysgo.net',                    // GenesysGo Shadow
-  'https://api.mainnet-beta.solana.com/',             // trailing-slash variant
-  'https://solana.getblock.io/mainnet/',              // GetBlock
-  'https://mainnet.rpcpool.com',                      // Triton alt
-  'https://rpc.shyft.to',                             // Shyft
-  'https://solana.blockdaemon.com/',                  // Blockdaemon
-  'https://rpc.magiceden.io',                         // Magic Eden
-  'https://api.metaplex.solana.com/',                 // Metaplex
-  'https://solana-mainnet.core.chainstack.com',       // Chainstack public
-  'https://nd-326-444-187.p2pify.com/public/',        // Chainstack P2P
-  'https://mainnet-rpc.shyft.to',                     // Shyft mainnet
-  'https://solana.rpc.thirdweb.com',                  // Thirdweb
-  'https://www.solanatracker.io/rpc',                 // Solana Tracker
-  'https://rpc.ironforge.network/mainnet',            // IronForge
-  'https://solana.coin.ledger.com',                   // Ledger
-  'https://solanaapi.nfshost.com',                    // NFSHost community
-  'https://rpc.hellomoon.io',                         // HelloMoon (needs key)
-  'https://solana.public-rpc.com',                    // Public RPC community
-];
-
-const DEFAULTS = IS_DEVNET ? DEVNET_ENDPOINTS : MAINNET_ENDPOINTS;
+// Resilience now comes from same-endpoint retry + per-call timeouts (see
+// withRpcFallback below), NOT from switching providers.
+//
+// The endpoint is the official Solana devnet/mainnet RPC. If the judge supplies
+// a different sterile endpoint via NEXT_PUBLIC_RPC_URL it transparently takes
+// over — still a single endpoint, still no third-party fallback.
+const STERILE_RPC = PRIMARY ?? (IS_DEVNET
+  ? 'https://api.devnet.solana.com'
+  : 'https://api.mainnet-beta.solana.com');
 
 /**
- * Full ordered fallback chain.
- * PRIMARY (NEXT_PUBLIC_RPC_URL) always goes first when set.
- * new Set() deduplicates in case PRIMARY overlaps a default.
+ * The one and only endpoint the app talks to. Single element by design.
  */
-export const RPC_CHAIN: readonly string[] = Object.freeze([
-  ...new Set([...(PRIMARY ? [PRIMARY] : []), ...DEFAULTS]),
-]);
+export const RPC_CHAIN: readonly string[] = Object.freeze([STERILE_RPC]);
 
-// ── localStorage cache keys ──────────────────────────────────────────────────
-const LS_KEY_OK       = 'bb_rpc_ok';       // last working URL
-const LS_KEY_BLACKLIST = 'bb_rpc_blacklist'; // pipe-separated failed URLs (cleared on refresh)
+// ── localStorage cache key ───────────────────────────────────────────────────
+const LS_KEY_OK = 'bb_rpc_ok'; // last working URL (always the sterile endpoint)
 
 // ── Error classification ─────────────────────────────────────────────────────
 /**
@@ -206,76 +132,78 @@ function sleep(ms: number): Promise<void> {
 
 // ── withRpcFallback ──────────────────────────────────────────────────────────
 /**
- * Execute `fn(connection)` with automatic multi-tier RPC fallback.
+ * Execute `fn(connection)` against the single sterile endpoint, retrying on
+ * transient infrastructure errors. (Name kept for call-site compatibility —
+ * there is no longer any cross-provider "fallback"; Pasal 87 forbids it.)
  *
  * Algorithm:
- *   1. Skip URLs that are session-blacklisted (failed this page load).
- *   2. Prefer the localStorage-cached working URL, if still in chain.
- *   3. On any infra error, move to the next endpoint.
- *   4. On 429, wait 600ms before moving on.
- *   5. On success, persist the URL to localStorage + remove from blacklist.
- *   6. If ALL endpoints fail, throw the last error.
- *   7. On non-infra error (account not found, bad key, etc.), fail fast.
+ *   1. Build ONE Connection on the sterile endpoint.
+ *   2. Run fn under a 7s per-attempt timeout. On success, cache + return.
+ *   3. On an APPLICATION error (account not found, bad input, program error),
+ *      fail fast — retrying the same endpoint can't change the outcome.
+ *   4. On a transient INFRA error (429 / timeout / transport / 5xx), back off
+ *      and retry the SAME endpoint up to `maxAttempts` times.
+ *   5. After the last attempt, throw the last error.
  */
 export async function withRpcFallback<T>(
   fn: (conn: Connection) => Promise<T>,
   commitment: Commitment = 'confirmed',
+  maxAttempts = 4,
 ): Promise<T> {
-  // Load session blacklist (URLs that failed this page load)
-  const blacklistRaw = typeof window !== 'undefined'
-    ? (sessionStorage.getItem(LS_KEY_BLACKLIST) ?? '')
-    : '';
-  const blacklist = new Set(blacklistRaw ? blacklistRaw.split('|') : []);
+  const conn = getHealthyConnection(commitment);
+  let lastErr: Error = new Error('Sterile RPC endpoint unreachable.');
 
-  // Prefer cached working URL — skip if blacklisted
-  const cached = typeof window !== 'undefined' ? localStorage.getItem(LS_KEY_OK) : null;
-
-  // Build ordered trial list: cached first, then remainder; skip blacklisted
-  const all = [...RPC_CHAIN];
-  const ordered: string[] = cached && RPC_CHAIN.includes(cached) && !blacklist.has(cached)
-    ? [cached, ...all.filter(r => r !== cached && !blacklist.has(r))]
-    : all.filter(r => !blacklist.has(r));
-
-  let lastErr: Error = new Error('All RPC endpoints exhausted — check your network connection.');
-
-  for (const url of ordered) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const conn = new Connection(url, {
-        commitment,
-        confirmTransactionInitialTimeout: 60_000,
-        disableRetryOnRateLimit: true, // we handle retries ourselves
-      });
-      const result = await fn(conn);
+      const endpointTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 7_000),
+      );
+      const result = await Promise.race([fn(conn), endpointTimeout]);
 
-      // ✅ Success — cache this URL and remove from blacklist
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(LS_KEY_OK, url);
-        blacklist.delete(url);
-        sessionStorage.setItem(LS_KEY_BLACKLIST, [...blacklist].join('|'));
-      }
+      if (typeof window !== 'undefined') localStorage.setItem(LS_KEY_OK, RPC_CHAIN[0]);
       return result;
 
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
 
-      // Non-infra error → same result on every RPC, fail fast
+      // Application error → same result on every retry, fail fast.
       if (!isInfraError(lastErr)) throw lastErr;
 
-      // Blacklist this URL for the rest of the session
-      if (typeof window !== 'undefined') {
-        blacklist.add(url);
-        sessionStorage.setItem(LS_KEY_BLACKLIST, [...blacklist].join('|'));
-      }
-
-      // Rate-limited → brief pause before hammering the next endpoint
-      const isRateLimit = lastErr.message.includes('429')
-        || lastErr.message.toLowerCase().includes('rate limit')
-        || lastErr.message.toLowerCase().includes('too many requests');
-      if (isRateLimit) await sleep(600);
+      // Transient infra error → exponential-ish backoff, retry SAME endpoint.
+      if (attempt < maxAttempts) await sleep(400 * attempt); // 400, 800, 1200ms
     }
   }
 
   throw lastErr;
+}
+
+// ── getHealthyConnection ─────────────────────────────────────────────────────
+/**
+ * Return a single Connection pointed at the best-known-good endpoint.
+ *
+ * Uses the localStorage-cached working URL (set by preWarmRpc and by every
+ * successful withRpcFallback call), falling back to the first endpoint in the
+ * chain when nothing is cached yet.
+ *
+ * Use this for flows that need ONE concrete, stable Connection object —
+ * e.g. the wallet-adapter wrap/createStream flow, where the SAME connection
+ * must serve getLatestBlockhash → sendTransaction → confirmTransaction. The
+ * wallet-adapter's static endpoint (api.devnet.solana.com) is the usual source
+ * of "Transport error" on send; this routes the send through the verified-fast
+ * endpoint instead. withRpcFallback can't be used there because re-running the
+ * fn on each endpoint would re-prompt the wallet to sign.
+ */
+export function getHealthyConnection(commitment: Commitment = 'confirmed'): Connection {
+  let url = RPC_CHAIN[0];
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(LS_KEY_OK);
+    if (cached && RPC_CHAIN.includes(cached)) url = cached;
+  }
+  return new Connection(url, {
+    commitment,
+    confirmTransactionInitialTimeout: 60_000,
+    disableRetryOnRateLimit: true,
+  });
 }
 
 // ── preWarmRpc ───────────────────────────────────────────────────────────────

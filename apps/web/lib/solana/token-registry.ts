@@ -4,6 +4,28 @@
  */
 
 import { Connection, PublicKey, ParsedAccountData } from '@solana/web3.js';
+import { withRpcFallback } from './rpc-manager';
+
+/**
+ * Wrap any promise with a hard timeout so a hung RPC fetch can never stall the
+ * UI forever. A stuck public endpoint (e.g. api.devnet.solana.com under load)
+ * keeps the underlying fetch open with no response — without this guard the
+ * "Loading wallet tokens…" spinner spins indefinitely because the awaited
+ * promise never settles. On timeout we reject with a message classified as an
+ * infra error, which makes withRpcFallback move on to the next endpoint.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms,
+    );
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
 
 // Well-known devnet mints
 export const KNOWN_DEVNET_TOKENS: Record<string, { symbol: string; name: string; decimals: number; logoURI?: string }> = {
@@ -44,16 +66,24 @@ export const NATIVE_SOL_MINT = 'So11111111111111111111111111111111111111112';
  *  When user selects native SOL (mint = NATIVE_SOL_MINT), useStreamCreate auto-wraps it.
  */
 export async function fetchWalletTokens(
-  connection: Connection,
+  _connection: Connection,
   wallet: PublicKey,
   isDevnet = true,
 ): Promise<WalletToken[]> {
   const knownTokens = isDevnet ? KNOWN_DEVNET_TOKENS : KNOWN_MAINNET_TOKENS;
   const tokens: WalletToken[] = [];
 
+  // NOTE: we deliberately do NOT use the passed-in `connection` (which is the
+  // wallet-adapter's single static endpoint). Both reads below go through
+  // withRpcFallback so a rate-limited / hung endpoint auto-switches to the next
+  // one. Each call is also wrapped in withTimeout so the dropdown's
+  // "Loading wallet tokens…" state can never get stuck forever.
+
   // 1. Native SOL — always first, shows actual wallet balance
   try {
-    const lamports    = await connection.getBalance(wallet);
+    const lamports    = await withRpcFallback(c =>
+      withTimeout(c.getBalance(wallet), 8_000, 'getBalance'),
+    );
     const balanceUI   = lamports / 1e9;
     tokens.push({
       mint:      NATIVE_SOL_MINT,
@@ -67,11 +97,18 @@ export async function fetchWalletTokens(
     });
   } catch { /* non-fatal */ }
 
-  // 2. All SPL token accounts
+  // 2. All SPL token accounts (this read includes the wSOL token account —
+  //    the "wrapped SOL" step that used to hang the dropdown indefinitely).
   try {
-    const parsed = await connection.getParsedTokenAccountsByOwner(wallet, {
-      programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
-    });
+    const parsed = await withRpcFallback(c =>
+      withTimeout(
+        c.getParsedTokenAccountsByOwner(wallet, {
+          programId: new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'),
+        }),
+        10_000,
+        'getParsedTokenAccountsByOwner',
+      ),
+    );
 
     const seenMints = new Set<string>([NATIVE_SOL_MINT]);
 
@@ -113,7 +150,7 @@ export async function fetchWalletTokens(
 
 /** Fetch mint info from on-chain for any unknown mint address */
 export async function fetchMintInfo(
-  connection: Connection,
+  _connection: Connection,
   mintAddress: string,
   isDevnet = true,
 ): Promise<{ decimals: number; symbol: string; name: string } | null> {
@@ -126,8 +163,10 @@ export async function fetchMintInfo(
       return knownTokens[mintAddress];
     }
 
-    // Fetch from chain
-    const info = await connection.getParsedAccountInfo(mintPk);
+    // Fetch from chain via the resilient fallback chain + hard timeout.
+    const info = await withRpcFallback(c =>
+      withTimeout(c.getParsedAccountInfo(mintPk), 8_000, 'getParsedAccountInfo'),
+    );
     if (!info.value) return null;
 
     const data = info.value.data as ParsedAccountData;

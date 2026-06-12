@@ -10,8 +10,10 @@ import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
   VESTING_PROGRAM_ID, deriveStreamPDA, deriveVaultPDA,
   fetchStream, cancelStream,
-  getStreamsByAuthority, getStreamsByBeneficiary,
+  getAllStreams, getStreamsByAuthority, getStreamsByBeneficiary,
+  StreamInfo,
 } from '@/lib/anchor/vesting-client';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 // ── Brand tokens ────────────────────────────────────────────────────────────
 const MAGENTA = '#b12c84';
@@ -261,19 +263,34 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch all streams for this wallet (creator + recipient) from on-chain
-      const [asCreator, asRecipient] = await Promise.all([
-        getStreamsByAuthority(connection, publicKey),
-        getStreamsByBeneficiary(connection, publicKey),
+      // All reads go through the single sterile endpoint (withRpcFallback now
+      // retries the same endpoint, no provider switching — Pasal 87). Fetching
+      // the wallet's streams AND the global set here is what makes the "ALL
+      // STREAMS" tab show the same set as the /streams page: previously the
+      // dashboard only ever queried the wallet's own streams, so "ALL" was a
+      // misnomer and the two pages disagreed.
+      const [asCreator, asRecipient, allGlobal] = await Promise.all([
+        withRpcFallback(conn => getStreamsByAuthority(conn, publicKey)),
+        withRpcFallback(conn => getStreamsByBeneficiary(conn, publicKey)),
+        withRpcFallback(conn => getAllStreams(conn)).catch(() => [] as StreamInfo[]),
       ]);
+
+      // Deduplicate the wallet's streams, then append the rest of the global
+      // set (mine first) so both tabs read from one consistent list.
       const seen = new Set<string>();
-      const found: StreamRow[] = [];
-      for (const data of [...asCreator, ...asRecipient]) {
-        const key = data.pubkey.toBase58();
-        if (seen.has(key)) continue;
-        seen.add(key);
+      const ordered: StreamInfo[] = [];
+      for (const s of [...asCreator, ...asRecipient]) {
+        const key = s.pubkey.toBase58();
+        if (!seen.has(key)) { seen.add(key); ordered.push(s); }
+      }
+      for (const s of allGlobal) {
+        const key = s.pubkey.toBase58();
+        if (!seen.has(key)) { seen.add(key); ordered.push(s); }
+      }
+
+      const found: StreamRow[] = ordered.map(data => {
         const [vault] = deriveVaultPDA(data.authority, data.beneficiary, data.streamId);
-        found.push({
+        return {
           pda:  data.pubkey,
           vault,
           authority:       data.authority,
@@ -286,9 +303,9 @@ export default function DashboardPage() {
           endTs:    data.endTs.toNumber(),
           streamId: data.streamId,
           cancelled: data.cancelled,
-        });
-      }
-      setStreams(found.sort((a, b) => b.startTs - a.startTs));
+        };
+      });
+      setStreams(found);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -324,13 +341,15 @@ export default function DashboardPage() {
     }
   }, [publicKey, sendTransaction, connection, refresh]);
 
-  const filtered = tab === 'mine'
-    ? streams.filter(s => publicKey && (s.authority.equals(publicKey) || s.beneficiary.equals(publicKey)))
-    : streams;
+  // The wallet's own streams — used for the headline KPI cards so they stay
+  // user-scoped (matching the /streams page), regardless of the MY/ALL tab.
+  const myStreams = streams.filter(s => publicKey && (s.authority.equals(publicKey) || s.beneficiary.equals(publicKey)));
 
-  const totalLocked   = streams.reduce((a, s) => a + Number(s.amountTotal.toString()), 0);
-  const totalWithdrawn = streams.reduce((a, s) => a + Number(s.amountWithdrawn.toString()), 0);
-  const activeCount   = streams.filter(s => !s.cancelled).length;
+  const filtered = tab === 'mine' ? myStreams : streams;
+
+  const totalLocked    = myStreams.reduce((a, s) => a + Number(s.amountTotal.toString()), 0);
+  const totalWithdrawn = myStreams.reduce((a, s) => a + Number(s.amountWithdrawn.toString()), 0);
+  const activeCount    = myStreams.filter(s => !s.cancelled).length;
 
   return (
     <div style={{ minHeight: '100vh', background: BG, color: '#fff' }}>

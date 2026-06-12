@@ -190,7 +190,14 @@ export default function StreamDetailPage() {
     setFetchErr(null);
     try {
       // withRpcFallback: 403/429/timeout → auto-switch endpoint, zero human touch.
-      const s = await withRpcFallback(conn => fetchStream(conn, streamPda!));
+      // Overall 12s cap prevents infinite spinner when ALL endpoints hang.
+      const overallTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Devnet RPC tidak merespons. Refresh halaman untuk mencoba lagi.')), 12_000),
+      );
+      const s = await Promise.race([
+        withRpcFallback(conn => fetchStream(conn, streamPda!)),
+        overallTimeout,
+      ]);
       setStream(s);
       if (s) {
         const [vaultPda] = deriveVaultPDA(s.authority, s.beneficiary, s.streamId);
@@ -356,11 +363,21 @@ export default function StreamDetailPage() {
         <div style={{ color: C.muted, fontSize: 13, maxWidth: 360, textAlign: 'center' }}>
           {fetchErr ?? 'No stream account exists at this address on devnet.'}
         </div>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Link href="/streams" style={{ color: C.accent, textDecoration: 'none', fontSize: 13 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            type="button"
+            onClick={() => load()}
+            style={{
+              padding: '8px 20px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: `var(--p-accent)`, color: '#0b0918', fontWeight: 700, fontSize: 13,
+            }}
+          >
+            {lang === 'id' ? '↺ Coba Lagi' : '↺ Retry'}
+          </button>
+          <Link href="/streams" style={{ color: C.accent, textDecoration: 'none', fontSize: 13, display: 'flex', alignItems: 'center' }}>
             {lang === 'id' ? '← Semua Stream' : '← All Streams'}
           </Link>
-          <Link href="/demo#streams" style={{ color: C.muted, textDecoration: 'none', fontSize: 13 }}>
+          <Link href="/demo#streams" style={{ color: C.muted, textDecoration: 'none', fontSize: 13, display: 'flex', alignItems: 'center' }}>
             {lang === 'id' ? 'Lihat data demo' : 'View demo data'}
           </Link>
         </div>
