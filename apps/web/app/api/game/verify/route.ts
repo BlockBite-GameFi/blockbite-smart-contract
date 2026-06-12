@@ -93,6 +93,21 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[game/verify]', msg);
+
+    // Translate common on-chain failures into actionable messages
+    const lower = msg.toLowerCase();
+    if (lower.includes('no record of a prior credit') || lower.includes('insufficient')) {
+      return NextResponse.json({
+        error:   'Game authority not funded',
+        message: `The game authority wallet (${gameAuthorityKeypair.publicKey.toBase58()}) has no devnet SOL to pay the verification fee. Fund it with ~0.1 SOL or set GAME_AUTHORITY_SECRET_KEY to a funded keypair.`,
+      }, { status: 503 });
+    }
+    if (lower.includes('could not find account') || lower.includes('account does not exist')) {
+      return NextResponse.json({
+        error:   'Milestone not found',
+        message: 'No milestone account exists on-chain for this campaign + seed. Create the campaign milestone first.',
+      }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Verification failed', message: msg }, { status: 500 });
   }
 }
