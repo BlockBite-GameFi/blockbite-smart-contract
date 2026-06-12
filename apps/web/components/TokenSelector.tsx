@@ -164,16 +164,9 @@ export default function TokenSelector({ value, onChange, isDevnet = true, error 
             />
           </div>
 
-          {/* Token list — popular tokens render immediately; wallet balance loads in background */}
+          {/* Token list — popular tokens render immediately; wallet balances update silently */}
           <div style={{ overflowY: 'auto', flex: 1, maxHeight: 260 }}>
-            {/* Loading indicator: small pill, doesn't block token list */}
-            {loading && (
-              <div style={{ padding: '6px 14px', fontSize: 10, color: T.textDim, display: 'flex', alignItems: 'center', gap: 5, borderBottom: `1px solid ${T.border}22` }}>
-                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>◆</span>
-                Fetching wallet balances…
-              </div>
-            )}
-            {filtered.length === 0 && !loading && (
+            {filtered.length === 0 && (
               <div style={{ padding: 16, textAlign: 'center', color: T.textDim, fontSize: 12 }}>
                 No tokens found
               </div>
