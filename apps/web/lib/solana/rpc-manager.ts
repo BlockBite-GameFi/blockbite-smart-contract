@@ -278,6 +278,35 @@ export async function withRpcFallback<T>(
   throw lastErr;
 }
 
+// ── getHealthyConnection ─────────────────────────────────────────────────────
+/**
+ * Return a single Connection pointed at the best-known-good endpoint.
+ *
+ * Uses the localStorage-cached working URL (set by preWarmRpc and by every
+ * successful withRpcFallback call), falling back to the first endpoint in the
+ * chain when nothing is cached yet.
+ *
+ * Use this for flows that need ONE concrete, stable Connection object —
+ * e.g. the wallet-adapter wrap/createStream flow, where the SAME connection
+ * must serve getLatestBlockhash → sendTransaction → confirmTransaction. The
+ * wallet-adapter's static endpoint (api.devnet.solana.com) is the usual source
+ * of "Transport error" on send; this routes the send through the verified-fast
+ * endpoint instead. withRpcFallback can't be used there because re-running the
+ * fn on each endpoint would re-prompt the wallet to sign.
+ */
+export function getHealthyConnection(commitment: Commitment = 'confirmed'): Connection {
+  let url = RPC_CHAIN[0];
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(LS_KEY_OK);
+    if (cached && RPC_CHAIN.includes(cached)) url = cached;
+  }
+  return new Connection(url, {
+    commitment,
+    confirmTransactionInitialTimeout: 60_000,
+    disableRetryOnRateLimit: true,
+  });
+}
+
 // ── preWarmRpc ───────────────────────────────────────────────────────────────
 /**
  * Race all endpoints in parallel with a lightweight getSlot() probe.

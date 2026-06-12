@@ -11,14 +11,14 @@ import { useState } from 'react';
 import {
   PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL,
 } from '@solana/web3.js';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import {
   getAssociatedTokenAddress, getAccount,
   NATIVE_MINT, createAssociatedTokenAccountInstruction,
   createSyncNativeInstruction, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import { createStream } from '@/lib/anchor/vesting-client';
-import { withRpcFallback } from '@/lib/solana/rpc-manager';
+import { withRpcFallback, getHealthyConnection } from '@/lib/solana/rpc-manager';
 
 export type TxStatus = 'idle' | 'wrapping' | 'approving' | 'confirming' | 'done' | 'error';
 
@@ -38,7 +38,6 @@ export interface StreamCreateInput {
 const NATIVE_MINT_ADDR = NATIVE_MINT.toBase58(); // So11111111111111111111111111111111111111112
 
 export function useStreamCreate() {
-  const { connection }                              = useConnection();
   const { publicKey, sendTransaction, connected }   = useWallet();
 
   const [txStatus,  setTxStatus]  = useState<TxStatus>('idle');
@@ -85,6 +84,11 @@ export function useStreamCreate() {
 
     const rawAmount = BigInt(Math.round(amountNum * 10 ** p.decimals));
 
+    // All transaction sends/reads below go through a verified-healthy endpoint
+    // rather than the wallet-adapter's static api.devnet.solana.com connection,
+    // which throws "Transport error" on send when it's throttled/unreachable.
+    const txConn = getHealthyConnection('confirmed');
+
     // ── Native SOL path: auto-wrap SOL → wSOL ────────────────────────────────
     // Triggered when user selects SOL/wSOL (mint = So11111…112).
     // The Anchor program only accepts SPL token accounts, so we must wrap first.
@@ -123,7 +127,7 @@ export function useStreamCreate() {
 
         // Create wSOL ATA if it doesn't exist
         let ataExists = false;
-        try { await getAccount(connection, wsolAta); ataExists = true; }
+        try { await getAccount(txConn, wsolAta); ataExists = true; }
         catch { /* ATA doesn't exist — will create it */ }
 
         if (!ataExists) {
@@ -146,14 +150,14 @@ export function useStreamCreate() {
         // Fetch blockhash before sending so confirmTransaction gets a proper expiry
         // (the old confirmTransaction(sig, commitment) API can hang forever on devnet)
         const { blockhash: wrapBlockhash, lastValidBlockHeight: wrapLvbh } =
-          await connection.getLatestBlockhash('confirmed');
+          await txConn.getLatestBlockhash('confirmed');
         wrapTx.recentBlockhash = wrapBlockhash;
         wrapTx.feePayer = publicKey;
-        const wrapSig = await sendTransaction(wrapTx, connection);
+        const wrapSig = await sendTransaction(wrapTx, txConn);
 
         // 4. Wait for wrap to confirm before creating stream
         setTxStatus('confirming');
-        await connection.confirmTransaction(
+        await txConn.confirmTransaction(
           { signature: wrapSig, blockhash: wrapBlockhash, lastValidBlockHeight: wrapLvbh },
           'confirmed',
         );
@@ -220,7 +224,7 @@ export function useStreamCreate() {
 
     try {
       const sig = await createStream({
-        connection,
+        connection: txConn,
         authority:    publicKey,
         beneficiary:  beneficiaryPk,
         mint:         mintPk,
