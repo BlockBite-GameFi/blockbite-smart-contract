@@ -14,6 +14,7 @@ import {
   StreamInfo,
 } from '@/lib/anchor/vesting-client';
 import { withRpcFallback } from '@/lib/solana/rpc-manager';
+import { KNOWN_DEVNET_TOKENS } from '@/lib/solana/token-registry';
 
 // ── Brand tokens ────────────────────────────────────────────────────────────
 const MAGENTA = '#b12c84';
@@ -40,7 +41,14 @@ interface StreamRow {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function fmtTokens(raw: BN, decimals = 6): string {
+
+/** Infer mint decimals from the known-token registry; default 9 for unknowns. */
+function mintDecimals(mint: PublicKey): number {
+  const entry = KNOWN_DEVNET_TOKENS[mint.toBase58()];
+  return entry ? entry.decimals : 9;
+}
+
+function fmtTokens(raw: BN, decimals: number): string {
   return (Number(raw.toString()) / 10 ** decimals).toFixed(2);
 }
 
@@ -83,6 +91,7 @@ function StreamCard({ row, nowSec, walletKey, onCancel, cancelling }: {
   const [copiedCA, setCopiedCA] = useState(false);
   const [copiedBenef, setCopiedBenef] = useState(false);
 
+  const decimals  = mintDecimals(row.mint);
   const frac      = calcUnlockedFrac(row, nowSec);
   const pct       = Math.round(frac * 100);
   const total     = Number(row.amountTotal.toString());
@@ -191,17 +200,17 @@ function StreamCard({ row, nowSec, walletKey, onCancel, cancelling }: {
       {/* Row 4: Token info + Copy CA + Claim */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#666' }}>
-          {fmtTokens(row.amountTotal)} total
+          {fmtTokens(row.amountTotal, decimals)} total
         </span>
         <span style={{ color: '#2a2a3e' }}>·</span>
         <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#555' }}>
-          {fmtTokens(row.amountWithdrawn)} claimed
+          {fmtTokens(row.amountWithdrawn, decimals)} claimed
         </span>
         {claimable > 0 && (
           <>
             <span style={{ color: '#2a2a3e' }}>·</span>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: GOLD }}>
-              {(claimable / 1e6).toFixed(2)} unlocked
+              {(claimable / 10 ** decimals).toFixed(2)} unlocked
             </span>
           </>
         )}
@@ -347,8 +356,10 @@ export default function DashboardPage() {
 
   const filtered = tab === 'mine' ? myStreams : streams;
 
-  const totalLocked    = myStreams.reduce((a, s) => a + Number(s.amountTotal.toString()), 0);
-  const totalWithdrawn = myStreams.reduce((a, s) => a + Number(s.amountWithdrawn.toString()), 0);
+  // Sum amounts per stream using per-mint decimals — avoids mixing 9-decimal
+  // wSOL with 6-decimal USDC/BBT in a single raw total.
+  const totalLocked    = myStreams.reduce((a, s) => a + Number(s.amountTotal.toString())     / 10 ** mintDecimals(s.mint), 0);
+  const totalWithdrawn = myStreams.reduce((a, s) => a + Number(s.amountWithdrawn.toString()) / 10 ** mintDecimals(s.mint), 0);
   const activeCount    = myStreams.filter(s => !s.cancelled).length;
 
   return (
@@ -375,8 +386,8 @@ export default function DashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           {[
             { label: 'ACTIVE STREAMS', value: activeCount.toString() },
-            { label: 'TOTAL LOCKED',   value: (totalLocked / 1e6).toFixed(2) },
-            { label: 'TOTAL CLAIMED',  value: (totalWithdrawn / 1e6).toFixed(2) },
+            { label: 'TOTAL LOCKED',   value: totalLocked.toFixed(2) },
+            { label: 'TOTAL CLAIMED',  value: totalWithdrawn.toFixed(2) },
             { label: 'NETWORK',        value: 'Devnet' },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: '#0d0d1a', border: '1px solid #1e1e3a', borderRadius: 10, padding: 16 }}>
