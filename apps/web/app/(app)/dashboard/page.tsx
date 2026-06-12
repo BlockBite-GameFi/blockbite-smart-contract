@@ -12,6 +12,7 @@ import {
   fetchStream, cancelStream,
   getStreamsByAuthority, getStreamsByBeneficiary,
 } from '@/lib/anchor/vesting-client';
+import { withRpcFallback } from '@/lib/solana/rpc-manager';
 
 // ── Brand tokens ────────────────────────────────────────────────────────────
 const MAGENTA = '#b12c84';
@@ -261,10 +262,11 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch all streams for this wallet (creator + recipient) from on-chain
+      // withRpcFallback: auto-switches RPC when api.devnet.solana.com blocks
+      // getProgramAccounts — prevents partial/empty results on dashboard load.
       const [asCreator, asRecipient] = await Promise.all([
-        getStreamsByAuthority(connection, publicKey),
-        getStreamsByBeneficiary(connection, publicKey),
+        withRpcFallback(conn => getStreamsByAuthority(conn, publicKey)),
+        withRpcFallback(conn => getStreamsByBeneficiary(conn, publicKey)),
       ]);
       const seen = new Set<string>();
       const found: StreamRow[] = [];
