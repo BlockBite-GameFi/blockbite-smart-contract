@@ -24,7 +24,6 @@ fn make_stream(
         seed: 0,
         milestone_reached: false,
         milestone_enabled: false,
-        name: [0u8; 32],
     }
 }
 

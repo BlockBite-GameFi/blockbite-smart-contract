@@ -39,7 +39,6 @@ fn empty_stream() -> StreamAccount {
         seed:                 0,
         milestone_reached:    false,
         milestone_enabled:    false,
-        name:                 [0u8; 32],
     }
 }
 
@@ -100,7 +99,7 @@ fn test_init_stream_happy_path() {
         &mut s,
         creator, recipient, mint, escrow,
         1_000_000, 1000, 2000, 0,
-        42, false, 254, [0u8; 32],
+        42, false, 254,
     ).unwrap();
 
     assert_eq!(s.creator, creator);
@@ -127,7 +126,7 @@ fn test_init_stream_with_cliff_and_milestone() {
 
     init_stream(
         &mut s, creator, recipient, Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 1000, 3000, 1500, 0, true, 0, [0u8; 32],
+        100, 1000, 3000, 1500, 0, true, 0,
     ).unwrap();
 
     assert_eq!(s.cliff_time, 1500);
@@ -140,7 +139,7 @@ fn test_init_stream_rejects_zero_amount() {
     let err = init_stream(
         &mut s, Pubkey::new_unique(), Pubkey::new_unique(),
         Pubkey::new_unique(), Pubkey::new_unique(),
-        0, 1000, 2000, 0, 0, false, 0, [0u8; 32],
+        0, 1000, 2000, 0, 0, false, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidAmount));
 }
@@ -151,7 +150,7 @@ fn test_init_stream_rejects_end_le_start() {
     let err = init_stream(
         &mut s, Pubkey::new_unique(), Pubkey::new_unique(),
         Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 2000, 1000, 0, 0, false, 0, [0u8; 32],
+        100, 2000, 1000, 0, 0, false, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidTimestamp));
 }
@@ -162,7 +161,7 @@ fn test_init_stream_rejects_end_eq_start() {
     let err = init_stream(
         &mut s, Pubkey::new_unique(), Pubkey::new_unique(),
         Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 1000, 1000, 0, 0, false, 0, [0u8; 32],
+        100, 1000, 1000, 0, 0, false, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidTimestamp));
 }
@@ -173,7 +172,7 @@ fn test_init_stream_rejects_cliff_gt_end() {
     let err = init_stream(
         &mut s, Pubkey::new_unique(), Pubkey::new_unique(),
         Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 1000, 2000, 3000, 0, false, 0, [0u8; 32],
+        100, 1000, 2000, 3000, 0, false, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidTimestamp));
 }
@@ -184,7 +183,7 @@ fn test_init_stream_allows_cliff_eq_end() {
     init_stream(
         &mut s, Pubkey::new_unique(), Pubkey::new_unique(),
         Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 1000, 2000, 2000, 0, false, 0, [0u8; 32],
+        100, 1000, 2000, 2000, 0, false, 0,
     ).unwrap();
 }
 
@@ -194,7 +193,7 @@ fn test_init_stream_rejects_creator_eq_recipient() {
     let same = Pubkey::new_unique();
     let err = init_stream(
         &mut s, same, same, Pubkey::new_unique(), Pubkey::new_unique(),
-        100, 1000, 2000, 0, 0, false, 0, [0u8; 32],
+        100, 1000, 2000, 0, 0, false, 0,
     ).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::InvalidRecipient));
 }

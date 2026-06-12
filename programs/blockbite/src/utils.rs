@@ -73,7 +73,6 @@ mod tests {
             seed: 0,
             milestone_reached,
             milestone_enabled,
-            name: [0u8; 32],
         }
     }
 

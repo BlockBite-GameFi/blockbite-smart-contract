@@ -35,9 +35,8 @@ pub mod blockbite {
         cliff_time: i64,
         seed: u64,
         milestone_enabled: bool,
-        name: [u8; 32],
     ) -> Result<()> {
-        create_stream::handler(ctx, total_amount, start_time, end_time, cliff_time, seed, milestone_enabled, name)
+        create_stream::handler(ctx, total_amount, start_time, end_time, cliff_time, seed, milestone_enabled)
     }
 
     pub fn withdraw(ctx: Context<Withdraw>) -> Result<()> {
