@@ -24,99 +24,26 @@ import { IS_DEVNET } from './config';
 // Highest priority — set NEXT_PUBLIC_RPC_URL in Vercel / .env.local
 const PRIMARY = process.env.NEXT_PUBLIC_RPC_URL;
 
-// ── DEVNET endpoints (ordered: most reliable first) ──────────────────────────
-// Last verified: 2026-05.  Add new ones at top of the relevant tier.
+// ── Sterile single-endpoint policy (Pasal 87 — anti human-touch) ─────────────
+// The app MUST use ONLY the judge-provided RPC endpoint. We deliberately do NOT
+// contact any third-party provider (Ankr, dRPC, Helius, Chainstack, …). The
+// previous multi-provider fallback chain was removed because reaching out to
+// outside providers violates the sterile-RPC requirement.
 //
-// TIER 1 — no auth, proven working
-// TIER 2 — auth/freetier issues but worth trying (withRpcFallback retries)
-// TIER 3 — community / unknown uptime
-const DEVNET_ENDPOINTS: readonly string[] = [
-  // ── TIER 0: Custom RPC (set NEXT_PUBLIC_RPC_URL in Vercel for best results) ──
-  // ── TIER 1: Official + reliably free ────────────────────────────────────
-  'https://api.devnet.solana.com',            // Solana Labs official devnet
-  'https://api.devnet.solana.com/',           // trailing-slash variant (some clients differ)
-  // Helius free tier — supports getProgramAccounts unlike official devnet
-  ...(process.env.NEXT_PUBLIC_HELIUS_API_KEY
-    ? [`https://devnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_HELIUS_API_KEY}`]
-    : []),
-
-  // ── TIER 2: Provider free tiers (may need API key for full access) ───────
-  'https://rpc.ankr.com/solana_devnet',               // Ankr (needs key since 2026)
-  'https://solana-devnet.drpc.org',                   // dRPC (freetier method limits)
-  'https://rpc.surfpool.run',                         // Surfpool
-  'https://devnet.genesysgo.net/',                    // GenesysGo Shadow
-  'https://devnet.solana.rpcpool.com',                // Triton RPC Pool
-  'https://solana-devnet.rpc.extrnode.com',           // ExtrNode
-  'https://solana-devnet.g.alchemy.com/v2/demo',      // Alchemy demo key
-  'https://devnet.helius-rpc.com/',                   // Helius (no key — limited)
-  'https://solana-devnet.publicnode.com',             // PublicNode
-  'https://solana-devnet.api.onfinality.io/public',   // OnFinality
-  'https://api.devnet.rpcfast.com',                   // RPCFast devnet
-  'https://solana.devnet.rpcfast.com',                // RPCFast alt
-  'https://mango.devnet.rpcpool.com',                 // Mango RPC Pool
-  'https://api.devnet.aptosrpc.com/solana',           // AptosRPC Solana devnet
-  'https://solana-devnet.core.chainstack.com',        // Chainstack public devnet
-  'https://solana.getblock.io/devnet/',               // GetBlock devnet
-  'https://solanadevnet.orb.local',                   // Orb local devnet
-  'https://devnet-rpc.shyft.to',                      // Shyft devnet
-  'https://api.devnet.solanalabs.xyz',                // Solana Labs alt
-
-  // ── TIER 3: Community / proxy / uncertain uptime ─────────────────────────
-  'https://swr.xnfts.dev/rpc-proxy/?cluster=devnet', // xNFTs proxy
-  'https://solana.rpc.thirdweb.com',                  // Thirdweb proxy
-  'https://www.solanatracker.io/rpc',                 // Solana Tracker
-  'https://solanaapi.nfshost.com',                    // Community NFSHost
-  'https://rpc.ironforge.network/devnet',             // IronForge
-  'https://solana-devnet.quiknode.pro',               // QuickNode public (no auth)
-  'https://api.devnet.solana.validatornode.com',      // ValidatorNode
-];
-
-// ── MAINNET endpoints (ordered: most reliable first) ─────────────────────────
-const MAINNET_ENDPOINTS: readonly string[] = [
-  // ── TIER 1: Official + reliably free ────────────────────────────────────
-  'https://api.mainnet-beta.solana.com',              // Solana Labs official
-  'https://solana-api.projectserum.com',              // Project Serum (Project OpenBook)
-
-  // ── TIER 2: Provider free tiers ──────────────────────────────────────────
-  'https://rpc.ankr.com/solana',                      // Ankr (needs key since 2026)
-  'https://solana-mainnet.drpc.org',                  // dRPC
-  'https://solana-mainnet.rpc.extrnode.com',          // ExtrNode
-  'https://solana-mainnet.g.alchemy.com/v2/demo',     // Alchemy demo
-  'https://mainnet.helius-rpc.com/',                  // Helius (limited w/o key)
-  'https://solana.publicnode.com',                    // PublicNode
-  'https://solana-mainnet.api.onfinality.io/public',  // OnFinality
-  'https://solana-mainnet.publicnode.com',            // PublicNode alt
-  'https://mainnet.solana.rpcpool.com',               // Triton RPC Pool
-  'https://ssc-dao.genesysgo.net',                    // GenesysGo Shadow
-  'https://api.mainnet-beta.solana.com/',             // trailing-slash variant
-  'https://solana.getblock.io/mainnet/',              // GetBlock
-  'https://mainnet.rpcpool.com',                      // Triton alt
-  'https://rpc.shyft.to',                             // Shyft
-  'https://solana.blockdaemon.com/',                  // Blockdaemon
-  'https://rpc.magiceden.io',                         // Magic Eden
-  'https://api.metaplex.solana.com/',                 // Metaplex
-  'https://solana-mainnet.core.chainstack.com',       // Chainstack public
-  'https://nd-326-444-187.p2pify.com/public/',        // Chainstack P2P
-  'https://mainnet-rpc.shyft.to',                     // Shyft mainnet
-  'https://solana.rpc.thirdweb.com',                  // Thirdweb
-  'https://www.solanatracker.io/rpc',                 // Solana Tracker
-  'https://rpc.ironforge.network/mainnet',            // IronForge
-  'https://solana.coin.ledger.com',                   // Ledger
-  'https://solanaapi.nfshost.com',                    // NFSHost community
-  'https://rpc.hellomoon.io',                         // HelloMoon (needs key)
-  'https://solana.public-rpc.com',                    // Public RPC community
-];
-
-const DEFAULTS = IS_DEVNET ? DEVNET_ENDPOINTS : MAINNET_ENDPOINTS;
+// Resilience now comes from same-endpoint retry + per-call timeouts (see
+// withRpcFallback below), NOT from switching providers.
+//
+// The endpoint is the official Solana devnet/mainnet RPC. If the judge supplies
+// a different sterile endpoint via NEXT_PUBLIC_RPC_URL it transparently takes
+// over — still a single endpoint, still no third-party fallback.
+const STERILE_RPC = PRIMARY ?? (IS_DEVNET
+  ? 'https://api.devnet.solana.com'
+  : 'https://api.mainnet-beta.solana.com');
 
 /**
- * Full ordered fallback chain.
- * PRIMARY (NEXT_PUBLIC_RPC_URL) always goes first when set.
- * new Set() deduplicates in case PRIMARY overlaps a default.
+ * The one and only endpoint the app talks to. Single element by design.
  */
-export const RPC_CHAIN: readonly string[] = Object.freeze([
-  ...new Set([...(PRIMARY ? [PRIMARY] : []), ...DEFAULTS]),
-]);
+export const RPC_CHAIN: readonly string[] = Object.freeze([STERILE_RPC]);
 
 // ── localStorage cache keys ──────────────────────────────────────────────────
 const LS_KEY_OK       = 'bb_rpc_ok';       // last working URL
@@ -245,7 +172,10 @@ export async function withRpcFallback<T>(
         confirmTransactionInitialTimeout: 60_000,
         disableRetryOnRateLimit: true, // we handle retries ourselves
       });
-      const result = await fn(conn);
+      const endpointTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 7_000),
+      );
+      const result = await Promise.race([fn(conn), endpointTimeout]);
 
       // ✅ Success — cache this URL and remove from blacklist
       if (typeof window !== 'undefined') {
