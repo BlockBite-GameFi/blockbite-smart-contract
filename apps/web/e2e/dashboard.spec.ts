@@ -68,7 +68,7 @@ test.describe('RPC Resilience', () => {
     await page.waitForTimeout(3000);
 
     // Page should have rendered content
-    const hasContent = await page.locator('body').evaluate(el => el.innerText.length > 50);
+    const hasContent = await page.locator('body').evaluate(el => (el as HTMLElement).innerText.length > 50);
     expect(hasContent).toBe(true);
   });
 });

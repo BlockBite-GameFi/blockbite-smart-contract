@@ -24,6 +24,7 @@ export default function LinearPage() {
   const [token,      setToken]      = useState('');      // display symbol
   const [mintAddress,setMintAddress]= useState('');      // actual mint pubkey
   const [decimals,   setDecimals]   = useState(6);       // fetched from chain
+  const [streamName, setStreamName] = useState('');      // human-readable label
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [startDate,  setStartDate]  = useState('');
@@ -78,6 +79,7 @@ export default function LinearPage() {
       startTs,
       cliffTs,
       endTs,
+      name: streamName,
       requiredTier: gameGate ? levelToTier(gameLevel) : 0,
     });
   };
@@ -161,6 +163,16 @@ export default function LinearPage() {
               Mint: {mintAddress.slice(0,16)}… · {decimals} decimals
             </div>
           )}
+        </div>
+
+        <div>
+          <Label>Stream Name</Label>
+          <SInput value={streamName}
+            onChange={v => setStreamName(v.slice(0, 31))}
+            placeholder="e.g. Team vesting Q2 2026" />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+            Optional label to identify this stream ({streamName.length}/31)
+          </div>
         </div>
 
         <div>

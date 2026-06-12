@@ -31,6 +31,7 @@ export interface StreamCreateInput {
   startTs:     number;
   cliffTs:     number;   // 0 = no cliff
   endTs:       number;
+  name:        string;   // human-readable stream label (max 31 chars)
   requiredTier?: 0 | 1 | 2;
 }
 
@@ -233,6 +234,7 @@ export function useStreamCreate() {
         startTs:      p.startTs,
         cliffTs:      p.cliffTs,
         endTs:        p.endTs,
+        name:         p.name || '',
         requiredTier: p.requiredTier ?? 0,
         sendTransaction: async (tx, conn) => {
           const s = await sendTransaction(tx, conn);

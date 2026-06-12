@@ -21,6 +21,8 @@ pub struct StreamAccount {
     /// Auto-set to `true` when `cliff_time > 0` on creation.
     /// When `false`, milestone gate is bypassed (pure linear).
     pub milestone_enabled:     bool,    //  1
+    /// Human-readable stream label (up to 31 UTF-8 chars + null terminator).
+    pub name:                  [u8; 32],// 32
 }
 
 impl StreamAccount {
@@ -29,9 +31,11 @@ impl StreamAccount {
     // + 8+8+8+8+8    (five u64 / i64 amounts & times)
     // + 1+1+8        (is_cancelled, bump, seed)
     // + 1+1          (milestone_reached, milestone_enabled)
-    // = 188 bytes total
+    // + 32           (name)
+    // = 220 bytes total
     pub const LEN: usize = 8 + 32 + 32 + 32 + 32
         + 8 + 8 + 8 + 8 + 8
         + 1 + 1 + 8
-        + 1 + 1;   // 188
+        + 1 + 1
+        + 32;   // 220
 }
