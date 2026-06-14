@@ -4,6 +4,40 @@
 
 BlockBite is the treasury shield for Solana builders — replacing high-risk manual distributions with a secure, automated "Pull" ecosystem. We eliminate the "Push" vulnerability where manual transfers invite fatal exploits and irreversible human errors. By integrating rewards to transparent performance milestones, BlockBite reclaims weeks of development time while converting passive users into a loyal, high-retention community.
 
+## Quick Integrate (5 minutes)
+
+```bash
+npm install @coral-xyz/anchor @solana/web3.js @solana/spl-token
+```
+
+```typescript
+import * as anchor from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
+
+const PROGRAM_ID = new PublicKey("Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq");
+const idl        = await anchor.Program.fetchIdl(PROGRAM_ID, provider); // no local file needed
+const program    = new anchor.Program(idl!, provider);
+
+// Derive PDAs
+const seed = new anchor.BN(Date.now());
+const [streamPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("stream"), creator.toBuffer(), recipient.toBuffer(), seed.toArrayLike(Buffer, "le", 8)],
+  PROGRAM_ID
+);
+const [escrowPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("escrow"), streamPda.toBuffer()], PROGRAM_ID
+);
+
+// Create a 24-hour linear vesting stream
+const now = Math.floor(Date.now() / 1000);
+await program.methods
+  .createStream(new anchor.BN(1_000_000), new anchor.BN(now), new anchor.BN(now + 86400), new anchor.BN(0), seed, false)
+  .accounts({ creator, recipient, mint, creatorTokenAccount, escrowTokenAccount: escrowPda, stream: streamPda, tokenProgram, systemProgram })
+  .rpc();
+```
+
+See [`docs/INTEGRATION_GUIDE.md`](./docs/INTEGRATION_GUIDE.md) for the full step-by-step walkthrough with a copy-paste quickstart script.
+
 ## Quick Info
 
 | Item | Value |
