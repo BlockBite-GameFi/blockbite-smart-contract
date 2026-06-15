@@ -59,6 +59,7 @@ export default function CliffPage() {
   const [token,      setToken]      = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [decimals,    setDecimals]    = useState(6);
+  const [streamName,  setStreamName]  = useState('');
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [cliffDate,  setCliffDate]  = useState('');
@@ -131,6 +132,7 @@ export default function CliffPage() {
           beneficiary: row.wallet,
           amount: row.amount,
           startTs, cliffTs, endTs,
+          name: streamName ? `${streamName} #${i + 1}` : '',
           requiredTier: gameGate ? levelToTier(gameLevel) : 0,
         });
         if (ok) setCsvDone(d => d + 1);
@@ -138,6 +140,7 @@ export default function CliffPage() {
       }
     } else {
       await submit({ mintAddress, decimals, symbol: token, beneficiary: recipient, amount, startTs, cliffTs, endTs,
+        name: streamName,
         requiredTier: gameGate ? levelToTier(gameLevel) : 0 });
     }
   };
@@ -201,6 +204,14 @@ export default function CliffPage() {
             isDevnet={true}
             error={fieldErrors.token}
           />
+        </div>
+        <div>
+          <Label>Stream Name</Label>
+          <SInput value={streamName} onChange={v => setStreamName(v.slice(0, 31))}
+            placeholder="e.g. Cliff vesting Q2 2026" />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+            Optional label ({streamName.length}/31)
+          </div>
         </div>
         {/* ── Mode toggle: Manual vs CSV batch ── */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

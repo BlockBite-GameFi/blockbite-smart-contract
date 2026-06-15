@@ -58,6 +58,7 @@ export default function MilestonePage() {
   const [token,      setToken]      = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [decimals,    setDecimals]    = useState(6);
+  const [streamName,  setStreamName]  = useState('');
   const [recipient,  setRecipient]  = useState('');
   const [cancelable, setCancelable] = useState(false);
   const [milestones, setMilestones] = useState<MS[]>([
@@ -114,6 +115,7 @@ export default function MilestonePage() {
       startTs,
       cliffTs,
       endTs,
+      name:         streamName,
       requiredTier: gameGate ? levelToTier(gameLevel) : (msTotal > 0 ? 1 : 0),
     });
   };
@@ -172,6 +174,14 @@ export default function MilestonePage() {
             isDevnet={true}
             error={fieldErrors.token}
           />
+        </div>
+        <div>
+          <Label>Stream Name</Label>
+          <SInput value={streamName} onChange={v => setStreamName(v.slice(0, 31))}
+            placeholder="e.g. Milestone vesting Q2 2026" />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+            Optional label ({streamName.length}/31)
+          </div>
         </div>
         
           <div>

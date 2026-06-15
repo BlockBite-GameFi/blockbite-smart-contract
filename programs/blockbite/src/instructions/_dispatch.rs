@@ -44,7 +44,7 @@ use super::withdraw::{build_stream_signer_seeds, compute_withdraw};
 ///   6  token_program
 ///   7  system_program
 #[derive(Accounts)]
-#[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64, milestone_enabled: bool)]
+#[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64, milestone_enabled: bool, name: [u8; 32])]
 pub struct CreateStream<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -92,6 +92,7 @@ pub fn create_stream_handler(
     cliff_time: i64,
     seed: u64,
     milestone_enabled: bool,
+    name: [u8; 32],
 ) -> Result<()> {
     // ── Effects (CEI): initialise stream state via pure function ──────────────
     init_stream(
@@ -107,6 +108,7 @@ pub fn create_stream_handler(
         seed,
         milestone_enabled,
         ctx.bumps.stream,
+        name,
     )?;
 
     // ── Interaction (CEI): escrow deposit ─────────────────────────────────────

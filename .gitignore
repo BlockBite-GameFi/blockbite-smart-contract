@@ -8,3 +8,19 @@ test-ledger/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Rust / Cargo build artifacts
+target/
+**/target/
+
+# Node.js dependencies & build caches
+node_modules/
+**/node_modules/
+
+# Next.js build output
+.next/
+**/.next/
+
+# Vite / Vitest caches
+.vite/
+**/.vite/

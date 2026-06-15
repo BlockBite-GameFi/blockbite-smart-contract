@@ -29,6 +29,12 @@ async function airdropAndConfirm(
   await provider.connection.confirmTransaction(sig, "confirmed");
 }
 
+function encodeStreamName(name: string): Buffer {
+  const buf = Buffer.alloc(32);
+  Buffer.from(name.slice(0, 31), "utf8").copy(buf, 0);
+  return buf;
+}
+
 function createStreamData(
   totalAmount: number,
   startTime: number,
@@ -36,9 +42,10 @@ function createStreamData(
   cliffTime: number,
   seed: number,
   milestoneEnabled: boolean = false,
+  name: string = "",
 ): Buffer {
   const discriminator = [71, 188, 111, 127, 108, 40, 229, 158];
-  const data = Buffer.alloc(8 + 8 + 8 + 8 + 8 + 8 + 1);
+  const data = Buffer.alloc(8 + 8 + 8 + 8 + 8 + 8 + 1 + 32);
   discriminator.forEach((b, i) => (data[i] = b));
   data.writeBigUInt64LE(BigInt(totalAmount), 8);
   data.writeBigInt64LE(BigInt(startTime), 16);
@@ -46,6 +53,7 @@ function createStreamData(
   data.writeBigInt64LE(BigInt(cliffTime), 32);
   data.writeBigUInt64LE(BigInt(seed), 40);
   data[48] = milestoneEnabled ? 1 : 0;
+  encodeStreamName(name).copy(data, 49);
   return data;
 }
 
@@ -110,6 +118,7 @@ async function createStream(
   provider: anchor.AnchorProvider,
   cliffTime = 0,
   milestoneEnabled = false,
+  name: string = "",
 ): Promise<void> {
   const ix = new anchor.web3.TransactionInstruction({
     keys: [
@@ -123,7 +132,7 @@ async function createStream(
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     programId,
-    data: createStreamData(totalAmount, startTime, endTime, cliffTime, seed, milestoneEnabled),
+    data: createStreamData(totalAmount, startTime, endTime, cliffTime, seed, milestoneEnabled, name),
   });
   await provider.sendAndConfirm(new Transaction().add(ix), [creator]);
 }

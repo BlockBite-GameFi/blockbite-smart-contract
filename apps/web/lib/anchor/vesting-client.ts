@@ -3,7 +3,7 @@
  *
  * Target: Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq  (deployed 2026-05-20, slot 463647969)
  *
- * StreamAccount layout — 196 bytes total (after 8-byte discriminator):
+ * StreamAccount layout — 220 bytes total (after 8-byte discriminator):
  *   [8..40]   creator              Pubkey
  *   [40..72]  recipient            Pubkey
  *   [72..104] mint                 Pubkey
@@ -17,12 +17,13 @@
  *   [177]     bump                 u8
  *   [178..186]seed                 u64
  *   [186]     milestone_reached    bool
- *   [187]     velocity_strikes     u8
- *   [188..196]last_action_ts       i64
+ *   [187]     milestone_enabled    bool
+ *   [188..220]name                 [u8; 32]
  *
- * create_stream instruction — 48 bytes data, 9 accounts:
+ * create_stream instruction — 81 bytes data, 9 accounts:
  *   data: [disc(8)] [total_amount u64 LE(8)] [start_time i64 LE(8)]
  *         [end_time i64 LE(8)] [cliff_time i64 LE(8)] [seed u64 LE(8)]
+ *         [milestone_enabled bool(1)] [name [u8; 32]]
  *   accounts: creator, recipient, mint, creator_ta, escrow_ta,
  *             stream, developer_ta, token_program, system_program
  *
@@ -61,7 +62,7 @@ const DISC_MILESTONE= Buffer.from([174, 213, 91,  82,  156, 42,  105, 3  ]);
 const DISC_CLOSE    = Buffer.from([255, 241, 196, 212, 95, 93,  160, 89 ]);
 
 // StreamAccount constants
-export const STREAM_ACCOUNT_SIZE = 196;
+export const STREAM_ACCOUNT_SIZE = 220;
 const OFFSET_CREATOR   = 8;
 const OFFSET_RECIPIENT = 40;
 
@@ -126,8 +127,8 @@ export interface StreamInfo {
   cancelled:          boolean;
   bump:               number;
   milestoneReached:   boolean;
-  velocityStrikes:    number;
-  lastActionTs:       BN;
+  milestoneEnabled:   boolean;
+  name:               string;
   // Compatibility fields for blockblast page components
   requiredTier:       number;
   milestoneCount:     number;
@@ -135,7 +136,7 @@ export interface StreamInfo {
   milestonePct:       number[];
 }
 
-// ─── Decode raw 196-byte StreamAccount ───────────────────────────────────────
+// ─── Decode raw 220-byte StreamAccount ───────────────────────────────────────
 function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null {
   const data = Buffer.from(rawData);
   if (data.length < STREAM_ACCOUNT_SIZE) return null;
@@ -159,8 +160,9 @@ function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null
     const bump               = data[off];                 off++;
     const seed               = data.readBigUInt64LE(off); off += 8;
     const milestoneReached   = data[off] !== 0;           off++;
-    const velocityStrikes    = data[off];                 off++;
-    const lastActionTs       = data.readBigInt64LE(off);
+    const milestoneEnabled   = data[off] !== 0;           off++;
+    const nameBytes          = data.slice(off, off + 32);
+    const name               = new TextDecoder().decode(nameBytes).replace(/\0/g, '').trim();
 
     return {
       pubkey,
@@ -177,8 +179,8 @@ function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null
       cancelled:          isCancelled,
       bump,
       milestoneReached,
-      velocityStrikes,
-      lastActionTs:       new BN(lastActionTs.toString()),
+      milestoneEnabled,
+      name,
       requiredTier:       cliffTime > 0n ? 1 : 0,
       milestoneCount:     cliffTime > 0n ? 1 : 0,
       milestonesVerified: [milestoneReached],
@@ -305,31 +307,36 @@ export async function ensureAtaIx(
 // ─── Raw instruction builders ─────────────────────────────────────────────────
 
 /**
- * build create_stream: 48 bytes, 9 accounts.
+ * build create_stream: 81 bytes, 9 accounts.
  * Args: total_amount(u64) start_time(i64) end_time(i64) cliff_time(i64) seed(u64)
+ *       milestone_enabled(bool) name([u8;32])
  * Account 6: developer_token_account — receives DEV_FEE_BPS (1%) of total_amount
  */
 function mkCreateIx(
-  creator:     PublicKey,
-  recipient:   PublicKey,
-  mint:        PublicKey,
-  creatorTA:   PublicKey,
-  escrowTA:    PublicKey,
-  streamPDA:   PublicKey,
-  developerTA: PublicKey,
-  totalAmount: bigint,
-  startTime:   bigint,
-  endTime:     bigint,
-  cliffTime:   bigint,
-  seed:        bigint,
+  creator:          PublicKey,
+  recipient:        PublicKey,
+  mint:             PublicKey,
+  creatorTA:        PublicKey,
+  escrowTA:         PublicKey,
+  streamPDA:        PublicKey,
+  developerTA:      PublicKey,
+  totalAmount:      bigint,
+  startTime:        bigint,
+  endTime:          bigint,
+  cliffTime:        bigint,
+  seed:             bigint,
+  milestoneEnabled: boolean,
+  name:             Uint8Array,
 ): TransactionInstruction {
-  const data = Buffer.alloc(48); // 8 disc + 5×8 args
+  const data = Buffer.alloc(81); // 8 disc + 5×8 args + 1 bool + 32 name
   DISC_CREATE.copy(data, 0);
   data.writeBigUInt64LE(totalAmount, 8);
   data.writeBigInt64LE(startTime,   16);
   data.writeBigInt64LE(endTime,     24);
   data.writeBigInt64LE(cliffTime,   32);
   data.writeBigUInt64LE(seed,       40);
+  data[48] = milestoneEnabled ? 1 : 0;
+  Buffer.from(name).copy(data, 49);
   return new TransactionInstruction({
     programId: VESTING_PROGRAM_ID,
     keys: [
@@ -409,6 +416,7 @@ export interface CreateStreamParams {
   startTs:         number;
   cliffTs:         number;        // 0 = no cliff (pure linear)
   endTs:           number;
+  name:            string;        // human-readable label (max 31 chars)
   requiredTier?:   0 | 1 | 2;    // ignored — cliff presence is the gate
   sendTransaction: SendTx;
 }
@@ -422,6 +430,11 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
   // Developer fee account — TEAM_WALLET's ATA for this mint
   const devTA = await getAssociatedTokenAddress(p.mint, TEAM_WALLET);
 
+  // Encode name as [u8; 32] — UTF-8, null-padded
+  const nameBytes = new Uint8Array(32);
+  const encoded = new TextEncoder().encode(p.name.slice(0, 31));
+  nameBytes.set(encoded);
+
   const tx = new Transaction();
 
   // Ensure developer ATA exists (create if missing — payer = creator)
@@ -433,6 +446,8 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
     p.amount,
     BigInt(p.startTs), BigInt(p.endTs), BigInt(p.cliffTs),
     p.streamId,
+    p.cliffTs > 0,   // milestone_enabled — auto-true when a cliff gates the linear schedule
+    nameBytes,
   ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');

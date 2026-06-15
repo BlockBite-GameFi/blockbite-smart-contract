@@ -21,6 +21,7 @@ pub fn init_stream(
     seed: u64,
     milestone_enabled: bool,
     bump: u8,
+    name: [u8; 32],
 ) -> Result<()> {
     require!(total_amount > 0, ErrorCode::InvalidAmount);
     require!(end_time > start_time, ErrorCode::InvalidTimestamp);
@@ -47,6 +48,7 @@ pub fn init_stream(
     stream.seed                 = seed;
     stream.milestone_reached    = false;
     stream.milestone_enabled    = milestone_enabled;
+    stream.name                 = name;
 
     Ok(())
 }
