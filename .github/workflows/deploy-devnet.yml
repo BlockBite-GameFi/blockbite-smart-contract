@@ -119,32 +119,72 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy to Devnet
+      - name: Deploy to Devnet (write-buffer + atomic upgrade)
         env:
           DEVNET_RPC_URL: ${{ secrets.HELIUS_DEVNET_RPC_URL }}
         run: |
+          set -euo pipefail
+
           # Helius devnet is much more reliable than api.devnet.solana.com for
           # large data writes; falls back to public devnet if secret is unset.
           RPC_URL="${DEVNET_RPC_URL:-https://api.devnet.solana.com}"
           echo "Deploying via RPC: ${RPC_URL%%\?*}"  # strip api-key from log
           solana config set --url "$RPC_URL" > /dev/null
 
-          # Use `solana program deploy` directly (anchor deploy wraps this but
-          # doesn't expose --use-rpc / --max-sign-attempts which are needed for
-          # reliable devnet upgrades on a 330KB program).
           PROGRAM_ID=$(solana-keygen pubkey target/deploy/blockbite-keypair.json)
+          DEPLOYER=$(solana-keygen pubkey ~/.config/solana/id.json)
           echo "Program ID: $PROGRAM_ID"
+          echo "Deployer:   $DEPLOYER"
 
-          solana program deploy \
+          # Two-phase deploy:
+          #   Phase 1 (slow, ~3-5 min): chunked write to a buffer account.
+          #     Uses --max-sign-attempts 200 so transient RPC errors retry
+          #     in-place instead of aborting the whole upload.
+          #   Phase 2 (instant, atomic): single Upgrade instruction that swaps
+          #     the buffer into the program account.
+          # If Phase 1 fails, the cleanup trap closes the orphaned buffer and
+          # recovers the ~2.6 SOL rent (otherwise it would leak per failed run).
+          BUFFER_KP="$(mktemp --suffix=.json)"
+          solana-keygen new --no-bip39-passphrase --silent -o "$BUFFER_KP"
+          BUFFER_PK=$(solana-keygen pubkey "$BUFFER_KP")
+          echo "Buffer:     $BUFFER_PK"
+
+          NEEDS_CLEANUP=1
+          cleanup() {
+            if [ "$NEEDS_CLEANUP" = "1" ]; then
+              echo "::warning::Deploy failed — closing buffer $BUFFER_PK to recover rent"
+              solana program close "$BUFFER_PK" \
+                --recipient "$DEPLOYER" \
+                --keypair ~/.config/solana/id.json \
+                --url "$RPC_URL" 2>&1 || true
+            fi
+            rm -f "$BUFFER_KP"
+          }
+          trap cleanup EXIT
+
+          # ── Phase 1: write program data to buffer (resilient) ────────────────
+          echo "Phase 1: solana program write-buffer..."
+          solana program write-buffer \
             target/deploy/blockbite.so \
-            --program-id target/deploy/blockbite-keypair.json \
-            --upgrade-authority ~/.config/solana/id.json \
+            --buffer "$BUFFER_KP" \
+            --buffer-authority ~/.config/solana/id.json \
             --keypair ~/.config/solana/id.json \
             --url "$RPC_URL" \
             --use-rpc \
-            --max-sign-attempts 60 \
-            --with-compute-unit-price 50000
+            --max-sign-attempts 200 \
+            --with-compute-unit-price 100000
 
+          # ── Phase 2: atomic upgrade from buffer (instant) ────────────────────
+          echo "Phase 2: solana program deploy --buffer..."
+          solana program deploy \
+            --buffer "$BUFFER_KP" \
+            --program-id target/deploy/blockbite-keypair.json \
+            --upgrade-authority ~/.config/solana/id.json \
+            --keypair ~/.config/solana/id.json \
+            --url "$RPC_URL"
+
+          # Buffer is consumed by the upgrade — skip cleanup.
+          NEEDS_CLEANUP=0
           echo "✅ Deployed to Devnet"
           echo "Program ID: $PROGRAM_ID"
 
