@@ -97,11 +97,25 @@ jobs:
           RPC_URL="${DEVNET_RPC_URL:-https://api.devnet.solana.com}"
           echo "Deploying via RPC: ${RPC_URL%%\?*}"  # strip api-key from log
           solana config set --url "$RPC_URL" > /dev/null
-          anchor deploy \
-            --provider.cluster "$RPC_URL" \
-            --provider.wallet ~/.config/solana/id.json
+
+          # Use `solana program deploy` directly (anchor deploy wraps this but
+          # doesn't expose --use-rpc / --max-sign-attempts which are needed for
+          # reliable devnet upgrades on a 330KB program).
+          PROGRAM_ID=$(solana-keygen pubkey target/deploy/blockbite-keypair.json)
+          echo "Program ID: $PROGRAM_ID"
+
+          solana program deploy \
+            target/deploy/blockbite.so \
+            --program-id target/deploy/blockbite-keypair.json \
+            --upgrade-authority ~/.config/solana/id.json \
+            --keypair ~/.config/solana/id.json \
+            --url "$RPC_URL" \
+            --use-rpc \
+            --max-sign-attempts 60 \
+            --with-compute-unit-price 50000
+
           echo "✅ Deployed to Devnet"
-          echo "Program ID: $(anchor keys list | grep blockbite | awk '{print $2}')"
+          echo "Program ID: $PROGRAM_ID"
 
       - name: Verify deployment
         run: |
