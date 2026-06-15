@@ -13,41 +13,72 @@ jobs:
     name: Anchor deploy → Devnet
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'deploy'
+    env:
+      CARGO_INCREMENTAL: 0
+      CARGO_TERM_COLOR: always
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Rust
+      - name: Setup Rust 1.91.0
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.91.0"
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      # Caches: ~/.cargo/registry + ~/.cargo/git + target/
+      # First miss: ~3 min populated. Hit: <30s.
+      - name: Cache Cargo + target
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
+          workspaces: .
 
       - name: Install native build dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
 
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      # Solana CLI cache (~120MB). Saves ~30s install on hit.
+      - name: Cache Solana CLI
+        uses: actions/cache@v4
+        id: solana-cache
+        with:
+          path: |
+            ~/.cache/solana
+            ~/.local/share/solana/install
+          key: solana-${{ runner.os }}-stable
 
-      - name: Install Anchor CLI (avm 1.0.0)
+      - name: Install Solana CLI
+        if: steps.solana-cache.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+
+      - name: Add Solana to PATH
+        run: echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      # avm + anchor binary cache. First miss: ~5 min building avm from source.
+      # Hit: instant (avm already installed, anchor binary present).
+      - name: Cache Anchor CLI 1.0.0 (avm)
+        uses: actions/cache@v4
+        id: anchor-cache
+        with:
+          path: |
+            ~/.avm
+            ~/.cargo/bin/avm
+            ~/.cargo/bin/anchor
+          key: anchor-avm-${{ runner.os }}-1.0.0
+
+      - name: Install Anchor CLI 1.0.0 via AVM
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
           avm install 1.0.0
           avm use 1.0.0
+
+      - name: Ensure Anchor CLI is active
+        run: |
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          avm use 1.0.0
           anchor --version
 
       - name: Restore deployer keypair
