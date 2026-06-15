@@ -1,0 +1,118 @@
+name: Deploy GitHub Pages with custom domain (one-shot)
+
+on:
+  push:
+    branches:
+      - week9-documentation
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build landing page and CNAME
+        run: |
+          mkdir -p /tmp/pages-out
+          echo "blockbite-protocol.xyz" > /tmp/pages-out/CNAME
+          cat > /tmp/pages-out/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>BlockBite Protocol</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                background: #0d1117;
+                color: #e6edf3;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+              }
+              .logo { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+              .logo span { color: #f97316; }
+              .tagline { color: #8b949e; margin-bottom: 3rem; font-size: 1.1rem; text-align: center; }
+              .links { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+              .btn {
+                display: inline-flex; align-items: center; gap: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 0.95rem;
+                transition: opacity 0.2s;
+              }
+              .btn:hover { opacity: 0.85; }
+              .btn-primary { background: #f97316; color: #fff; }
+              .btn-secondary { background: #21262d; color: #e6edf3; border: 1px solid #30363d; }
+              .network {
+                margin-top: 3rem;
+                font-size: 0.8rem;
+                color: #8b949e;
+                text-align: center;
+              }
+              .program-id {
+                font-family: monospace;
+                background: #161b22;
+                padding: 0.4rem 0.8rem;
+                border-radius: 6px;
+                font-size: 0.75rem;
+                color: #f97316;
+                margin-top: 0.5rem;
+                word-break: break-all;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="logo">Block<span>Bite</span></div>
+            <p class="tagline">Automated milestone-based token vesting on Solana</p>
+            <div class="links">
+              <a class="btn btn-primary" href="https://app.gitbook.com/invite/ASJZp0v5uf0xfni2ZdZk/Fj4O2cdEAxUlsbx4cftC">
+                📚 Documentation
+              </a>
+              <a class="btn btn-secondary" href="https://blockbite-tdp.vercel.app">
+                🚀 Launch App
+              </a>
+              <a class="btn btn-secondary" href="https://github.com/BlockBite-GameFi/blockbite-smart-contract">
+                GitHub
+              </a>
+            </div>
+            <div class="network">
+              <div>Solana Devnet</div>
+              <div class="program-id">Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq</div>
+            </div>
+          </body>
+          </html>
+          HTMLEOF
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /tmp/pages-out
+          publish_branch: gh-pages
+          force_orphan: true
+          cname: blockbite-protocol.xyz
+
+      - name: Remove this one-shot workflow
+        run: |
+          git config user.email "nayrbryangaming3@gmail.com"
+          git config user.name "nayrbryanGaming"
+          git pull --rebase origin week9-documentation
+          git rm .github/workflows/deploy-pages.yml
+          git commit -m "ci: remove one-shot Pages deploy workflow"
+          git push origin week9-documentation
