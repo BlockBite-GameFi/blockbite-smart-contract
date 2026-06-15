@@ -89,9 +89,16 @@ jobs:
           fi
 
       - name: Deploy to Devnet
+        env:
+          DEVNET_RPC_URL: ${{ secrets.HELIUS_DEVNET_RPC_URL }}
         run: |
+          # Helius devnet is much more reliable than api.devnet.solana.com for
+          # large data writes; falls back to public devnet if secret is unset.
+          RPC_URL="${DEVNET_RPC_URL:-https://api.devnet.solana.com}"
+          echo "Deploying via RPC: ${RPC_URL%%\?*}"  # strip api-key from log
+          solana config set --url "$RPC_URL" > /dev/null
           anchor deploy \
-            --provider.cluster devnet \
+            --provider.cluster "$RPC_URL" \
             --provider.wallet ~/.config/solana/id.json
           echo "✅ Deployed to Devnet"
           echo "Program ID: $(anchor keys list | grep blockbite | awk '{print $2}')"
