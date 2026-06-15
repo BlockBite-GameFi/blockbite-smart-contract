@@ -1,0 +1,72 @@
+name: Enable GitHub Pages (one-shot)
+
+on:
+  push:
+    branches:
+      - week9-documentation
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable GitHub Pages via API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Enabling GitHub Pages on gh-pages branch..."
+          HTTP=$(curl -s -o /tmp/pages-resp.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d '{"source":{"branch":"gh-pages","path":"/"}}' \
+            "https://api.github.com/repos/BlockBite-GameFi/blockbite-smart-contract/pages")
+          echo "HTTP: $HTTP"
+          cat /tmp/pages-resp.json
+          if [ "$HTTP" = "201" ] || [ "$HTTP" = "409" ]; then
+            echo "Pages enabled (or already exists)"
+          else
+            echo "Trying PUT to update existing pages config..."
+            HTTP2=$(curl -s -o /tmp/pages-resp2.json -w "%{http_code}" \
+              -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Content-Type: application/json" \
+              -d '{"source":{"branch":"gh-pages","path":"/"}}' \
+              "https://api.github.com/repos/BlockBite-GameFi/blockbite-smart-contract/pages")
+            echo "PUT HTTP: $HTTP2"
+            cat /tmp/pages-resp2.json
+          fi
+
+      - name: Verify Pages status
+        run: |
+          sleep 5
+          curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/BlockBite-GameFi/blockbite-smart-contract/pages" | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)
+          print('Status:', d.get('status'))
+          print('URL:', d.get('html_url'))
+          print('CNAME:', d.get('cname'))
+          "
+
+      - name: Remove this one-shot workflow
+        if: always()
+        run: |
+          git config user.email "nayrbryangaming3@gmail.com"
+          git config user.name "nayrbryanGaming"
+          git pull --rebase origin week9-documentation
+          git rm .github/workflows/enable-pages.yml
+          git commit -m "ci: remove one-shot enable-pages workflow"
+          git push origin week9-documentation
