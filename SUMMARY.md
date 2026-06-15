@@ -3,7 +3,7 @@
 ## Overview
 
 * [Introduction](README.md)
-* [Agent Instructions](AGENTS.md)
+* [Changelog](docs/CHANGELOG.md)
 
 ## Developer Documentation
 
@@ -11,9 +11,10 @@
 * [Instruction Reference](docs/PROGRAM.md)
 * [Integration Guide](docs/INTEGRATION.md)
 * [Account & State Model](docs/STREAM_MODEL.md)
-* [Cliff & Milestone Verification](docs/CLIFF_VESTING.md)
+* [Cliff & Milestone Vesting](docs/CLIFF_VESTING.md)
 * [Error Map](docs/ERROR_MAP.md)
 * [Architecture Decisions](docs/ADR.md)
+* [Testing Guide](docs/TESTING.md)
 
 ## Reports & Status
 
