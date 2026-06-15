@@ -1,0 +1,79 @@
+name: Create Week 9 PR (one-shot)
+
+on:
+  push:
+    branches:
+      - week9-documentation
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create PR via Octokit
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const result = await github.rest.pulls.create({
+                owner: 'BlockBite-GameFi',
+                repo: 'blockbite-smart-contract',
+                title: 'docs: Week 9 - Complete GitBook documentation for BlockBite vesting program',
+                head: 'week9-documentation',
+                base: 'main',
+                body: [
+                  '## Summary',
+                  '',
+                  'Complete documentation suite for BlockBite vesting program (Week 9 deliverable).',
+                  '',
+                  '### Files Added',
+                  '- docs/PROGRAM.md: all 9 instructions with params, accounts, errors, TypeScript examples',
+                  '- docs/INTEGRATION.md: 8-step guide with inline warnings and error handling',
+                  '- docs/STREAM_MODEL.md: StreamAccount byte layout with offsets, lifecycle diagram',
+                  '- docs/ADR.md: 6 Architecture Decision Records',
+                  '- docs/ERROR_MAP.md: all 21 error codes with trigger conditions and fixes',
+                  '- docs/CLIFF_VESTING.md: calculate_unlocked deep-dive, 4 vesting modes, 13 edge cases',
+                  '- docs/TESTING.md: guide for all 41 tests (13 Rust unit + 28 TypeScript)',
+                  '- docs/SETUP.md: prerequisites, build, test, deploy',
+                  '- docs/CHANGELOG.md: week-by-week history (Week 3 to Week 9)',
+                  '- .gitbook.yaml + SUMMARY.md: fix GitBook navigation',
+                  '',
+                  '### Acceptance Criteria',
+                  '- [x] Instruction reference: all 9 instructions documented',
+                  '- [x] Integration guide: step-by-step with working TypeScript snippets',
+                  '- [x] ADRs: 6 architecture decisions',
+                  '- [x] Setup guide updated from Week 3',
+                  '- [x] Marketing review noted in INTEGRATION.md',
+                  '- [x] GitBook navigation fixed'
+                ].join('\n')
+              });
+              console.log('PR created:', result.data.html_url);
+              core.setOutput('pr-url', result.data.html_url);
+            } catch(err) {
+              console.log('Error status:', err.status);
+              console.log('Error message:', err.message);
+              if (err.response) {
+                console.log('Response:', JSON.stringify(err.response.data));
+              }
+              core.setFailed('PR creation failed: ' + err.message);
+            }
+
+      - name: Remove one-shot workflow
+        if: always()
+        run: |
+          git config user.email "nayrbryangaming3@gmail.com"
+          git config user.name "nayrbryanGaming"
+          git pull --rebase origin week9-documentation
+          git rm .github/workflows/create-pr-week9.yml
+          git commit -m "ci: remove one-shot PR creation workflow"
+          git push origin week9-documentation
