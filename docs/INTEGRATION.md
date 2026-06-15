@@ -2,6 +2,16 @@
 
 Panduan step-by-step untuk developer eksternal yang ingin membuat stream vesting menggunakan BlockBite. Tidak perlu baca source code — cukup ikuti panduan ini.
 
+## Quick Reference
+
+| | |
+|---|---|
+| **Program ID (Devnet)** | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
+| **IDL (on-chain)** | `anchor.Program.fetchIdl(PROGRAM_ID, provider)` |
+| **IDL (local)** | `target/idl/blockbite.json` |
+| **Explorer** | [Solana Explorer (devnet)](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
+| **Test suite** | 28 integration tests `anchor test` |
+
 ---
 
 ## Prasyarat
@@ -95,7 +105,9 @@ const [escrowPda] = PublicKey.findProgramAddressSync(
 
 ## Langkah 3 — Pastikan ATA Recipient Ada
 
-Recipient **harus punya ATA** (Associated Token Account) untuk mint yang bersangkutan **sebelum** stream dibuat. Kalau tidak ada, withdraw dan cancel akan gagal.
+Recipient **harus punya ATA** (Associated Token Account) untuk mint yang bersangkutan **sebelum** `create_stream` dipanggil.
+
+> **Penyebab error paling umum:** Melewati langkah ini menyebabkan `withdraw` dan `cancel` gagal dengan `Error: Account does not exist` dari SPL Token. BlockBite tidak membuat ATA otomatis — itu tanggung jawab caller.
 
 ```typescript
 import {
@@ -103,15 +115,15 @@ import {
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 
-// Buat ATA recipient jika belum ada
+// Buat ATA recipient jika belum ada (idempotent — aman dipanggil berulang)
 const recipientAta = await getOrCreateAssociatedTokenAccount(
   connection,
-  creator, // payer untuk membuat ATA
-  mint,    // SPL mint address
+  creator,           // payer untuk membuat ATA — biasanya creator yang nanggung fee
+  mint,
   recipient.publicKey
 );
 
-// Juga buat ATA creator (untuk menerima token kembali saat cancel)
+// Buat juga ATA creator — dibutuhkan saat cancel untuk menerima token unvested
 const creatorAta = await getOrCreateAssociatedTokenAccount(
   connection, creator, mint, creator.publicKey
 );
@@ -121,17 +133,19 @@ const creatorAta = await getOrCreateAssociatedTokenAccount(
 
 ## Langkah 4 — Buat Stream
 
+> **Perhatikan unit:** `total_amount` dalam raw unit (bukan UI). Untuk token 6 desimal, 10 token = `10_000_000`. Salah unit adalah bug yang paling sering terjadi dan tidak ada error — stream tetap dibuat dengan jumlah yang salah.
+
 ```typescript
-const now = Math.floor(Date.now() / 1000); // Unix timestamp sekarang (detik)
+const now = Math.floor(Date.now() / 1000); // Unix timestamp detik — BUKAN milidetik
 
 const tx = await program.methods
   .createStream(
-    new anchor.BN(10_000_000),        // total_amount: 10 token (6 desimal = 10_000_000 raw)
+    new anchor.BN(10_000_000),        // total_amount: 10 token (6 desimal)
     new anchor.BN(now),                // start_time: mulai sekarang
-    new anchor.BN(now + 86400 * 365), // end_time: 1 tahun dari sekarang
-    new anchor.BN(now + 86400 * 90),  // cliff_time: cliff 90 hari (0 = tanpa cliff)
-    seed,                              // seed: simpan untuk reference nanti
-    false                              // milestone_enabled: false = pure time-based
+    new anchor.BN(now + 86400 * 365), // end_time: 1 tahun
+    new anchor.BN(now + 86400 * 90),  // cliff_time: 90 hari — pakai 0 untuk tanpa cliff
+    seed,                              // seed: BN yang dibuat di langkah 2, simpan ini
+    false                              // milestone_enabled: false = pure time-based vesting
   )
   .accounts({
     creator: creator.publicKey,
@@ -149,6 +163,7 @@ const tx = await program.methods
 console.log("Stream dibuat! TX:", tx);
 console.log("Stream PDA:", streamPda.toBase58());
 console.log("Escrow PDA:", escrowPda.toBase58());
+// Simpan streamPda — dibutuhkan untuk semua instruksi selanjutnya
 ```
 
 ---
@@ -278,28 +293,56 @@ console.log("Stream closed! Rent recovered. TX:", closeTx);
 
 ---
 
-## Checklist Sebelum Go-Live
+## Error Handling
 
-- [ ] Program ID sesuai cluster yang digunakan (devnet vs mainnet)
-- [ ] Semua PDA di-derive dengan urutan seed yang benar
-- [ ] ATA recipient dibuat sebelum stream creation
-- [ ] `total_amount` dalam raw unit (bukan UI unit)
-- [ ] Semua timestamp dalam Unix detik (bukan milidetik)
-- [ ] Error codes ditangani dan ditampilkan sebagai pesan yang readable (lihat [`ERROR_MAP.md`](./ERROR_MAP.md))
+Semua instruksi melempar `AnchorError` dengan kode numerik yang bisa ditangkap client. Jangan biarkan error mentah tampil ke user.
 
----
-
-## Link IDL & Types
-
-Setelah `anchor build`, file IDL tersedia di:
-- `target/idl/blockbite.json` — IDL lengkap untuk client
-- `target/types/blockbite.ts` — TypeScript types yang di-generate otomatis
-
-Atau fetch langsung dari chain:
 ```typescript
-const idl = await anchor.Program.fetchIdl(PROGRAM_ID, provider);
+import { AnchorError } from "@coral-xyz/anchor";
+
+async function safeWithdraw(program: anchor.Program, accounts: object, signer: anchor.web3.Keypair) {
+  try {
+    const tx = await program.methods.withdraw().accounts(accounts).signers([signer]).rpc();
+    return { ok: true, tx };
+  } catch (err) {
+    if (err instanceof AnchorError) {
+      const code = err.error.errorCode.number;
+      // Kode yang sering muncul saat withdraw:
+      // 6001 NothingToWithdraw — cliff belum lewat atau milestone belum di-set
+      // 6002 StreamCancelled   — stream sudah dibatalkan oleh creator
+      // 6004 StreamNotStarted  — start_time belum tiba
+      return { ok: false, code, message: err.error.errorMessage };
+    }
+    throw err; // error jaringan / RPC — lempar ulang
+  }
+}
 ```
 
+Untuk daftar semua 21 error code, lihat [`ERROR_MAP.md`](./ERROR_MAP.md).
+
 ---
 
-> **Catatan untuk tim Marketing:** Bagian "Hitung claimable sebelum kirim transaksi" menjelaskan cara menghindari transaksi gagal. Pertimbangkan untuk menambahkan callout/box visual di GitBook agar mudah ditemukan oleh developer yang baru.
+## Checklist Sebelum Go-Live
+
+- [ ] Program ID sesuai cluster (`Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` untuk devnet)
+- [ ] Semua PDA di-derive dengan urutan seed yang benar (lihat Langkah 2)
+- [ ] ATA recipient **sudah dibuat** sebelum `create_stream`
+- [ ] `total_amount` dalam raw unit — 1 token 6-desimal = `1_000_000`, bukan `1`
+- [ ] Semua timestamp dalam **Unix detik** — `Math.floor(Date.now() / 1000)`, bukan `Date.now()`
+- [ ] Hitung `claimable` client-side sebelum `withdraw` untuk hindari fee sia-sia
+- [ ] Error codes ditangani dengan pesan yang readable
+
+---
+
+## IDL & Types
+
+```typescript
+// Opsi 1: fetch langsung dari chain (tanpa file lokal)
+const idl = await anchor.Program.fetchIdl(PROGRAM_ID, provider);
+const program = new anchor.Program(idl!, provider);
+
+// Opsi 2: import dari hasil anchor build (lebih cepat, offline)
+import idl from "./target/idl/blockbite.json";
+import type { Blockbite } from "./target/types/blockbite";
+const program = new anchor.Program<Blockbite>(idl as anchor.Idl, provider);
+```
