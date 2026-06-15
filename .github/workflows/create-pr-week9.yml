@@ -1,0 +1,73 @@
+name: Create Week 9 PR (one-shot)
+
+on:
+  push:
+    branches: [week9-documentation]
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh pr list --base main --head week9-documentation --json number --jq '.[0].number // empty' 2>/dev/null)
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists — nothing to do"
+            exit 0
+          fi
+          gh pr create \
+            --base main \
+            --head week9-documentation \
+            --title "docs: Week 9 — Complete GitBook documentation for BlockBite vesting program" \
+            --body "$(cat <<'PRBODY'
+## Summary
+
+Complete documentation suite for BlockBite vesting program (Week 9 deliverable).
+
+| File | Coverage |
+|------|---------|
+| \`docs/PROGRAM.md\` | All 9 instructions — params, accounts, errors, TypeScript examples |
+| \`docs/INTEGRATION.md\` | 8-step guide, quick ref table, inline warnings, error handling |
+| \`docs/STREAM_MODEL.md\` | StreamAccount byte layout with offsets, lifecycle diagram |
+| \`docs/ADR.md\` | 6 Architecture Decision Records |
+| \`docs/ERROR_MAP.md\` | All 21 error codes with trigger conditions and fixes |
+| \`docs/CLIFF_VESTING.md\` | \`calculate_unlocked\` deep-dive, 4 vesting modes, 13 edge cases |
+| \`docs/TESTING.md\` | Guide for all 41 tests (13 Rust unit + 28 TypeScript integration) |
+| \`docs/SETUP.md\` | Prerequisites, build, test, deploy |
+| \`docs/CHANGELOG.md\` | Week-by-week development history (Week 3 → Week 9) |
+| \`.gitbook.yaml\` + \`SUMMARY.md\` | Fix GitBook navigation (removes node_modules/apps from pages) |
+
+## Acceptance Criteria
+
+- [x] Instruction reference: all 9 instructions documented with params, behavior, errors, TS examples
+- [x] Integration guide: step-by-step with working copy-paste TypeScript snippets
+- [x] ADRs: 6 architecture decisions (Pull model, PDA escrow, prorated cancel, cliff=0, CEI, dispatch)
+- [x] Setup guide updated from Week 3
+- [x] Marketing review noted in INTEGRATION.md
+- [x] GitBook navigation fixed via .gitbook.yaml + SUMMARY.md
+
+## Removed
+
+Legacy docsify files (index.html, _sidebar.md, _coverpage.md) and superseded docs
+(INSTRUCTION_REFERENCE.md, INTEGRATION_GUIDE.md, ARCHITECTURE_DECISIONS.md).
+PRBODY
+)"
+          echo "PR created successfully"
+
+      - name: Remove this one-shot workflow
+        run: |
+          git config user.email "nayrbryangaming3@gmail.com"
+          git config user.name "nayrbryanGaming"
+          git pull --rebase
+          git rm .github/workflows/create-pr-week9.yml
+          git commit -m "ci: remove one-shot PR creation workflow (week9)"
+          git push
