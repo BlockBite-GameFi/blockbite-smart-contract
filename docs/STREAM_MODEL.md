@@ -4,14 +4,14 @@ Penjelasan lengkap semua akun on-chain BlockBite: field-by-field, lifecycle stre
 
 ---
 
-## StreamAccount (188 bytes)
+## StreamAccount (220 bytes)
 
 PDA state utama untuk setiap vesting stream.  
 Seeds: `["stream", creator_pubkey, recipient_pubkey, seed_u64_le]`
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  StreamAccount  (188 bytes total)                    │
+│  StreamAccount  (220 bytes total)                    │
 ├─────────────────────┬────────┬────────┬─────────────┤
 │ Field               │ Offset │ Bytes  │ Deskripsi   │
 ├─────────────────────┼────────┼────────┼─────────────┤
@@ -30,6 +30,7 @@ Seeds: `["stream", creator_pubkey, recipient_pubkey, seed_u64_le]`
 │ seed                │    178 │    8   │ u64 creator │
 │ milestone_reached   │    186 │    1   │ bool gate   │
 │ milestone_enabled   │    187 │    1   │ bool config │
+│ name                │    188 │   32   │ UTF-8 label │
 └─────────────────────┴────────┴────────┴─────────────┘
 ```
 
@@ -53,6 +54,7 @@ Seeds: `["stream", creator_pubkey, recipient_pubkey, seed_u64_le]`
 | `seed` | `u64` | Memungkinkan beberapa stream antara creator+recipient yang sama |
 | `milestone_reached` | `bool` | Dimulai `false`. Di-flip ke `true` oleh `set_milestone`. **One-way** |
 | `milestone_enabled` | `bool` | Ditetapkan saat `create_stream`. Jika `true`, `milestone_reached` harus `true` agar unlock |
+| `name` | `[u8; 32]` | Label stream (UTF-8, null-padded). Max 31 karakter bermakna + null terminator. Hanya display — tidak memengaruhi logika vesting |
 
 ---
 

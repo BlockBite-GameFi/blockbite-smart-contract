@@ -68,6 +68,7 @@ programs/blockbite/src/
 | `cliff_time` | `i64` | Unix timestamp cliff. Gunakan `0` untuk tanpa cliff. Jika diisi, harus ≤ `end_time`. |
 | `seed` | `u64` | Seed unik dari creator untuk derivasi PDA. Memungkinkan banyak stream antar pasangan yang sama. |
 | `milestone_enabled` | `bool` | `true` = token terkunci sampai creator panggil `set_milestone`. `false` = pure time-based. |
+| `name` | `[u8; 32]` | Label stream (UTF-8, null-padded, max 31 karakter bermakna). Hanya untuk display; tidak memengaruhi vesting. |
 
 ### Accounts
 
@@ -119,6 +120,13 @@ const [escrowPda] = PublicKey.findProgramAddressSync(
   PROGRAM_ID
 );
 
+// Encode stream name: max 31 UTF-8 bytes + null terminator → [u8; 32]
+function encodeStreamName(label: string): number[] {
+  const buf = Buffer.alloc(32, 0);
+  Buffer.from(label.slice(0, 31), "utf8").copy(buf);
+  return Array.from(buf);
+}
+
 await program.methods
   .createStream(
     new anchor.BN(10_000_000), // 10 token (6 desimal)
@@ -126,7 +134,8 @@ await program.methods
     new anchor.BN(now + 86400 * 365), // 1 tahun
     new anchor.BN(now + 86400 * 90),  // cliff 90 hari
     seed,
-    false // tanpa milestone gate
+    false, // tanpa milestone gate
+    encodeStreamName("Team Salary Q1") // label stream
   )
   .accounts({
     creator: creator.publicKey,

@@ -138,6 +138,13 @@ const creatorAta = await getOrCreateAssociatedTokenAccount(
 ```typescript
 const now = Math.floor(Date.now() / 1000); // Unix timestamp detik — BUKAN milidetik
 
+// Encode stream name: UTF-8, null-padded ke [u8; 32], max 31 karakter bermakna
+function encodeStreamName(label: string): number[] {
+  const buf = Buffer.alloc(32, 0);
+  Buffer.from(label.slice(0, 31), "utf8").copy(buf);
+  return Array.from(buf);
+}
+
 const tx = await program.methods
   .createStream(
     new anchor.BN(10_000_000),        // total_amount: 10 token (6 desimal)
@@ -145,7 +152,8 @@ const tx = await program.methods
     new anchor.BN(now + 86400 * 365), // end_time: 1 tahun
     new anchor.BN(now + 86400 * 90),  // cliff_time: 90 hari — pakai 0 untuk tanpa cliff
     seed,                              // seed: BN yang dibuat di langkah 2, simpan ini
-    false                              // milestone_enabled: false = pure time-based vesting
+    false,                             // milestone_enabled: false = pure time-based vesting
+    encodeStreamName("Team Salary Q1") // name: label stream, max 31 karakter
   )
   .accounts({
     creator: creator.publicKey,

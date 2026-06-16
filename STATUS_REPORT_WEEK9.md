@@ -118,7 +118,7 @@ Week-by-week development history from Week 3 (MVP stream vesting) through Week 9
 ### 11. README.md Update
 
 - Fixed broken links (INSTRUCTION_REFERENCE.md → PROGRAM.md, INTEGRATION_GUIDE.md → INTEGRATION.md)
-- Corrected StreamAccount size annotation (188 bytes total, not "188+8=196")
+- Corrected StreamAccount size annotation to 220 bytes (8 discriminator + 32×4 pubkeys + 8×5 numerics + 1×4 bools + 8 seed + 32 name)
 - Updated instruction count from 5 to 9
 - Updated docs table with all 9 documentation files
 - Updated project structure tree to match final codebase
@@ -151,7 +151,7 @@ Week-by-week development history from Week 3 (MVP stream vesting) through Week 9
 - Integration guide verified against actual `_dispatch.rs` account structs and PDA seeds
 - All 21 error codes verified against `errors.rs` (6000–6020)
 - ADRs reference actual code patterns in the repo
-- StreamAccount byte offsets verified against Anchor discriminator + field alignment rules
+- StreamAccount byte offsets verified against Anchor discriminator + field alignment rules (220 bytes total, 15 fields)
 - `.gitbook.yaml` + `SUMMARY.md` fix GitBook navigation (previously defaulted to node_modules)
 - GitBook space is live: https://app.gitbook.com/invite/ASJZp0v5uf0xfni2ZdZk/Fj4O2cdEAxUlsbx4cftC
 - README links all resolve to actual existing files
@@ -189,7 +189,7 @@ Week-by-week development history from Week 3 (MVP stream vesting) through Week 9
 | TypeScript integration tests documented | 28 / 28 (100%) |
 | Integration guide steps | 8 |
 | TypeScript code examples | 20+ working snippets |
-| StreamAccount fields with byte offsets | 14 / 14 (100%) |
+| StreamAccount fields with byte offsets | 15 / 15 (100%) |
 | Tests passing (pre-existing) | 41 / 41 |
 | Commits this week | 13 |
 
