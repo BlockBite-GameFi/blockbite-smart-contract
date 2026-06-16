@@ -346,3 +346,179 @@ import idl from "./target/idl/blockbite.json";
 import type { Blockbite } from "./target/types/blockbite";
 const program = new anchor.Program<Blockbite>(idl as anchor.Idl, provider);
 ```
+
+---
+
+## Campaign & Game Reward Integration
+
+Subsistem kedua BlockBite: publisher membuat campaign reward, game server memverifikasi pencapaian, player mengklaim token.
+
+**Flow:** `create_campaign` → `create_milestone` → `verify_game` → `claim_milestone`
+
+### Langkah 9 — Buat Campaign
+
+```typescript
+import { createHash } from "crypto";
+
+// SHA-256 dari judul campaign — konten lengkap disimpan off-chain
+const titleHash = Array.from(createHash("sha256").update("Dragon Quest Season 1").digest());
+
+const campaignSeed = new anchor.BN(1);
+
+const [campaignPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("campaign"), founder.publicKey.toBuffer(), campaignSeed.toArrayLike(Buffer, "le", 8)],
+  PROGRAM_ID
+);
+const [campaignEscrowPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("campaign_escrow"), campaignPda.toBuffer()],
+  PROGRAM_ID
+);
+
+const totalBudget = new anchor.BN(500_000_000); // 500 token (6 desimal)
+
+await program.methods
+  .createCampaign(titleHash, totalBudget, campaignSeed)
+  .accounts({
+    founder: founder.publicKey,
+    mint,
+    founderTokenAccount: founderAta.address,
+    campaignAccount: campaignPda,
+    campaignEscrow: campaignEscrowPda,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    systemProgram: anchor.web3.SystemProgram.programId,
+  })
+  .signers([founder])
+  .rpc();
+```
+
+### Langkah 10 — Tambah Milestone
+
+```typescript
+const descriptionHash = Array.from(
+  createHash("sha256").update("Reach Level 10 in Dragon Dungeon").digest()
+);
+
+const milestoneSeed = new anchor.BN(1);
+
+const [milestonePda] = PublicKey.findProgramAddressSync(
+  [
+    Buffer.from("milestone"),
+    campaignPda.toBuffer(),
+    milestoneSeed.toArrayLike(Buffer, "le", 8),
+  ],
+  PROGRAM_ID
+);
+
+await program.methods
+  .createMilestone(
+    descriptionHash,
+    campaignSeed,       // campaign yang di-link
+    milestoneSeed,      // seed unik untuk milestone ini
+    new anchor.BN(50_000_000), // 50 token reward
+    gameAuthority.publicKey,   // keypair game server yang akan sign verify_game
+    player.publicKey,          // player yang bisa klaim
+    10,                        // target_level: player harus reach level 10
+    2                          // difficulty: 1=easy, 2=medium, 3=hard
+  )
+  .accounts({
+    founder: founder.publicKey,
+    campaignAccount: campaignPda,
+    milestoneAccount: milestonePda,
+    systemProgram: anchor.web3.SystemProgram.programId,
+  })
+  .signers([founder])
+  .rpc();
+```
+
+### Langkah 11 — Verifikasi (Game Server)
+
+`verify_game` harus ditandatangani oleh `game_authority` — keypair yang ditetapkan saat `create_milestone`. Di production, ini adalah server-side keypair yang tidak pernah expose ke client.
+
+```typescript
+// Di server (bukan di client browser)
+await program.methods
+  .verifyGame(
+    milestoneSeed,
+    12           // achieved_level: level aktual yang dicapai player (>= target_level = pass)
+  )
+  .accounts({
+    gameAuthority: gameAuthority.publicKey,
+    milestoneAccount: milestonePda,
+  })
+  .signers([gameAuthority])
+  .rpc();
+```
+
+> **Security:** `gameAuthority` keypair TIDAK boleh ada di frontend. Simpan sebagai environment variable server, tandatangani transaksi server-side, kirim TX yang sudah ditandatangani ke chain.
+
+### Langkah 12 — Klaim Milestone (Player)
+
+```typescript
+// Derive player ATA terlebih dahulu
+const playerAta = await getOrCreateAssociatedTokenAccount(
+  connection, player, mint, player.publicKey
+);
+
+await program.methods
+  .claimMilestone(milestoneSeed, campaignSeed)
+  .accounts({
+    player: player.publicKey,
+    milestoneAccount: milestonePda,
+    campaignAccount: campaignPda,
+    campaignEscrow: campaignEscrowPda,
+    playerTokenAccount: playerAta.address,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  })
+  .signers([player])
+  .rpc();
+```
+
+**Guard:** `claim_milestone` set `is_claimed = true` **sebelum** token transfer (CEI pattern). Jika tx gagal di transfer tapi berhasil di state update, player bisa retry — idempotency guard mencegah double claim.
+
+---
+
+## Polling State <a name="polling-state"></a>
+
+BlockBite tidak emit events on-chain. Untuk tracking perubahan di frontend, gunakan account subscription:
+
+```typescript
+// Subscribe ke perubahan StreamAccount — notified setiap ada withdraw/cancel
+const subscriptionId = connection.onAccountChange(
+  streamPda,
+  async (accountInfo) => {
+    const stream = program.coder.accounts.decode("streamAccount", accountInfo.data);
+    console.log("Stream updated:", {
+      withdrawn: stream.amountWithdrawn.toString(),
+      cancelled: stream.isCancelled,
+    });
+  },
+  "confirmed"
+);
+
+// Hentikan subscription saat komponen unmount
+connection.removeAccountChangeListener(subscriptionId);
+```
+
+Untuk polling periodik (alternatif subscription):
+
+```typescript
+// Polling setiap 5 detik
+const interval = setInterval(async () => {
+  const stream = await program.account.streamAccount.fetch(streamPda);
+  if (stream.isCancelled) {
+    clearInterval(interval);
+    console.log("Stream cancelled");
+  }
+}, 5000);
+```
+
+---
+
+## Where to Ask
+
+| Topik | Tempat |
+|-------|--------|
+| Bug on-chain / instruksi | [GitHub Issues](https://github.com/BlockBite-GameFi/blockbite-smart-contract/issues) |
+| Integrasi frontend / client | [GitHub Issues](https://github.com/BlockBite-GameFi/blockbite-smart-contract/issues) |
+| Program ID / IDL mismatch | Re-run `anchor build` lalu cek `target/idl/blockbite.json` |
+| Error code tidak ada di daftar | Lihat `programs/blockbite/src/errors.rs` |

@@ -5,9 +5,12 @@
 | **Program ID (Devnet)** | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
 | **Program ID (Localnet)** | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
 | **IDL** | `target/idl/blockbite.json` setelah `anchor build` |
+| **Status** | Semua 9 instruksi **live di devnet** — 41/41 tests passing |
 | **Test coverage** | 13 Rust unit tests (`cargo test -p blockbite`), 28 TypeScript integration tests (`anchor test`) |
 
 BlockBite mengekspos **9 instruksi** yang dibagi menjadi dua subsistem: Stream Vesting dan Campaign & Game Rewards.
+
+> **Catatan:** Program ini tidak emit events on-chain. Untuk tracking state, gunakan `connection.onAccountChange(pda, callback)` atau polling `program.account.<type>.fetch(pda)` secara periodik. Lihat contoh di [Integration Guide](./INTEGRATION.md#polling-state).
 
 ### Source Layout
 
