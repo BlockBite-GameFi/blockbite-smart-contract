@@ -1,0 +1,98 @@
+name: Deploy Pages via Actions environment (one-shot)
+
+on:
+  push:
+    branches:
+      - week9-documentation
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build site artifacts
+        run: |
+          mkdir -p /tmp/site
+          echo "blockbite-protocol.xyz" > /tmp/site/CNAME
+          cat > /tmp/site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="refresh" content="0; url=https://blockbite-tdp.vercel.app">
+            <title>BlockBite Protocol</title>
+            <style>
+              *{margin:0;padding:0;box-sizing:border-box}
+              body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                background:#0d1117;color:#e6edf3;min-height:100vh;
+                display:flex;flex-direction:column;align-items:center;
+                justify-content:center;padding:2rem;text-align:center}
+              .logo{font-size:2.5rem;font-weight:800;margin-bottom:.5rem}
+              .logo span{color:#f97316}
+              .sub{color:#8b949e;margin-bottom:2.5rem;font-size:1rem}
+              .links{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+              a{display:inline-flex;align-items:center;gap:.4rem;padding:.7rem 1.4rem;
+                border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem}
+              .p{background:#f97316;color:#fff}
+              .s{background:#21262d;color:#e6edf3;border:1px solid #30363d}
+              .pid{font-family:monospace;background:#161b22;padding:.3rem .7rem;
+                border-radius:6px;font-size:.7rem;color:#f97316;margin-top:2rem;
+                word-break:break-all;max-width:500px}
+            </style>
+          </head>
+          <body>
+            <div class="logo">Block<span>Bite</span></div>
+            <p class="sub">Automated milestone-based token vesting on Solana</p>
+            <div class="links">
+              <a class="p" href="https://blockbite-tdp.vercel.app">Launch App</a>
+              <a class="s" href="https://app.gitbook.com/invite/ASJZp0v5uf0xfni2ZdZk/Fj4O2cdEAxUlsbx4cftC">Docs</a>
+              <a class="s" href="https://github.com/BlockBite-GameFi/blockbite-smart-contract">GitHub</a>
+            </div>
+            <div class="pid">Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq</div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: /tmp/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  cleanup:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Remove one-shot workflow
+        run: |
+          git config user.email "nayrbryangaming3@gmail.com"
+          git config user.name "nayrbryanGaming"
+          git pull --rebase origin week9-documentation
+          git rm .github/workflows/pages-modern.yml
+          git commit -m "ci: remove one-shot modern Pages deploy workflow"
+          git push origin week9-documentation
