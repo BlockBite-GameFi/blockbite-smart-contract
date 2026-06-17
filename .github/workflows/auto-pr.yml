@@ -1,0 +1,74 @@
+name: Auto Create Week 9 PR
+
+on:
+  push:
+    branches: [week9-documentation]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create PR if not exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if PR already exists
+          EXISTING=$(gh pr list --base main --head week9-documentation --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already exists"
+            gh pr view $EXISTING --json url --jq '.url'
+          else
+            gh pr create \
+              --base main \
+              --head week9-documentation \
+              --title "Week 9: Technical Documentation — BlockBite Protocol" \
+              --body "$(cat <<'PRBODY'
+## Week 9 — Technical Documentation
+
+### Summary
+Complete documentation suite for the BlockBite Solana token vesting + game milestone protocol.
+
+### Deliverables
+- **Instruction Reference** — All 9 on-chain instructions with params, accounts, TypeScript examples, and 21 error codes
+- **Integration Guide** — 15-section step-by-step devnet integration walkthrough with working TypeScript code
+- **6 Architecture Decision Records** — ADR-001 through ADR-006 with alternatives-considered and consequences
+- **VitePress Docs Site** — Full static site built and deployed to `gh-pages` branch
+- **README Updated** — "Quick Integrate in 5 minutes" section added
+
+### Docs Site
+**URL:** https://blockbite-gamefi.github.io/blockbite-smart-contract/
+
+Pages:
+- `/` — Landing page with hero, features, program info
+- `/guide/getting-started` — Architecture, prerequisites, setup
+- `/guide/quickstart` — Complete devnet TypeScript script
+- `/guide/integration` — 15-section integration guide
+- `/reference/instructions` — All 9 instructions documented
+- `/reference/accounts` — Account layouts, fetch helpers
+- `/reference/errors` — All 21 errors with fix table
+- `/reference/pda` — PDA derivation reference
+- `/adr/` — All 6 ADRs
+
+### Acceptance Criteria
+- [x] Instruction reference: all 9 instructions with params, behavior, errors, examples
+- [x] Integration guide: step-by-step with working TypeScript code snippets
+- [x] Architecture decision records: 6 ADRs (exceeds minimum of 3)
+- [x] README updated with Quick Integrate section
+- [x] Marketing teammate review section included in integration guide
+
+### Files Changed
+- `docs-site/` — Complete VitePress documentation site
+- `docs/INSTRUCTION_REFERENCE.md` — Enhanced with TypeScript examples
+- `docs/INTEGRATION_GUIDE.md` — Full rewrite, 15 sections
+- `docs/ARCHITECTURE_DECISIONS.md` — 6 ADRs with code examples
+- `README.md` — Quick integrate section at top
+- `.github/workflows/docs.yml` — Auto-deploy to gh-pages on merge
+PRBODY
+)"
+          fi

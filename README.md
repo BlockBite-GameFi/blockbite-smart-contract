@@ -36,7 +36,7 @@ await program.methods
   .rpc();
 ```
 
-See [`docs/INTEGRATION.md`](./docs/INTEGRATION.md) for the full step-by-step walkthrough with a copy-paste quickstart script.
+See [`docs/INTEGRATION_GUIDE.md`](./docs/INTEGRATION_GUIDE.md) for the full step-by-step walkthrough with a copy-paste quickstart script.
 
 ## Quick Info
 
@@ -150,7 +150,7 @@ anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/id.js
 
 ## Program Instructions
 
-Full parameter tables, error codes, and code examples: [`docs/PROGRAM.md`](./docs/PROGRAM.md)
+Full parameter tables, error codes, and code examples: [`docs/INSTRUCTION_REFERENCE.md`](./docs/INSTRUCTION_REFERENCE.md)
 
 ### Stream Vesting
 
@@ -173,7 +173,7 @@ Full parameter tables, error codes, and code examples: [`docs/PROGRAM.md`](./doc
 
 ## Account Structures
 
-### `StreamAccount` (188 bytes total)
+### `StreamAccount` (188 bytes + 8 discriminator = 196 total)
 
 | Field | Type | Description |
 |---|---|---|
@@ -280,14 +280,9 @@ blockbite-smart-contract/
 ├── clients/                          # Client SDK
 ├── frontend/                         # Next.js frontend (blockbite-tdp.vercel.app)
 ├── docs/
-│   ├── PROGRAM.md                    # Full instruction reference (9 instructions)
-│   ├── INTEGRATION.md                # Step-by-step integration guide
-│   ├── STREAM_MODEL.md               # Account layouts with byte offsets
-│   ├── ADR.md                        # 6 Architecture Decision Records
-│   ├── ERROR_MAP.md                  # 21 error codes with causes and fixes
-│   ├── CLIFF_VESTING.md              # calculate_unlocked deep-dive + 4 vesting modes
-│   ├── TESTING.md                    # Test guide (41 tests)
-│   └── SETUP.md                      # Build, test, deploy
+│   ├── INSTRUCTION_REFERENCE.md      # Full instruction docs with parameters & examples
+│   ├── INTEGRATION_GUIDE.md          # Step-by-step integration tutorial
+│   └── ARCHITECTURE_DECISIONS.md     # 5 ADRs explaining key design choices
 ├── programs/
 │   └── blockbite/src/
 │       ├── lib.rs                    # Program entrypoint (9 instructions)
@@ -359,14 +354,9 @@ yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 
 | Document | Description |
 |---|---|
-| [`docs/PROGRAM.md`](./docs/PROGRAM.md) | Complete reference for all 9 instructions — parameters, accounts, error codes, TypeScript examples |
-| [`docs/INTEGRATION.md`](./docs/INTEGRATION.md) | Step-by-step integration guide with copy-paste code snippets |
-| [`docs/STREAM_MODEL.md`](./docs/STREAM_MODEL.md) | Account layouts with byte offsets, lifecycle diagrams |
-| [`docs/ADR.md`](./docs/ADR.md) | 6 Architecture Decision Records explaining key design choices |
-| [`docs/ERROR_MAP.md`](./docs/ERROR_MAP.md) | All 21 error codes with trigger conditions and fixes |
-| [`docs/CLIFF_VESTING.md`](./docs/CLIFF_VESTING.md) | Deep-dive into `calculate_unlocked`, 4 vesting modes, edge cases |
-| [`docs/TESTING.md`](./docs/TESTING.md) | How to run 41 tests (13 Rust unit + 28 TypeScript integration) |
-| [`docs/SETUP.md`](./docs/SETUP.md) | Prerequisites, build, deploy guide |
+| [`docs/INSTRUCTION_REFERENCE.md`](./docs/INSTRUCTION_REFERENCE.md) | Complete reference for all 9 instructions with parameters, accounts, error codes, and TypeScript examples |
+| [`docs/INTEGRATION_GUIDE.md`](./docs/INTEGRATION_GUIDE.md) | Step-by-step guide to integrate with BlockBite from scratch |
+| [`docs/ARCHITECTURE_DECISIONS.md`](./docs/ARCHITECTURE_DECISIONS.md) | 5 ADRs explaining key design decisions |
 | [`SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md) | Full security audit from Week 7 |
 
 ## Security
