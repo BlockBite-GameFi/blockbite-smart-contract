@@ -1,4 +1,0 @@
-packages:
-  - "apps/web"
-  - "apps/game-server"
-  - "clients/ts"
