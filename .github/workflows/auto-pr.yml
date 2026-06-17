@@ -15,8 +15,12 @@ jobs:
     steps:
       - name: Create PR via GitHub REST API
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT_TOKEN is a repo secret with repo+pull_request scope.
+          # Falls back to GITHUB_TOKEN if PAT_TOKEN is not set.
+          # NOTE: GITHUB_TOKEN requires org "Allow Actions to create PRs" to be enabled.
+          AUTH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
+          GITHUB_TOKEN="$AUTH_TOKEN"
           echo "Checking for existing PR..."
           EXISTING=$(curl -s \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
