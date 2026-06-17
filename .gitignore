@@ -24,3 +24,11 @@ node_modules/
 # Vite / Vitest caches
 .vite/
 **/.vite/
+
+# Local environment files (never commit secrets — only .env.example is tracked)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local

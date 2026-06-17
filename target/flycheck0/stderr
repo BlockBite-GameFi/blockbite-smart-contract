@@ -1,54 +1,16 @@
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
-   2.892857723s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: stale: changed "/home/raisha/blockbite/programs/blockbite/src/instructions/claim_milestone.rs"
-   2.892885780s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:           (vs) "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-5eca2d8fd9dee7d7/dep-lib-blockbite"
-   2.892893399s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1780709681, nanos: 738831612 } < FileTime { seconds: 1780749730, nanos: 708132056 }
-   2.893414631s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: fingerprint dirty for blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite)/Check { test: false }/TargetInner { ..: lib_target("blockbite", ["cdylib", "lib"], "/home/raisha/blockbite/programs/blockbite/src/lib.rs", Edition2021) }
-   2.893448305s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-5eca2d8fd9dee7d7/dep-lib-blockbite", reference_mtime: FileTime { seconds: 1780709681, nanos: 738831612 }, stale: "/home/raisha/blockbite/programs/blockbite/src/instructions/claim_milestone.rs", stale_mtime: FileTime { seconds: 1780749730, nanos: 708132056 } }))
-   3.078089645s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: fingerprint error for blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite)/Check { test: true }/TargetInner { ..: lib_target("blockbite", ["cdylib", "lib"], "/home/raisha/blockbite/programs/blockbite/src/lib.rs", Edition2021) }
-   3.078122735s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/raisha/blockbite/target/debug/.fingerprint/blockbite-8a69acc2f77e3abb/test-lib-blockbite`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: cargo_util::paths::read_bytes
-   1: cargo_util::paths::read
-   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   3: cargo::core::compiler::fingerprint::prepare_target
-   4: cargo::core::compiler::compile
-   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   6: cargo::ops::cargo_compile::compile_ws
-   7: cargo::ops::cargo_compile::compile_with_exec
-   8: cargo::ops::cargo_compile::compile
-   9: cargo::commands::check::exec
-  10: <cargo::cli::Exec>::exec
-  11: cargo::main
-  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  13: std::rt::lang_start::<()>::{closure#0}
-  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/core/src/ops/function.rs:284:21
-  15: std::panicking::catch_unwind::do_call
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panicking.rs:589:40
-  16: std::panicking::catch_unwind
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panicking.rs:552:19
-  17: std::panic::catch_unwind
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panic.rs:359:14
-  18: std::rt::lang_start_internal::{{closure}}
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/rt.rs:175:24
-  19: std::panicking::catch_unwind::do_call
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panicking.rs:589:40
-  20: std::panicking::catch_unwind
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panicking.rs:552:19
-  21: std::panic::catch_unwind
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/panic.rs:359:14
-  22: std::rt::lang_start_internal
-             at /rustc/29483883eed69d5fb4db01964cdf2af4d86e9cb2/library/std/src/rt.rs:171:5
-  23: main
-  24: __libc_start_call_main
-             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
-  25: __libc_start_main_impl
-             at ./csu/../csu/libc-start.c:360:3
-  26: <unknown>
+    Blocking waiting for file lock on package cache
+   4.854286963s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: stale: changed "/home/raisha/blockbite/programs/blockbite/src/instructions/create_stream.rs"
+   4.860730855s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:           (vs) "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-5eca2d8fd9dee7d7/dep-lib-blockbite"
+   4.862289328s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1781266010, nanos: 990077888 } < FileTime { seconds: 1781293470, nanos: 539086643 }
+   4.862859115s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: fingerprint dirty for blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite)/Check { test: false }/TargetInner { ..: lib_target("blockbite", ["cdylib", "lib"], "/home/raisha/blockbite/programs/blockbite/src/lib.rs", Edition2021) }
+   4.863519800s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-5eca2d8fd9dee7d7/dep-lib-blockbite", reference_mtime: FileTime { seconds: 1781266010, nanos: 990077888 }, stale: "/home/raisha/blockbite/programs/blockbite/src/instructions/create_stream.rs", stale_mtime: FileTime { seconds: 1781293470, nanos: 539086643 } }))
+   4.982006406s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: stale: changed "/home/raisha/blockbite/programs/blockbite/src/tests_edge_cases.rs"
+   4.982305668s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:           (vs) "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-8a69acc2f77e3abb/dep-test-lib-blockbite"
+   4.982344848s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1781266010, nanos: 962077601 } < FileTime { seconds: 1781279111, nanos: 839584295 }
+   4.982521835s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint: fingerprint dirty for blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite)/Check { test: true }/TargetInner { ..: lib_target("blockbite", ["cdylib", "lib"], "/home/raisha/blockbite/programs/blockbite/src/lib.rs", Edition2021) }
+   4.986629907s  INFO prepare_target{force=false package_id=blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite) target="blockbite"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/home/raisha/blockbite/target/debug/.fingerprint/blockbite-8a69acc2f77e3abb/dep-test-lib-blockbite", reference_mtime: FileTime { seconds: 1781266010, nanos: 962077601 }, stale: "/home/raisha/blockbite/programs/blockbite/src/tests_edge_cases.rs", stale_mtime: FileTime { seconds: 1781279111, nanos: 839584295 } }))
     Checking blockbite v0.1.0 (/home/raisha/blockbite/programs/blockbite)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.05s
+error: could not compile `blockbite` (lib test) due to 10 previous errors; 18 warnings emitted
+warning: build failed, waiting for other jobs to finish...
