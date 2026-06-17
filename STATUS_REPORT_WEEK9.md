@@ -111,10 +111,10 @@ Built a second-tier production docs site using VitePress v1.6.4:
 - Docsify site renders correctly locally with all navigation, search, and syntax highlighting
 - README "Quick Integrate" snippet uses correct account names and method signatures
 - All PDA seed arrays match `_dispatch.rs` seed declarations
-- GitHub Pages site ready to activate (one-click)
+- **GitHub Pages: LIVE** — https://blockbite-gamefi.github.io/blockbite-smart-contract/ (deployed 2026-06-17)
 
 ### ⚠️ Minor Limitations
-- GitHub Pages URL is live only after manually enabling it in repo Settings (one step, ~30 seconds)
+- PR not yet created to `main` — `auto-pr.yml` requires a `PAT_TOKEN` repo secret (repo scope) because the org has "Allow GitHub Actions to create and approve pull requests" disabled for `GITHUB_TOKEN`. Branch is ready at `week9-documentation`.
 - The `docs/` folder references `SECURITY_CHECKLIST.md` from root — linking kept external to avoid duplicating the file
 - `claim_milestone` quickstart script uses placeholder keypairs that need to be replaced with real wallets
 
@@ -126,8 +126,9 @@ Built a second-tier production docs site using VitePress v1.6.4:
 
 ## Blockers
 
-None blocking delivery. One observation:
+None blocking delivery. One note:
 
+> **PR auto-creation** requires a `PAT_TOKEN` secret with `repo` scope to be added to repo Settings → Secrets. Once added, the `auto-pr.yml` workflow will create the PR automatically on the next push. Current blocker: org-level "Allow GitHub Actions to create and approve pull requests" is disabled for `GITHUB_TOKEN`.
 > **Long filenames in `target/` directory** cause `git checkout` failures on Windows due to MAX_PATH limit. Fixed with `git config core.longpaths true`. This is a Windows-only issue — CI (Linux) is unaffected.
 
 ---
