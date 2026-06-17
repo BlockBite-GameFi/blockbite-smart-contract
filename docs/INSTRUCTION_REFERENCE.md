@@ -3,7 +3,7 @@
 **Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
 **Program ID (Localnet):** `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX`  
 **Framework:** Anchor 1.0.0 · **Network:** Solana Devnet  
-**Last updated:** 2026-06-14
+**Last updated:** 2026-06-17
 
 ---
 
@@ -93,6 +93,7 @@ Creates a new token vesting stream. Transfers `total_amount` from creator's toke
 | `cliff_time` | `i64` | Unix timestamp for cliff unlock. Pass `0` for no cliff. If > 0, no tokens unlock before this time |
 | `seed` | `u64` | Unique seed for PDA derivation — allows multiple streams between the same creator/recipient pair |
 | `milestone_enabled` | `bool` | If `true`, tokens are gated behind `set_milestone` in addition to time |
+| `name` | `[u8; 32]` | Display label for this stream (UTF-8, null-padded to 32 bytes). Max 31 meaningful chars. Does not affect vesting logic. |
 
 **Accounts**
 
@@ -144,15 +145,23 @@ const [escrowPda] = PublicKey.findProgramAddressSync(
   program.programId
 );
 
+// Encode stream name: max 31 UTF-8 chars, null-padded to 32 bytes
+function encodeStreamName(label: string): number[] {
+  const buf = Buffer.alloc(32, 0);
+  Buffer.from(label.slice(0, 31), "utf8").copy(buf);
+  return Array.from(buf);
+}
+
 const now = Math.floor(Date.now() / 1000);
 const tx = await program.methods
   .createStream(
-    new anchor.BN(1_000_000),  // total_amount: 1 000 000 token units
-    new anchor.BN(now),         // start_time: now
-    new anchor.BN(now + 86400), // end_time: 24 h from now
-    new anchor.BN(0),           // cliff_time: none
+    new anchor.BN(1_000_000),           // total_amount: 1 000 000 token units
+    new anchor.BN(now),                  // start_time: now
+    new anchor.BN(now + 86400),          // end_time: 24 h from now
+    new anchor.BN(0),                    // cliff_time: 0 = no cliff
     seed,
-    false                       // milestone_enabled: false (pure linear)
+    false,                               // milestone_enabled: false (pure linear)
+    encodeStreamName("Team Salary Q1")   // name: display label, max 31 chars
   )
   .accounts({
     creator: creator.publicKey,

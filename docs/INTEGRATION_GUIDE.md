@@ -194,14 +194,22 @@ const startTime = new BN(now);
 const endTime   = new BN(now + 86_400); // 24 hours of linear vesting
 const cliffTime = new BN(0);            // no cliff
 
+// Helper: encode stream name into 32-byte null-padded buffer
+function encodeStreamName(label: string): number[] {
+  const buf = Buffer.alloc(32, 0);
+  Buffer.from(label.slice(0, 31), "utf8").copy(buf);
+  return Array.from(buf);
+}
+
 const tx = await program.methods
   .createStream(
-    new BN(1_000_000), // total_amount: 1 000 000 token units
+    new BN(1_000_000),                    // total_amount: 1 000 000 token units
     startTime,
     endTime,
     cliffTime,
     seed,
-    false              // milestone_enabled: false → pure linear vesting
+    false,                                // milestone_enabled: false → pure linear vesting
+    encodeStreamName("Team Salary Q1")    // name: display label, max 31 chars
   )
   .accounts({
     creator: wallet.publicKey,
