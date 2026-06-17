@@ -4,9 +4,6 @@
   "devCommand": "next dev",
   "installCommand": "npm install --legacy-peer-deps",
   "regions": ["sin1"],
-  "env": {
-    "GAME_AUTHORITY_SECRET_KEY": "BqciCC2RF645m4bVAtHZFQuB3eUX3X74UjVRMMSokwNS"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
