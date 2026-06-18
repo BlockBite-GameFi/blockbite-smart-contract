@@ -142,7 +142,7 @@ None blocking delivery. One note:
 | Instructions documented | 9 / 9 (100%) |
 | Error codes documented | 21 / 21 (100%) |
 | ADRs written | 6 |
-| Integration guide steps | 15 (includes Campaign/Milestone flow + polling) |
+| Integration guide steps | 13 (includes Campaign/Milestone flow + state polling) |
 | TypeScript code examples | 20+ working snippets |
 | Docsify site pages | 4 navigable pages with sidebar, search, copy-code |
 | VitePress site pages | 9 HTML pages (landing + 3 guide + 4 reference + 1 ADR) |
@@ -150,7 +150,7 @@ None blocking delivery. One note:
 | StreamAccount size (corrected) | 220 bytes (was wrongly 196 in old README) |
 | StreamAccount fields | 15 fields (name [u8;32] added) |
 | PR branch | `week9-documentation` |
-| Commits this week | 8 documentation commits |
+| Commits this week | 12 docs commits + CI automation (GitHub Pages deploy, auto-PR workflow) |
 
 ---
 
@@ -158,7 +158,7 @@ None blocking delivery. One note:
 
 The biggest gap I found while writing docs: the old README listed `create_stream` with only 5 parameters and a 5-instruction program, but the actual final codebase has **9 instructions** (added the full Campaign/Milestone Reward system in Weeks 5-6) and `create_stream` takes 6 parameters including `milestone_enabled`. **If a developer had followed the old README they would have failed on the first instruction call.**
 
-Documentation debt compounds fast. Writing the integration guide forced me to actually trace every account from `_dispatch.rs` through to the PDA seeds — I found one place where the old README had the wrong account size for `StreamAccount` (was 196, README said 196 but the account breakdown was wrong). Fixed.
+Documentation debt compounds fast. Writing the integration guide forced me to actually trace every account from `_dispatch.rs` through to the PDA seeds — and I found the old README understated `StreamAccount` at **196 bytes** when the real, final layout is **220 bytes** (the `name: [u8; 32]` field added in Weeks 5–6 was never reflected in the docs). A developer sizing a rent-exemption calc off the old number would have under-funded the account. Fixed.
 
 The **CEI pattern** (ADR-002) is the most important architectural decision for anyone integrating or contributing: `claim_milestone` sets `is_claimed = true` *before* the token transfer CPI. This is intentional and must never be "fixed" to happen after.
 
