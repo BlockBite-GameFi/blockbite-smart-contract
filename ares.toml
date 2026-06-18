@@ -7,7 +7,6 @@ max_fuzz_iterations = 100000
 max_scan_duration_secs = 3600
 llm_model = "qwen3.6-plus"
 llm_provider = "openai"
-llm_api_key = "sk-JOrrj5Jq8pqkjiTndxZeo8cOnCWeBAZnJsxoVddx90yBuNwcDwnGuW5IQBqfOC4c"
 llm_base_url = "https://opencode.ai/chat/completions"
 llm_judge_enabled = true
 judge_extended = true
