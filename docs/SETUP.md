@@ -1,26 +1,26 @@
 # Setup Guide — BlockBite
 
-Panduan lengkap untuk setup environment development dan deploy BlockBite.
+Complete guide to set up the BlockBite development environment, run the test suites, and deploy to devnet.
 
 ---
 
-## Prasyarat
+## Prerequisites
 
-| Tool | Versi | Install |
-|------|-------|---------|
-| **Rust** | 1.89.0+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
-| **Solana CLI** | 2.3.0+ | `sh -c "$(curl -sSfL https://release.solana.com/stable/install)"` |
-| **Anchor CLI** | 1.0.0 | `cargo install --git https://github.com/coral-xyz/anchor anchor-cli` |
+| Tool | Version | Install |
+|------|---------|---------|
+| **Rust** | 1.91.0+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| **Solana CLI** | stable (2.3.0+) | `sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"` |
+| **Anchor CLI** | 1.0.0 | `cargo install --git https://github.com/coral-xyz/anchor avm --locked --force && avm install 1.0.0 && avm use 1.0.0` |
 | **Node.js** | 20+ | [nodejs.org](https://nodejs.org) |
 | **Yarn** | 1.22+ | `npm install -g yarn` |
 
-Verifikasi:
+Verify:
 
 ```bash
-rustc --version      # rustc 1.89.0 atau lebih baru
-solana --version     # solana-cli 2.3.0 atau lebih baru
-anchor --version     # anchor-cli 1.0.0 atau lebih baru
-node --version       # v20.x atau lebih baru
+rustc --version        # rustc 1.91.0 or newer
+solana --version       # solana-cli 2.3.0 or newer
+anchor --version       # anchor-cli 1.0.0
+node --version         # v20.x or newer
 ```
 
 ---
@@ -30,24 +30,24 @@ node --version       # v20.x atau lebih baru
 ```bash
 git clone https://github.com/BlockBite-GameFi/blockbite-smart-contract.git
 cd blockbite-smart-contract
-yarn install
+yarn install --frozen-lockfile
 ```
 
 ---
 
-## Konfigurasi Wallet
+## Wallet Configuration
 
 ```bash
-# Generate keypair baru (jika belum ada)
+# Generate a new keypair (skip if you already have one at ~/.config/solana/id.json)
 solana-keygen new --outfile ~/.config/solana/id.json
 
-# Set cluster ke devnet
+# Point at devnet
 solana config set --url devnet
 
-# Airdrop SOL untuk testing
+# Fund for testing
 solana airdrop 2
 
-# Verifikasi saldo
+# Check balance
 solana balance
 ```
 
@@ -59,60 +59,59 @@ solana balance
 anchor build
 ```
 
-Menghasilkan:
+Produces:
 - `target/deploy/blockbite.so` — compiled BPF program
-- `target/idl/blockbite.json` — IDL untuk client
+- `target/idl/blockbite.json` — IDL for clients
 - `target/types/blockbite.ts` — TypeScript types
 
 ---
 
-## Jalankan Tests
+## Run Tests
 
-### Rust Unit Tests (tanpa validator)
+The test suite has two layers: pure-logic Rust unit tests (no validator needed) and full integration tests that spin up a local validator via **Surfpool**.
+
+### Rust unit tests (no validator)
 
 ```bash
-cargo test -p blockbite
+cargo test --package blockbite --lib
 ```
 
-Output yang diharapkan:
-```
-running 13 tests
-test tests::test_linear_at_50_percent ... ok
-test tests::test_cliff_25_percent_after_cliff ... ok
-...
-test result: ok. 13 passed; 0 failed
-```
+Expected: **79 passed; 0 failed** (covers `calculate_unlocked`, cancel, campaign, edge cases, and pure logic).
 
-### TypeScript Integration Tests
+### TypeScript integration tests (with validator)
 
 ```bash
 anchor test
 ```
 
-Output yang diharapkan:
-```
-BlockBite
-  ✓ creates a stream (1200ms)
-  ✓ recipient can withdraw vested tokens (800ms)
-  ✓ creator can cancel a stream (900ms)
-  ...
-  28 passing (45s)
+This uses `anchor test --skip-local-validator` after the CI installs Surfpool — a Solidity-compatible local validator that works around the blockhash issues `solana-test-validator` has on Anchor 1.0.0.
+
+Expected: **28 passing**.
+
+### One-liner (CI uses this)
+
+```bash
+make test            # runs cargo test --package blockbite --lib
+make test-surfpool   # spins up Surfpool, then runs anchor test
 ```
 
 ---
 
-## Deploy ke Devnet
+## Deploy to Devnet
 
 ```bash
 anchor deploy --provider.cluster devnet
 ```
 
-Program ID devnet: `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`
+Program ID: `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`
 
-Verifikasi:
+Verify:
+
 ```bash
-solana program show Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq
+solana program show Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq --url devnet
 ```
+
+For production deploys, prefer the GitHub Actions workflow: **Actions → "Deploy to Devnet" → Run workflow → type `deploy`**. It uses a two-phase `solana program write-buffer` + atomic upgrade, with cleanup on failure to recover the ~2.6 SOL buffer rent.
 
 ---
 
@@ -123,22 +122,34 @@ solana program show Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq
 | **Devnet** | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
 | **Localnet** | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
 
+Both are declared in `Anchor.toml` and synced at build time via `anchor keys sync`.
+
 ---
 
-## Makefile Commands
+## Makefile Targets
 
 ```bash
-make build    # anchor build
-make test     # anchor test
-make deploy   # anchor deploy --provider.cluster devnet
-make lint     # cargo clippy
+make build            # cargo build --package blockbite
+make test             # alias for test-unit
+make test-unit        # cargo test --package blockbite --lib
+make test-surfpool    # run full anchor test suite on Surfpool
+make coverage         # llvm-cov report (excludes _dispatch.rs)
+make coverage-strict  # llvm-cov report (excludes _dispatch.rs + lib.rs)
+make coverage-html    # HTML report → target/coverage/
+make fmt              # cargo fmt --all
+make fmt-check        # cargo fmt --all -- --check
+make clippy           # cargo clippy --package blockbite --all-targets -- -D warnings
 ```
+
+> **Deploy is not a Makefile target** — run `anchor deploy --provider.cluster devnet` directly, or use the CI workflow.
 
 ---
 
 ## CI/CD
 
-| Workflow | Trigger | Apa yang Dijalankan |
-|----------|---------|---------------------|
-| `ci.yml` | Push/PR ke main | Build, Rust tests (13), TypeScript tests (28) |
-| `deploy-devnet.yml` | Manual dispatch | `anchor deploy` ke devnet |
+| Workflow | Trigger | What runs |
+|----------|---------|-----------|
+| `ci.yml` | Push / PR to `main` | Rust build + 79 unit tests + 28 integration tests (uses Surfpool) |
+| `deploy-devnet.yml` | Manual `workflow_dispatch` with `confirm: "deploy"` | Two-phase devnet deploy via Helius RPC |
+
+Required secrets: `ANCHOR_PROGRAM_KEYPAIR`, `DEVNET_DEPLOYER_KEYPAIR`.
