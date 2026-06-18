@@ -10,7 +10,7 @@
 
 BlockBite mengekspos **9 instruksi** yang dibagi menjadi dua subsistem: Stream Vesting dan Campaign & Game Rewards.
 
-> **Catatan:** Program ini tidak emit events on-chain. Untuk tracking state, gunakan `connection.onAccountChange(pda, callback)` atau polling `program.account.<type>.fetch(pda)` secara periodik. Lihat contoh di [Integration Guide](./INTEGRATION.md#polling-state).
+> **Catatan:** Program ini tidak emit events on-chain. Untuk tracking state, gunakan `connection.onAccountChange(pda, callback)` atau polling `program.account.<type>.fetch(pda)` secara periodik. Lihat contoh di [Integration Guide](./INTEGRATION_GUIDE.md#11-read-on-chain-state).
 
 ### Source Layout
 

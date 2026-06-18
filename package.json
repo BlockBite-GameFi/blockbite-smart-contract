@@ -2,11 +2,7 @@
   "name": "blockbite-monorepo",
   "private": true,
   "scripts": {
-    "test": "yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
-    "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
-    "lint": "pnpm -r lint",
-    "test:web": "pnpm --filter apps/web test"
+    "test": "yarn ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",

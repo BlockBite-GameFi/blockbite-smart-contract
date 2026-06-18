@@ -3,6 +3,13 @@ test-ledger/
 
 # Internal tooling directories (not project code)
 .sixth/
+ares.toml
+ares.log
+ares-policy.toml
+ares-output/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
 
 # OS junk
 .DS_Store

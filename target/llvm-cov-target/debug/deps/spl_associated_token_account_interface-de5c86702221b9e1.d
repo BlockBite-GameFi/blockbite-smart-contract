@@ -1,9 +1,0 @@
-/home/raisha/blockbite/target/llvm-cov-target/debug/deps/spl_associated_token_account_interface-de5c86702221b9e1.d: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/address.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/instruction.rs
-
-/home/raisha/blockbite/target/llvm-cov-target/debug/deps/libspl_associated_token_account_interface-de5c86702221b9e1.rlib: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/address.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/instruction.rs
-
-/home/raisha/blockbite/target/llvm-cov-target/debug/deps/libspl_associated_token_account_interface-de5c86702221b9e1.rmeta: /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/lib.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/address.rs /home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/instruction.rs
-
-/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/lib.rs:
-/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/address.rs:
-/home/raisha/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/spl-associated-token-account-interface-2.0.0/src/instruction.rs:

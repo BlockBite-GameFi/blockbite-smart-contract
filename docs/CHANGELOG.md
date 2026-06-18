@@ -9,9 +9,9 @@ Ringkasan perubahan per minggu pengembangan dalam program Mancer S1.
 **Fokus:** Dokumentasi lengkap untuk developer eksternal.
 
 - Tambah `docs/PROGRAM.md` — referensi lengkap semua 9 instruksi dengan parameter, accounts, errors, TypeScript snippets
-- Tambah `docs/INTEGRATION.md` — panduan integrasi step-by-step
+- Tambah `docs/INTEGRATION_GUIDE.md` — panduan integrasi step-by-step
 - Tambah `docs/STREAM_MODEL.md` — layout byte field-by-field StreamAccount, CampaignAccount, MilestoneAccount + lifecycle diagram
-- Tambah `docs/ADR.md` — 6 Architecture Decision Records
+- Tambah `docs/ARCHITECTURE_DECISIONS.md` — 6 Architecture Decision Records
 - Tambah `docs/ERROR_MAP.md` — 21 error codes dengan kondisi dan cara mengatasi
 - Tambah `docs/CLIFF_VESTING.md` — penjelasan `calculate_unlocked`, 4 mode vesting, 13 edge cases
 - Tambah `docs/SETUP.md` — prerequisites, build, test, deploy guide
