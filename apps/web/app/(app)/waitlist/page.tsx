@@ -91,7 +91,7 @@ const LS_DONE  = 'bb_wl_done';
 const LS_EMAIL = 'bb_wl_email';
 
 export default function WaitlistPage() {
-  const { lang, setLang } = useApp();
+  const { lang } = useApp();
   const [email, setEmail] = useState('');
   const [done, setDone]   = useState(false);
   const [busy, setBusy]   = useState(false);

@@ -11,23 +11,6 @@
   transition: background 0.25s, border-color 0.25s;
 }
 
-/* Light mode nav background */
-:global([data-theme='light']) .nav {
-  background: rgba(247, 247, 251, 0.92);
-  border-bottom-color: #e2e8f0;
-}
-:global([data-theme='light']) .nav .logoText {
-  color: #0a0a14;
-}
-:global([data-theme='light']) .nav .link {
-  color: #475569;
-}
-:global([data-theme='light']) .nav .link:hover,
-:global([data-theme='light']) .nav .link.active {
-  color: #6d28d9;
-  background: rgba(109,40,217,0.07);
-}
-
 .inner {
   max-width: 1280px;
   margin: 0 auto;
@@ -192,89 +175,6 @@
 
 .walletBtn { white-space: nowrap; }
 
-/* ── Lang / Theme control group ── */
-.langThemeControls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-/* Mobile lang+theme row inside drawer */
-.mobileLangThemeRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 24px 8px;
-}
-
-/* Language pill container */
-.langPill {
-  display: flex;
-  background: var(--surface, rgba(255,255,255,0.05));
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: 999px;
-  padding: 2px;
-  gap: 2px;
-  transition: border-color 0.15s;
-}
-
-/* Individual lang button */
-.langBtn {
-  border: none;
-  background: transparent;
-  color: var(--text-dim, #94a3b8);
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-weight: 800;
-  font-size: 10px;
-  cursor: pointer;
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  transition: background 0.15s, color 0.15s;
-  letter-spacing: 0.08em;
-  line-height: 1;
-}
-
-.langBtn[data-active='true'] {
-  background: var(--accent, #a78bff);
-  color: #fff;
-}
-
-/* Theme toggle icon */
-.themeIcon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-/* ── Lang / Theme toggles ── */
-.iconToggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: var(--surface, rgba(255,255,255,0.05));
-  border: 1px solid var(--border, rgba(255,255,255,0.1));
-  border-radius: 8px;
-  color: var(--text-dim, #94a3b8);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  flex-shrink: 0;
-}
-
-.iconToggle:hover {
-  background: rgba(167, 139, 250, 0.12);
-  border-color: rgba(167, 139, 250, 0.3);
-  color: var(--accent, #a78bfa);
-}
-
-.langLabel {
-  font-family: 'Space Grotesk', system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
 /* ── Mobile toggle ── */
 .menuToggle {
   display: none;
@@ -326,13 +226,6 @@
 @media (max-width: 768px) {
   .links { display: none; }
   .prizeChip { display: none; }
-  /* langThemeControls moves into the mobile drawer — keep hidden in top bar only */
-  .langThemeControls { display: none; }
   .menuToggle { display: flex; }
   .mobileMenu { display: flex; }
-}
-
-/* Mobile drawer lang+theme row — always visible in drawer */
-@media (max-width: 768px) {
-  .mobileLangThemeRow { display: flex; }
 }

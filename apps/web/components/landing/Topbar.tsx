@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import { SmoothScrollLink } from './SmoothScrollLink';
-import { useApp, type Lang } from '@/lib/useApp';
+import { useApp } from '@/lib/useApp';
 import dynamic from 'next/dynamic';
 
 const CustomWalletButton = dynamic(
@@ -20,7 +20,7 @@ const navLinks = [
 
 export function Topbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { lang, setLang, theme, setTheme, t } = useApp();
+  const { t } = useApp();
 
   return (
     <header className="lp-topbar" id="top">
@@ -52,30 +52,6 @@ export function Topbar() {
         </nav>
 
         <div className="lp-topbar-actions">
-          {/* Lang toggle */}
-          <div className="lp-lang-pill">
-            {(['en', 'id'] as Lang[]).map((l) => (
-              <button
-                key={l}
-                type="button"
-                className={`lp-lang-btn ${lang === l ? 'lp-lang-btn--active' : ''}`}
-                onClick={() => setLang(l)}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
-          {/* Theme toggle */}
-          <button
-            type="button"
-            className="lp-theme-toggle"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? t('theme_to_light') : t('theme_to_dark')}
-          >
-            {theme === 'dark' ? '\u2600' : '\uD83C\uDF19'}
-          </button>
-
           <SmoothScrollLink
             href="#waitlist"
             className="lp-btn waitlist-cta"

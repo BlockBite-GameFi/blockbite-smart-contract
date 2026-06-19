@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import styles from './Navbar.module.css';
-import { useApp, type Lang } from '@/lib/useApp';
+import { useApp } from '@/lib/useApp';
 
 const CustomWalletButton = dynamic(
   () => import('./CustomWalletButton'),
@@ -52,7 +52,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const { lang, setLang, theme, setTheme, t } = useApp();
+  const { t } = useApp();
 
   // Build translated nav links inside the component so they re-render on lang change
   const NAV_LINKS = NAV_HREFS.map(item => ({ name: t(item.key), href: item.href }));
@@ -133,36 +133,6 @@ export default function Navbar() {
         {/* ── Right controls — Veztra clean: Launch App + Wallet only ── */}
         <div className={styles.right}>
 
-          {/* ── Lang + Theme toggles ── */}
-          <div className={styles.langThemeControls}>
-            {/* Language toggle */}
-            <div className={styles.langPill}>
-              {(['en', 'id'] as Lang[]).map(l => (
-                <button
-                  key={l}
-                  type="button"
-                  className={styles.langBtn}
-                  data-active={lang === l ? 'true' : 'false'}
-                  onClick={() => setLang(l)}
-                >
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-
-            {/* Theme toggle */}
-            <button
-              type="button"
-              className={styles.iconToggle}
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? t('theme_to_light') : t('theme_to_dark')}
-            >
-              <span className={styles.themeIcon}>
-                {theme === 'dark' ? '☀' : '🌙'}
-              </span>
-            </button>
-          </div>
-
           <CustomWalletButton />
 
           {/* Launch App primary CTA */}
@@ -213,33 +183,6 @@ export default function Navbar() {
               {t('nav_back')}
             </Link>
           )}
-
-          {/* Lang + Theme in mobile drawer */}
-          <div className={styles.mobileLangThemeRow}>
-            <div className={styles.langPill}>
-              {(['en', 'id'] as Lang[]).map(l => (
-                <button
-                  key={l}
-                  type="button"
-                  className={styles.langBtn}
-                  data-active={lang === l ? 'true' : 'false'}
-                  onClick={() => setLang(l)}
-                >
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className={styles.iconToggle}
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            >
-              <span className={styles.themeIcon}>
-                {theme === 'dark' ? '☀' : '🌙'}
-              </span>
-            </button>
-          </div>
 
           {NAV_LINKS.map((link) => (
             <Link
