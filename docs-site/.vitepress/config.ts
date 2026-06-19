@@ -7,7 +7,7 @@ export default defineConfig({
   base: "/blockbite-smart-contract/",
 
   head: [
-    ["link", { rel: "icon", href: "/blockbite-smart-contract/favicon.ico" }],
+    ["link", { rel: "icon", type: "image/png", href: "/blockbite-smart-contract/favicon.png" }],
     ["meta", { name: "theme-color", content: "#7C3AED" }],
     ["meta", { property: "og:title", content: "BlockBite Developer Docs" }],
     [
@@ -21,7 +21,7 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    logo: "/logo.svg",
+    logo: "/logo.png",
     siteTitle: "BlockBite",
 
     nav: [
