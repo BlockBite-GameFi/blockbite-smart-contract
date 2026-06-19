@@ -6,7 +6,7 @@ hero:
   text: "Token Vesting & Milestone Rewards"
   tagline: "Trustless, automated token distributions on Solana. Replace manual transfers with on-chain schedules enforced by smart contracts — no oversight gaps, no exploits."
   image:
-    src: /logo.svg
+    src: /logo.png
     alt: BlockBite
   actions:
     - theme: brand
