@@ -35,7 +35,6 @@ function mockLookup(pda: string): StreamInfo | null {
 }
 
 export default function MyCampaignPage() {
-  const { lang } = useApp();
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
 
@@ -44,7 +43,7 @@ export default function MyCampaignPage() {
   const [lookupErr, setLookupErr] = useState('');
   const [gameUnlocked, setGameUnlocked] = useState(false);
 
-  const id = lang === 'id';
+  const id = false;
 
   function handleLink() {
     setLookupErr('');

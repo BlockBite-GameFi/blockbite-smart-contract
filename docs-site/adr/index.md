@@ -52,7 +52,7 @@ All Anchor boilerplate (`#[derive(Accounts)]` + thin handler wrappers) lives in 
 
 Solana programs call other programs via CPI. If state is mutated *after* a CPI, a malicious re-entrant program could exploit the window between CPI and state update. Rust's borrow checker catches data-race bugs within a single transaction but cannot detect logical reentrancy across CPI boundaries.
 
-BlockBite has four instructions (`withdraw`, `cancel`, `claim_milestone`, `close_stream`) that mutate state AND transfer tokens.
+BlockBite has four instructions that mutate state AND transfer tokens: `withdraw`, `cancel`, `claim_milestone`, and `close_stream`. (Five other instructions — `create_stream`, `set_milestone`, `create_campaign`, `create_milestone`, `verify_game` — only mutate state or only transfer tokens, not both.)
 
 ### Alternatives Considered
 

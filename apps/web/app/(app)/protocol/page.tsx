@@ -39,9 +39,8 @@ function fmt(n: bigint): string {
 }
 
 export default function ProtocolPage() {
-  const { lang } = useApp();
-  const tx = I18N.protocol[lang];
-  const id = lang === 'id';
+  const tx = I18N.protocol;
+  const id = false;
 
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);
 

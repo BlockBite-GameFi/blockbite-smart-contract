@@ -158,8 +158,7 @@ function IconBtn({
 }
 
 export default function StreamsPage() {
-  const { lang } = useApp();
-  const tx = I18N.streams[lang];
+  const tx = I18N.streams;
   const router = useRouter();
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
@@ -309,15 +308,13 @@ export default function StreamsPage() {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
           }}>
             <span style={{ fontSize: 13, color: T.textDim }}>
-              {lang === 'id'
-                ? 'Hubungkan wallet untuk menyorot stream kamu + buat stream baru'
-                : 'Connect wallet to see your streams highlighted + create new streams'}
+              {'Connect wallet to highlight your streams + create a new one'}
             </span>
             <button
               onClick={() => setVisible(true)}
               style={{ padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', background: T.grad, color: T.text, fontWeight: 700, fontSize: 12 }}
             >
-              {lang === 'id' ? 'Hubungkan Wallet' : 'Connect Wallet'}
+              {'Connect Wallet'}
             </button>
           </div>
         )}
@@ -361,7 +358,7 @@ export default function StreamsPage() {
                 padding: '10px 20px', borderBottom: `1px solid ${T.border}`,
                 background: 'rgba(255,255,255,.03)',
               }}>
-                {[...tx.headers, lang === 'id' ? 'AKSI' : 'ACTIONS'].map(h => (
+                {[...tx.headers, 'ACTIONS'].map(h => (
                   <div key={h} style={{ fontSize: 9.5, color: T.textDim, fontWeight: 700, letterSpacing: '.06em' }}>{h}</div>
                 ))}
               </div>
@@ -420,7 +417,7 @@ export default function StreamsPage() {
                               fontSize: 9, background: `color-mix(in srgb, ${T.accent} 15%, transparent)`,
                               color: T.accent, padding: '1px 5px', borderRadius: 4,
                             }}>
-                              {isOwner ? (lang === 'id' ? 'ANDA' : 'YOU') : (lang === 'id' ? 'PENERIMA' : 'RCPT')}
+                              {isOwner ? ('YOU') : ('RCPT')}
                             </span>
                           )}
                         </div>
@@ -465,7 +462,7 @@ export default function StreamsPage() {
                       onClick={e => e.stopPropagation()}
                     >
                       <button
-                        title={lang === 'id' ? 'Buka detail & klaim token' : 'Open detail & claim tokens'}
+                        title={'Open detail & claim tokens'}
                         onClick={e => { e.stopPropagation(); router.push(href); }}
                         style={{
                           padding: '3px 10px', borderRadius: 6,
@@ -475,23 +472,23 @@ export default function StreamsPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {lang === 'id' ? 'Buka →' : 'View →'}
+                        {'View →'}
                       </button>
                       <IconBtn
-                        label={lang === 'id' ? '⎘ Salin Link' : '⎘ Copy Link'}
+                        label={'⎘ Copy Link'}
                         done={copied[linkKey]}
                         color={T.accent}
                         onClick={() => doCopy(linkKey, streamUrl)}
                       />
                       <IconBtn
-                        label={lang === 'id' ? '◈ Salin CA' : '◈ Copy CA'}
+                        label={'◈ Copy CA'}
                         done={copied[mintKey]}
                         color={T.gold}
                         onClick={() => doCopy(mintKey, mintAddr)}
                       />
                       {canCancel && (
                         <button
-                          title={lang === 'id' ? 'Batalkan stream ini' : 'Cancel this stream'}
+                          title={'Cancel this stream'}
                           onClick={e => { e.stopPropagation(); router.push(`${href}#cancel`); }}
                           style={{
                             padding: '3px 8px', borderRadius: 6,
@@ -501,7 +498,7 @@ export default function StreamsPage() {
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          {lang === 'id' ? '✕ Batalkan' : '✕ Cancel'}
+                          {'✕ Cancel'}
                         </button>
                       )}
                     </div>
@@ -514,7 +511,7 @@ export default function StreamsPage() {
                 {tx.tableFooter}
                 {streams.length > 0 && (
                   <button onClick={load} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: T.accent, fontSize: 11 }}>
-                    {lang === 'id' ? '↻ Perbarui' : '↻ Refresh'}
+                    {'↻ Refresh'}
                   </button>
                 )}
               </div>

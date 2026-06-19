@@ -15,83 +15,45 @@ const CORAL    = '#d94553';
 const GRAD_MAIN = `linear-gradient(135deg, ${MAGENTA}, ${PURPLE})`;
 const GRAD_ALT  = `linear-gradient(135deg, ${TEAL}, ${GOLD})`;
 
-/* ── I18N ── */
+/* ── I18N (locked to English) ── */
 const I18N = {
-  en: {
-    badge: 'SOLANA ECOSYSTEM · EARLY ACCESS',
-    h1: 'Stop Distributing',
-    h1grad: 'Tokens Blindly.',
-    sub: 'Reclaim your time and eliminate the risk of manual errors. Replace manual spreadsheets with an automated system that handles vesting, streaming, distribution, and verification in one place.',
-    target: 'For Solana Ecosystem Builders & Project Founders',
-    cta: 'Join the Waitlist',
-    success: 'You\'re on the list! We\'ll notify you when BlockBite launches.',
-    stats: [
-      { v: '100%', l: 'ON-CHAIN' },
-      { v: 'Auto', l: 'SMART CONTRACT' },
-      { v: 'W4', l: 'DEVNET' },
-      { v: '', l: 'WAITLIST', dynamic: true },
-    ],
-    features: [
-      { color: PURPLE,  t: 'Modular Verification Layers', d: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
-      { color: TEAL,    t: 'Adaptive Tokenomics Logic', d: 'Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project\'s unique roadmap and specific distribution needs.' },
-      { color: MAGENTA, t: 'Eliminate Manual Overhead', d: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.' },
-      { color: GOLD,    t: 'Active Clawback Control', d: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.' },
-      { color: CORAL,   t: 'Professional Standard Security', d: 'BlockBite ensures that project assets are locked securely while providing transparent, on chain proof for every single distribution.' },
-    ],
-    featTitle: 'Why BlockBite?',
-    featKicker: 'CORE FEATURES',
-    howTitle: 'Get Started in 4 Steps',
-    howKicker: 'HOW IT WORKS',
-    steps: [
-      { t: 'Connect & Import Data', d: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
-      { t: 'Define Tokenomics', d: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
-      { t: 'Set Verification Layer', d: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
-      { t: 'Lock, Launch & Manage', d: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
-    ],
-    footer: '© 2026 BlockBite · Built on Solana',
-  },
-  id: {
-    badge: 'EKOSISTEM SOLANA · AKSES AWAL',
-    h1: 'Hentikan Distribusi',
-    h1grad: 'Token Sembarangan.',
-    sub: 'Hemat waktumu dan hilangkan risiko kesalahan manual. Ganti spreadsheet manual dengan sistem otomatis yang menangani vesting, streaming, distribusi, dan verifikasi dalam satu tempat.',
-    target: 'Untuk Builder & Founder Ekosistem Solana',
-    cta: 'Daftar Waitlist',
-    success: 'Kamu sudah terdaftar! Kami akan notifikasi saat BlockBite meluncur.',
-    stats: [
-      { v: '100%', l: 'ON-CHAIN' },
-      { v: 'Otomatis', l: 'SMART CONTRACT' },
-      { v: 'W4', l: 'DEVNET' },
-      { v: '', l: 'WAITLIST', dynamic: true },
-    ],
-    features: [
-      { color: PURPLE,  t: 'Lapisan Verifikasi Modular', d: 'Kendalikan cara pengguna mengakses token mereka. Pilih antara klaim langsung yang sederhana untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
-      { color: TEAL,    t: 'Logika Tokenomics Adaptif', d: 'Pilih antara linear streaming, cliff vesting, atau milestone based unlocks yang sesuai dengan roadmap unik proyekmu dan kebutuhan distribusi spesifik.' },
-      { color: MAGENTA, t: 'Hilangkan Overhead Manual', d: 'Berhenti membuang ratusan jam untuk distribusi manual dan pengecekan spreadsheet silang.' },
-      { color: GOLD,    t: 'Kontrol Clawback Aktif', d: 'Lindungi treasurymu dari kontrak yang gagal atau pivot proyek. Fitur clawback bawaan kami memungkinkan builder merebut kembali token yang belum vested secara instan.' },
-      { color: CORAL,   t: 'Keamanan Standar Profesional', d: 'BlockBite memastikan aset proyek terkunci dengan aman sambil menyediakan bukti transparan on-chain untuk setiap distribusi.' },
-    ],
-    featTitle: 'Kenapa BlockBite?',
-    featKicker: 'FITUR UTAMA',
-    howTitle: 'Mulai dalam 4 Langkah',
-    howKicker: 'CARA KERJA',
-    steps: [
-      { t: 'Hubungkan & Impor Data', d: 'Hubungkan walletmu dan upload daftar penerima via CSV atau input manual dalam hitungan detik.' },
-      { t: 'Tentukan Tokenomics', d: 'Sesuaikan strategi perilisan menggunakan linear vesting, periode cliff, atau distribusi berbasis milestone.' },
-      { t: 'Atur Lapisan Verifikasi', d: 'Pilih antara klaim langsung yang sederhana untuk kemudahan maksimal, atau verifikasi gamified sebagai filter anti-bot.' },
-      { t: 'Kunci, Luncurkan & Kelola', d: 'Kunci aset untuk mengotomasi klaim pengguna. Monitor distribusi secara real-time dengan kontrol Clawback penuh.' },
-    ],
-    footer: '© 2026 BlockBite · Dibangun di Solana',
-  },
+  badge: 'SOLANA ECOSYSTEM · EARLY ACCESS',
+  h1: 'Stop Distributing',
+  h1grad: 'Tokens Blindly.',
+  sub: 'Reclaim your time and eliminate the risk of manual errors. Replace manual spreadsheets with an automated system that handles vesting, streaming, distribution, and verification in one place.',
+  target: 'For Solana Ecosystem Builders & Project Founders',
+  cta: 'Join the Waitlist',
+  success: 'You\'re on the list! We\'ll notify you when BlockBite launches.',
+  stats: [
+    { v: '100%', l: 'ON-CHAIN' },
+    { v: 'Auto', l: 'SMART CONTRACT' },
+    { v: 'W4', l: 'DEVNET' },
+    { v: '', l: 'WAITLIST', dynamic: true },
+  ],
+  features: [
+    { color: PURPLE,  t: 'Modular Verification Layers', d: 'Take control over how users access their tokens. Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
+    { color: TEAL,    t: 'Adaptive Tokenomics Logic', d: 'Choose between linear streaming, cliff vesting, or milestone based unlocks to match your project\'s unique roadmap and specific distribution needs.' },
+    { color: MAGENTA, t: 'Eliminate Manual Overhead', d: 'Stop wasting hundreds of hours on manual distributions and cross checking spreadsheets.' },
+    { color: GOLD,    t: 'Active Clawback Control', d: 'Protect your treasury from broken contracts or project pivots. Our built-in clawback feature allows builders to reclaim unvested tokens instantly.' },
+    { color: CORAL,   t: 'Professional Standard Security', d: 'BlockBite ensures that project assets are locked securely while providing transparent, on chain proof for every single distribution.' },
+  ],
+  featTitle: 'Why BlockBite?',
+  featKicker: 'CORE FEATURES',
+  howTitle: 'Get Started in 4 Steps',
+  howKicker: 'HOW IT WORKS',
+  steps: [
+    { t: 'Connect & Import Data', d: 'Connect your wallet and upload your recipient list via CSV or manual entry in seconds.' },
+    { t: 'Define Tokenomics', d: 'Customize your release strategy using linear vesting, cliff periods, or milestone-based distribution.' },
+    { t: 'Set Verification Layer', d: 'Choose between a simple direct claim for maximum ease, or gamified verification to act as an anti-bots filter.' },
+    { t: 'Lock, Launch & Manage', d: 'Lock assets to automate user claims. Monitor distribution in real-time with absolute Clawback control.' },
+  ],
+  footer: '© 2026 BlockBite · Built on Solana',
 };
-
-type Lang = 'en' | 'id';
 
 const LS_DONE  = 'bb_wl_done';
 const LS_EMAIL = 'bb_wl_email';
 
 export default function WaitlistPage() {
-  const { lang } = useApp();
   const [email, setEmail] = useState('');
   const [done, setDone]   = useState(false);
   const [busy, setBusy]   = useState(false);
@@ -101,7 +63,7 @@ export default function WaitlistPage() {
   const [count, setCount]     = useState<number>(0);
 
   const cvs = useRef<HTMLCanvasElement>(null);
-  const txt = I18N[lang];
+  const txt = I18N;
 
   useEffect(() => {
     try {
@@ -300,7 +262,7 @@ export default function WaitlistPage() {
                   type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submit()}
-                  placeholder={lang === 'en' ? 'your@email.com' : 'email@anda.com'}
+                  placeholder={'your@email.com'}
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '15px 20px', borderRadius: 12,
@@ -320,16 +282,16 @@ export default function WaitlistPage() {
                     boxShadow: `0 4px 32px ${MAGENTA}44`, transition: '0.15s', letterSpacing: '0.5px',
                   }}
                 >
-                  {busy ? (lang === 'en' ? 'Joining...' : 'Mendaftar...') : txt.cta}
+                  {busy ? ('Joining...') : txt.cta}
                 </button>
                 {rateLimited && (
                   <div style={{ color: CORAL, fontSize: 13, fontFamily: 'Roboto,sans-serif', textAlign: 'center' }}>
-                    {lang === 'en' ? 'Too many attempts. Please wait 60 seconds.' : 'Terlalu banyak percobaan. Tunggu 60 detik.'}
+                    {'Too many attempts. Please wait 60 seconds.'}
                   </div>
                 )}
                 {serverErr && (
                   <div style={{ color: CORAL, fontSize: 13, fontFamily: 'Roboto,sans-serif', textAlign: 'center' }}>
-                    {lang === 'en' ? 'Server error. Please try again in a moment.' : 'Kesalahan server. Coba lagi sebentar lagi.'}
+                    {'Server error. Please try again in a moment.'}
                   </div>
                 )}
               </>
@@ -429,9 +391,7 @@ export default function WaitlistPage() {
               Ready to secure your token distribution?
             </div>
             <p style={{ color: T.textDim, fontSize: 15, marginBottom: 28, lineHeight: 1.6, fontFamily: 'Roboto,sans-serif' }}>
-              {lang === 'en'
-                ? 'Join the waitlist and be first to automate trust-minimized vesting on Solana.'
-                : 'Daftar waitlist dan jadilah yang pertama mengotomasi vesting berbasis kepercayaan di Solana.'}
+              {'Join the waitlist and be first to automate trust-minimized vesting on Solana.'}
             </p>
             {!done ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 400, margin: '0 auto', width: '100%' }}>
@@ -440,7 +400,7 @@ export default function WaitlistPage() {
                   type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && submit()}
-                  placeholder={lang === 'en' ? 'your@email.com' : 'email@anda.com'}
+                  placeholder={'your@email.com'}
                   style={{
                     width: '100%', boxSizing: 'border-box',
                     padding: '14px 18px', borderRadius: 12,

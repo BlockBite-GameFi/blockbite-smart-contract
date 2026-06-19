@@ -1,16 +1,13 @@
 /**
  * lib/theme.ts — Global CSS-variable token constants
  *
- * These strings reference CSS custom properties defined in styles/globals.css.
- * The browser resolves them at paint time, so they automatically switch when
- * `data-theme` changes on <html> — no re-render required for color updates.
+ * These strings reference CSS custom properties defined in app/globals.css.
+ * The browser resolves them at paint time. The palette is locked to dark
+ * mode (no theme switching), so values never change at runtime.
  *
  * Usage in inline styles:
  *   import { T } from '@/lib/theme';
  *   <div style={{ background: T.bg, color: T.text }} />
- *
- * For semi-transparent alpha variants, use the T.alpha() helper:
- *   <div style={{ background: T.alpha('accent', 0.12) }} />
  */
 
 // ─── Primary token map ────────────────────────────────────────────────────────

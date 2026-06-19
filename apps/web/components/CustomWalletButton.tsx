@@ -12,8 +12,7 @@ function shortenAddress(address: string) {
 export default function CustomWalletButton() {
   const { wallet, wallets, publicKey, disconnect, connecting, connected, select, connect } = useWallet();
   const { setVisible } = useWalletModal();
-  const { lang } = useApp();
-  const isId = lang === 'id';
+  const isId = false;
   const TX = {
     connect:       isId ? 'Hubungkan Wallet' : 'Connect Wallet',
     connecting:    isId ? 'Menghubungkan...' : 'Connecting...',

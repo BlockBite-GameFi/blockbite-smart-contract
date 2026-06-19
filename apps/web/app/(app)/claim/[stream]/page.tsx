@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
@@ -14,7 +14,6 @@ import {
   fetchStream, deriveStreamPDA, deriveVaultPDA,
   withdraw, ensureAtaIx, deriveProofCachePDA, computeUnlocked,
 } from '@/lib/anchor/vesting-client';
-import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';
 
 const ONE_DAY = 86_400;
@@ -42,11 +41,6 @@ export default function ClaimPage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
-  const { lang } = useApp();
-
-  // Keep lang in a ref so callbacks can read current value without being re-created
-  const langRef = useRef(lang);
-  useEffect(() => { langRef.current = lang; }, [lang]);
 
   // Resolve URL param into a stream PDA. Supports two forms.
   const streamPda = useMemo(() => {
@@ -76,7 +70,7 @@ export default function ClaimPage() {
 
   const refresh = useCallback(async () => {
     if (!streamPda) {
-      setError(langRef.current === 'id' ? 'URL stream tidak valid.' : 'Invalid stream URL.');
+      setError('Invalid stream URL.');
       setLoading(false);
       return;
     }
@@ -84,9 +78,7 @@ export default function ClaimPage() {
     try {
       const data = await fetchStream(connection, streamPda);
       if (!data) {
-        setError(langRef.current === 'id'
-          ? 'Stream tidak ditemukan on-chain. Verifikasi tautannya.'
-          : 'Stream not found on-chain. Verify the link.');
+        setError('Stream not found on-chain. Verify the link.');
         setStream(null);
       } else {
         setStream(data);
@@ -184,7 +176,7 @@ export default function ClaimPage() {
     }
   }, [publicKey, stream, streamPda, sendTransaction, connection, refresh]);
 
-  const id = lang === 'id';
+  const id = false;
   const vestedLabel  = id ? 'TERVESTING'         : 'VESTED';
   const claimNow     = id ? 'BISA DIKLAIM'        : 'CLAIMABLE NOW';
   const alreadyWith  = id ? 'SUDAH DITARIK'       : 'ALREADY WITHDRAWN';

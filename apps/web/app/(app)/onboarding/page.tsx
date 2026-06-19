@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';
 
 const C = {
@@ -81,9 +80,8 @@ const SLIDES_ID = [
 ];
 
 export default function OnboardingPage() {
-  const { lang } = useApp();
   const [idx, setIdx] = useState(0);
-  const slides = lang === 'id' ? SLIDES_ID : SLIDES_EN;
+  const slides = SLIDES_EN;
   const s = slides[idx];
   const isLast = idx === slides.length - 1;
 
@@ -154,7 +152,7 @@ export default function OnboardingPage() {
                   fontFamily: C.serif, fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                ← {lang === 'id' ? 'Kembali' : 'Back'}
+                ← {'Back'}
               </button>
             )}
             {!isLast ? (
@@ -168,7 +166,7 @@ export default function OnboardingPage() {
                   cursor: 'pointer', boxShadow: `0 0 20px ${s.color}44`,
                 }}
               >
-                {lang === 'id' ? 'Lanjut' : 'Next'} →
+                {'Next'} →
               </button>
             ) : (
               <Link
@@ -181,7 +179,7 @@ export default function OnboardingPage() {
                   boxShadow: `0 0 20px ${C.green}44`,
                 }}
               >
-                ▶ {lang === 'id' ? 'Mulai Main' : 'Start Playing'}
+                ▶ {'Start Playing'}
               </Link>
             )}
           </div>

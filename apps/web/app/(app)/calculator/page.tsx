@@ -42,8 +42,7 @@ function Card({ children, glow, style = {} }: { children: React.ReactNode; glow?
 }
 
 export default function CalculatorPage() {
-  const { lang } = useApp();
-  const tx = I18N.calculator[lang];
+  const tx = I18N.calculator;
 
   const [supply,    setSupply]    = useState(100_000_000);
   const [team,      setTeam]      = useState(15);

@@ -112,7 +112,7 @@ This week I focused on:
 ## What's Working Well
 
 - **Smart contract correctness:** 41/41 tests passing (13 Rust unit + 28 TypeScript integration). Every happy-path and error-path case is covered.
-- **RPC resilience:** The multi-tier `withRpcFallback` system handles Ankr rate limits, official devnet `getProgramAccounts` blocks, and endpoint timeouts transparently. Users never see a blank error — it just works.
+- **RPC resilience:** The multi-tier `withRpcFallback` system handles Helius auth/rate issues, official devnet `getProgramAccounts` blocks, and endpoint timeouts transparently. Users never see a blank error — it just works.
 - **End-to-end UX:** The create → streams → detail → claim / cancel flow is smooth. The 3-stage transaction progress bar (approve → sending → confirmed) gives users clear feedback.
 - **Vesting curve visualisation:** The SVG chart on the stream detail page renders the correct curve shape (linear, cliff, hybrid, milestone) from real on-chain timestamps.
 - **Error humanisation:** Raw Solana/Anchor error codes are translated into plain language before showing to users.

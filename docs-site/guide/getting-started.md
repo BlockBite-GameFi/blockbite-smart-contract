@@ -135,10 +135,9 @@ blockbite-smart-contract/
 │       ├── create_milestone.rs   # init_milestone pure function
 │       ├── verify_game.rs        # verify_game_impl pure function
 │       └── claim_milestone.rs    # mark_milestone_claimed pure function
-├── tests/blockbite.ts            # 28 integration tests (TypeScript/Mocha)
+├── tests/blockbite.ts            # 29 integration tests (TypeScript/Mocha)
 ├── clients/ts/                   # TypeScript client SDK
-├── frontend/                     # Next.js frontend
-├── apps/game-server/             # Game server backend
+├── apps/web/                     # Next.js 14 frontend (dark mode, English)
 └── docs/                         # Markdown source docs
 ```
 

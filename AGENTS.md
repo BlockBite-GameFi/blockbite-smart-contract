@@ -3,31 +3,40 @@
 ## Project Structure
 
 ```
-blockbite-smart-contract/
+blockbite/
 ├── .github/workflows/
-│   ├── ci.yml               # Build + 41 tests on every push
+│   ├── ci.yml               # Build + 79 Rust + 29 TS tests on every push
 │   └── deploy-devnet.yml    # Manual devnet deployment
-├── blockbite/               ← ALL Anchor commands run from HERE
-│   ├── Anchor.toml          # anchor_version = "0.32.1"
-│   ├── Cargo.toml           # workspace: programs/blockbite
-│   ├── programs/blockbite/src/
-│   │   ├── lib.rs           # 5 instructions exposed
-│   │   ├── constants.rs     # VGPV + DEV_FEE constants
-│   │   ├── errors.rs        # 17 error codes
-│   │   ├── utils.rs         # calculate_unlocked + 13 unit tests
-│   │   ├── tests_cancel.rs  # Cancel logic unit tests
-│   │   ├── state/stream.rs  # StreamAccount (196 bytes)
-│   │   └── instructions/
-│   │       ├── create_stream.rs
-│   │       ├── withdraw.rs
-│   │       ├── cancel.rs
-│   │       ├── set_milestone.rs
-│   │       └── close_stream.rs
-│   └── tests/blockbite.ts   # 28 integration tests
+├── Anchor.toml              # anchor_version = "1.0.0"
+├── Cargo.toml               # workspace: programs/blockbite
+├── programs/blockbite/src/
+│   ├── lib.rs               # 9 instructions exposed
+│   ├── constants.rs         # VGPV + DEV_FEE constants
+│   ├── errors.rs            # 17 error codes
+│   ├── utils.rs             # calculate_unlocked
+│   ├── tests_logic.rs       # Unlock math + pure logic
+│   ├── tests_cancel.rs      # Cancel logic
+│   ├── tests_edge_cases.rs  # Boundary conditions
+│   ├── tests_campaign.rs    # Campaign/milestone system
+│   ├── state/stream.rs      # StreamAccount (196 bytes)
+│   └── instructions/
+│       ├── create_stream.rs
+│       ├── withdraw.rs
+│       ├── cancel.rs
+│       ├── set_milestone.rs
+│       ├── close_stream.rs
+│       ├── create_campaign.rs
+│       ├── create_milestone.rs
+│       ├── verify_game.rs
+│       └── claim_milestone.rs
+├── tests/blockbite.ts       # 29 TypeScript integration tests
+├── apps/web/                # Next.js 14 front-end (dark mode, English only)
+├── apps/game-server/        # (Removed — web app has its own /api/game/* routes)
+├── clients/ts/              # TypeScript SDK client
+├── docs/                    # Architecture Decision Records, weekly reports
+├── docs-site/               # VitePress documentation
 └── README.md
 ```
-
-**Repo root** contains only `.github/`, `AGENTS.md`, `README.md`, `.gitignore`.
 
 ## Critical: Working Directory
 
@@ -63,7 +72,7 @@ anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/id.js
 
 | Tool | Version |
 |---|---|
-| Anchor | 0.32.1 (via avm) |
+| Anchor | 1.0.0 (via avm — anchor_version in `Anchor.toml`) |
 | Rust | stable (1.89.0+) |
 | Solana CLI | stable (2.3.0+) |
 | Node.js | 20 |
@@ -71,22 +80,29 @@ anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/id.js
 
 ## Program ID
 
-`Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` (devnet + localnet)
+| Network | Program ID |
+|---|---|
+| Devnet  | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
+| Localnet | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
 
-Defined in `blockbite/programs/blockbite/src/lib.rs` via `declare_id!()`.
-Keypair: `blockbite/target/deploy/blockbite-keypair.json` (also GitHub secret `ANCHOR_PROGRAM_KEYPAIR`).
+Defined in `programs/blockbite/src/lib.rs` via `declare_id!()`.
+Keypair: `target/deploy/blockbite-keypair.json` (also GitHub secret `ANCHOR_PROGRAM_KEYPAIR`).
 
 ## Architecture
 
-### 5 Instructions
+### 9 Instructions
 
 | Instruction | File | Signer | Purpose |
 |---|---|---|---|
-| `create_stream` | `create_stream.rs` | creator | Deposit tokens into escrow PDA, set vesting schedule |
-| `withdraw` | `withdraw.rs` | recipient | Claim pro-rata unlocked tokens (VGPV + dust guard) |
-| `cancel` | `cancel.rs` | creator | Cancel stream, split escrow between parties |
-| `set_milestone` | `set_milestone.rs` | creator | Unlock cliff-gated vesting by confirming a KPI |
-| `close_stream` | `close_stream.rs` | creator | Close settled stream, recover rent SOL |
+| `create_stream`   | `create_stream.rs`   | creator    | Deposit tokens into escrow PDA, set vesting schedule |
+| `withdraw`        | `withdraw.rs`        | recipient  | Claim pro-rata unlocked tokens (VGPV + dust guard) |
+| `cancel`          | `cancel.rs`          | creator    | Cancel stream, split escrow between parties |
+| `set_milestone`   | `set_milestone.rs`   | creator    | Unlock cliff-gated vesting by confirming a KPI |
+| `close_stream`    | `close_stream.rs`    | creator    | Close settled stream, recover rent SOL |
+| `create_campaign` | `create_campaign.rs` | creator    | Initialize a CampaignAccount |
+| `create_milestone`| `create_milestone.rs`| creator    | Add a milestone gate to an existing stream |
+| `verify_game`     | `verify_game.rs`     | game auth  | Sign game-level completion (anti-bot oracle) |
+| `claim_milestone` | `claim_milestone.rs` | recipient  | Claim tokens unlocked by a verified milestone |
 
 ### PDA Seeds
 
@@ -138,8 +154,8 @@ All arithmetic uses `checked_*` or `u128` intermediate — never raw operators.
 | Category | Count |
 |---|---|
 | Rust unit tests (unlock math + cancel + campaign + edge cases + pure logic) | 83 |
-| TypeScript integration tests | 28 |
-| **Total** | **111** |
+| TypeScript integration tests | 32 |
+| **Total** | **115** |
 
 ## Code Coverage
 
@@ -158,7 +174,7 @@ make coverage
 | `make coverage-strict` | 99.4% | 100% | 98.4% | `lib.rs` (9 BPF dispatch wrappers) + `_dispatch.rs` (9 Account structs + 9 `*_handler` fns) |
 | `make coverage` | 93.1% | 91.4% | 94.7% | `_dispatch.rs` only |
 
-**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic (validation, state mutation, computation) lives in the per-instruction files (create_stream.rs, withdraw.rs, etc.) as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested via `tests_logic.rs`, `tests_campaign.rs`, `tests_edge_cases.rs`, and `tests_cancel.rs`. The 26/26 TS integration tests cover the BPF dispatch end-to-end on a real validator.
+**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic (validation, state mutation, computation) lives in the per-instruction files (create_stream.rs, withdraw.rs, etc.) as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested via `tests_logic.rs`, `tests_campaign.rs`, `tests_edge_cases.rs`, and `tests_cancel.rs`. The 29/29 TS integration tests cover the BPF dispatch end-to-end on a real validator.
 
 ## Test Quirks
 
@@ -207,5 +223,6 @@ git push origin main
 |---|---|
 | `test-ledger/` | Generated by local validator; in root `.gitignore` |
 | `.sixth/` | Internal tooling; in root `.gitignore` |
-| `blockbite/target/` | Build artifacts; in `blockbite/.gitignore` |
-| `blockbite/node_modules/` | Node deps; in `blockbite/.gitignore` |
+| `target/` | Build artifacts; in root `.gitignore` |
+| `node_modules/` | Node deps; in root `.gitignore` |
+| `apps/game-server/` | Removed; web app has its own `/api/game/*` routes |

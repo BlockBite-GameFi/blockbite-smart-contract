@@ -22,12 +22,11 @@ export default function PlayLevelPage() {
   const params = useParams<{ level: string }>();
   const level = Math.max(1, parseInt(params.level || '1', 10));
   const router = useRouter();
-  const { lang } = useApp();
 
   const TX = {
-    backToMap: lang === 'id' ? 'KEMBALI KE PETA' : 'BACK TO MAP',
-    level:     lang === 'id' ? 'LEVEL'            : 'LEVEL',
-    act:       lang === 'id' ? 'BABAK'            : 'ACT',
+    backToMap: 'BACK TO MAP',
+    level:     'LEVEL',
+    act:       'ACT',
   };
 
   // Pick the biome that owns this level so the in-game backdrop matches the

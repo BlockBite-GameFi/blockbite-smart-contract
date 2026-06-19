@@ -47,8 +47,7 @@ function fmtAmt(n: BN | undefined): string {
 }
 
 export default function MilestonesPage() {
-  const { lang } = useApp();
-  const tx = I18N.milestones[lang];
+  const tx = I18N.milestones;
 
   const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
@@ -148,7 +147,7 @@ export default function MilestonesPage() {
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={() => setVisible(true)} style={{ padding: '12px 28px', borderRadius: 12, border: 'none', cursor: 'pointer', background: T.grad, color: '#fff', fontWeight: 700, fontSize: 14, fontFamily: T.serif }}>{tx.connectBtn}</button>
-              <Link href="/demo#milestones" style={{ padding: '12px 24px', borderRadius: 12, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}>{I18N.common[lang].viewDemo}</Link>
+              <Link href="/demo#milestones" style={{ padding: '12px 24px', borderRadius: 12, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 13, textDecoration: 'none', display: 'inline-block' }}>{I18N.common.viewDemo}</Link>
             </div>
           </div>
         )}
@@ -157,7 +156,7 @@ export default function MilestonesPage() {
 
         {error && (
           <div style={{ padding: '12px 16px', borderRadius: 10, background: T.redA1, border: `1px solid ${T.red}`, fontSize: 12, color: T.red, marginBottom: 16 }}>
-            RPC error: {error} · <button onClick={load} style={{ background: 'none', border: 'none', color: T.accent, cursor: 'pointer', fontSize: 12 }}>{I18N.common[lang].retry}</button>
+            RPC error: {error} · <button onClick={load} style={{ background: 'none', border: 'none', color: T.accent, cursor: 'pointer', fontSize: 12 }}>{I18N.common.retry}</button>
           </div>
         )}
 
@@ -166,8 +165,8 @@ export default function MilestonesPage() {
             <div style={{ fontFamily: T.serif, fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{tx.noStreamsTitle}</div>
             <p style={{ color: T.textDim, fontSize: 13, marginBottom: 20 }}>{tx.noStreamsSub}</p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link href="/new" style={{ padding: '10px 22px', borderRadius: 10, background: T.grad, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>{I18N.common[lang].createStream}</Link>
-              <Link href="/demo#milestones" style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 12, textDecoration: 'none' }}>{I18N.common[lang].viewDemo}</Link>
+              <Link href="/new" style={{ padding: '10px 22px', borderRadius: 10, background: T.grad, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>{I18N.common.createStream}</Link>
+              <Link href="/demo#milestones" style={{ padding: '10px 18px', borderRadius: 10, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 12, textDecoration: 'none' }}>{I18N.common.viewDemo}</Link>
             </div>
           </div>
         )}
@@ -236,7 +235,7 @@ export default function MilestonesPage() {
                       </p>
                       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                         <Link href="/audit" style={{ padding: '8px 18px', borderRadius: 10, background: T.blueA1, border: `1px solid ${T.blue}`, color: T.blue, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>{tx.viewAuditTrail}</Link>
-                        <Link href="/demo#milestones" style={{ padding: '8px 14px', borderRadius: 10, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 12, textDecoration: 'none' }}>{I18N.common[lang].viewDemo}</Link>
+                        <Link href="/demo#milestones" style={{ padding: '8px 14px', borderRadius: 10, border: `1px solid ${T.border}`, color: T.textDim, fontSize: 12, textDecoration: 'none' }}>{I18N.common.viewDemo}</Link>
                       </div>
                     </div>
                   ) : Array.from({ length: mCount }).map((_, idx) => {

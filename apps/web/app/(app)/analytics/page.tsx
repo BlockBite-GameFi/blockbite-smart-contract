@@ -10,7 +10,6 @@ import {
 } from '@/lib/anchor/vesting-client';
 import { T } from '@/lib/theme';
 import { I18N } from '@/lib/i18n';
-import { useApp } from '@/lib/useApp';
 
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
@@ -39,8 +38,7 @@ function streamStatus(s: StreamInfo, nowSec: number): string {
 }
 
 export default function AnalyticsPage() {
-  const { lang } = useApp();
-  const tx = I18N.analytics[lang];
+  const tx = I18N.analytics;
 
   const { connection } = useConnection();
   const [streams,  setStreams]  = useState<StreamInfo[]>([]);

@@ -6,75 +6,43 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Award, History, Shield, Edit2, Check, Copy, ExternalLink } from 'lucide-react';
 import { CssAvatar, AvatarPicker, AVATAR_CONFIGS } from '@/components/CssAvatars';
 import { explorerAddr } from '@/lib/solana/config';
-import { useApp } from '@/lib/useApp';
 import { T } from '@/lib/theme';
 import styles from './profile.module.css';
 
 const GameBackground = dynamic(() => import('@/components/GameBackground'), { ssr: false });
 
 const PROFILE_TX = {
-  en: {
-    anonPlayer:   'Anonymous Player',
-    notConnected: 'Not Connected',
-    chooseAvatar: 'CHOOSE YOUR AVATAR',
-    avatarDesc:   '12 unique CSS-generated avatars — each with its own visual identity.',
-    selected:     'Selected',
-    totalEarnings:'TOTAL EARNINGS',
-    gamesPlayed:  'GAMES PLAYED',
-    maxLevel:     'MAX LEVEL',
-    phase0:       'Phase 0 · Devnet',
-    acctSettings: 'ACCOUNT SETTINGS',
-    settings: [
-      { label: 'Two-Factor Authentication', desc: 'Secure your account with 2FA.' },
-      { label: 'Email Notifications',       desc: 'Get notified when you win rewards.' },
-      { label: 'Rank Change Alerts',        desc: 'Browser push when your rank shifts.' },
-    ],
-    referralProgram: 'REFERRAL PROGRAM',
-    referralDesc: 'Earn',
-    referralPct:  '5% lifetime',
-    referralSuffix: 'from every ticket your referrals buy.',
-    connectForLink:  'Connect wallet to get your link',
-    copy:            'COPY',
-    copied:          'COPIED',
-    totalReferrals:  'TOTAL REFERRALS',
-    noReferrals:     'No referrals yet — share your link to start earning.',
-    regWallets:      'REGISTERED WALLETS:',
-    usernamePlaceholder: 'Enter username...',
-  },
-  id: {
-    anonPlayer:   'Pemain Anonim',
-    notConnected: 'Tidak Terhubung',
-    chooseAvatar: 'PILIH AVATAR ANDA',
-    avatarDesc:   '12 avatar CSS unik — masing-masing dengan identitas visual tersendiri.',
-    selected:     'Dipilih',
-    totalEarnings:'TOTAL PENGHASILAN',
-    gamesPlayed:  'GAME DIMAINKAN',
-    maxLevel:     'LEVEL MAKS',
-    phase0:       'Fase 0 · Devnet',
-    acctSettings: 'PENGATURAN AKUN',
-    settings: [
-      { label: 'Autentikasi Dua Faktor',        desc: 'Amankan akun Anda dengan 2FA.' },
-      { label: 'Notifikasi Email',               desc: 'Dapatkan notifikasi saat menang hadiah.' },
-      { label: 'Peringatan Perubahan Peringkat', desc: 'Push browser saat peringkat Anda berubah.' },
-    ],
-    referralProgram: 'PROGRAM REFERRAL',
-    referralDesc: 'Dapatkan',
-    referralPct:  '5% seumur hidup',
-    referralSuffix: 'dari setiap tiket yang dibeli referral Anda.',
-    connectForLink:  'Hubungkan wallet untuk mendapatkan tautan Anda',
-    copy:            'SALIN',
-    copied:          'DISALIN',
-    totalReferrals:  'TOTAL REFERRAL',
-    noReferrals:     'Belum ada referral — bagikan tautan Anda untuk mulai menghasilkan.',
-    regWallets:      'WALLET TERDAFTAR:',
-    usernamePlaceholder: 'Masukkan nama pengguna...',
-  },
+  anonPlayer:   'Anonymous Player',
+  notConnected: 'Not Connected',
+  chooseAvatar: 'CHOOSE YOUR AVATAR',
+  avatarDesc:   '12 unique CSS-generated avatars — each with its own visual identity.',
+  selected:     'Selected',
+  totalEarnings:'TOTAL EARNINGS',
+  gamesPlayed:  'GAMES PLAYED',
+  maxLevel:     'MAX LEVEL',
+  phase0:       'Phase 0 · Devnet',
+  acctSettings: 'ACCOUNT SETTINGS',
+  settings: [
+    { label: 'Two-Factor Authentication', desc: 'Secure your account with 2FA.' },
+    { label: 'Email Notifications',       desc: 'Get notified when you win rewards.' },
+    { label: 'Rank Change Alerts',        desc: 'Browser push when your rank shifts.' },
+  ],
+  referralProgram: 'REFERRAL PROGRAM',
+  referralDesc: 'Earn',
+  referralPct:  '5% lifetime',
+  referralSuffix: 'from every ticket your referrals buy.',
+  connectForLink:  'Connect wallet to get your link',
+  copy:            'COPY',
+  copied:          'COPIED',
+  totalReferrals:  'TOTAL REFERRALS',
+  noReferrals:     'No referrals yet — share your link to start earning.',
+  regWallets:      'REGISTERED WALLETS:',
+  usernamePlaceholder: 'Enter username...',
 };
 
 export default function ProfilePage() {
   const { publicKey, wallet } = useWallet();
-  const { lang } = useApp();
-  const TX = PROFILE_TX[lang];
+  const TX = PROFILE_TX;
 
   const [username, setUsername] = useState('');
   const [isEditing, setIsEditing] = useState(false);

@@ -42,8 +42,7 @@ interface TxRow {
 }
 
 export default function AuditPage() {
-  const { lang } = useApp();
-  const tx = I18N.audit[lang];
+  const tx = I18N.audit;
 
   const { connection } = useConnection();
   const [txRows,   setTxRows]   = useState<TxRow[]>([]);

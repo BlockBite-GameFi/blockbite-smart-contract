@@ -445,6 +445,37 @@ fn test_init_milestone_rejects_budget_overflow_arithmetic() {
 }
 
 #[test]
+fn test_init_milestone_rejects_level_zero() {
+    // MIN_LEVEL = 1, so target_level = 0 must be rejected with InvalidLevel.
+    // Latches the lower bound of the on-chain MAX_LEVEL=30 invariant.
+    let mut c = empty_campaign();
+    c.total_budget = 100_000;
+    let mut m = empty_milestone();
+    let err = init_milestone(
+        &mut c, &mut m,
+        Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
+        1_000, 0, 2, 0,
+    ).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InvalidLevel));
+}
+
+#[test]
+fn test_init_milestone_rejects_level_above_max() {
+    // MAX_LEVEL = 30, so target_level = 31 must be rejected with InvalidLevel.
+    // Latches the upper bound so a future constants tweak can't silently
+    // accept out-of-range levels.
+    let mut c = empty_campaign();
+    c.total_budget = 100_000;
+    let mut m = empty_milestone();
+    let err = init_milestone(
+        &mut c, &mut m,
+        Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
+        1_000, 31, 2, 0,
+    ).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InvalidLevel));
+}
+
+#[test]
 fn test_init_milestone_accumulates_allocated() {
     let mut c = empty_campaign();
     c.total_budget = 100_000;
@@ -500,6 +531,34 @@ fn test_verify_game_rejects_level_not_reached() {
     m.target_level = 15;
     let err = verify_game_impl(&mut m, game, 10).unwrap_err();
     assert_eq!(err_code(err), err_for(ErrorCode::LevelNotReached));
+}
+
+#[test]
+fn test_verify_game_rejects_level_zero() {
+    // Latches MIN_LEVEL=1 — game server can never write achieved_level=0.
+    // The on-chain check fires BEFORE the LevelNotReached check, so we use
+    // a target_level=1 milestone to prove InvalidLevel wins over the
+    // "LevelNotReached" path even when both would otherwise apply.
+    let game = Pubkey::new_unique();
+    let mut m = empty_milestone();
+    m.game_authority = game;
+    m.target_level = 1;
+    let err = verify_game_impl(&mut m, game, 0).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InvalidLevel));
+    assert!(!m.is_verified);
+}
+
+#[test]
+fn test_verify_game_rejects_level_above_max() {
+    // Latches MAX_LEVEL=30 — game server can never write achieved_level=31.
+    // The check happens before the level-not-reached branch in verify_game_impl.
+    let game = Pubkey::new_unique();
+    let mut m = empty_milestone();
+    m.game_authority = game;
+    m.target_level = 1;
+    let err = verify_game_impl(&mut m, game, 31).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InvalidLevel));
+    assert!(!m.is_verified);
 }
 
 #[test]

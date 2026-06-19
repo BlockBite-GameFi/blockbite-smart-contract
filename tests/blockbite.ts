@@ -103,6 +103,33 @@ function createCancelIx(
   });
 }
 
+function createCloseIx(
+  programId: PublicKey,
+  creator: PublicKey,
+  streamPda: PublicKey,
+  recipient: PublicKey,
+  mint: PublicKey,
+  escrowTokenAccount: PublicKey,
+  creatorTokenAccount: PublicKey,
+): anchor.web3.TransactionInstruction {
+  // Account order matches CloseStream in _dispatch.rs:
+  //   creator (signer, mut), stream (mut), recipient (CHECK),
+  //   mint, escrow_token_account (mut), creator_token_account (mut), token_program
+  return new anchor.web3.TransactionInstruction({
+    keys: [
+      { pubkey: creator,             isSigner: true,  isWritable: true  },
+      { pubkey: streamPda,           isSigner: false, isWritable: true  },
+      { pubkey: recipient,           isSigner: false, isWritable: false },
+      { pubkey: mint,                isSigner: false, isWritable: false },
+      { pubkey: escrowTokenAccount,  isSigner: false, isWritable: true  },
+      { pubkey: creatorTokenAccount, isSigner: false, isWritable: true  },
+      { pubkey: TOKEN_PROGRAM_ID,    isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: Buffer.from([255, 241, 196, 212, 95, 93, 160, 89]),
+  });
+}
+
 async function createStream(
   programId: PublicKey,
   creator: Keypair,
@@ -1919,5 +1946,306 @@ describe("blockbite", () => {
       Number(BUDGET) - Number(AMOUNT),
       "Escrow should decrease by claimed amount",
     );
+  });
+
+  // ===========================================================================
+  // close_stream: end-to-end tests
+  // Validates the rent-recovery + account-closure path. 4 scenarios:
+  //   1. cancel + close → accounts gone, SOL rent back to creator
+  //   2. fully withdraw + close → dust tokens returned to creator
+  //   3. close an unsettled stream → StreamNotSettled
+  //   4. close with a non-creator signer → Unauthorized
+  // ===========================================================================
+
+  it("close_stream (1/4): cancel then close — accounts deleted, rent recovered", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    await sleep(5000);
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+
+    // Use a future start so no tokens vest before cancel
+    const cStart = await getValidatorTime() + 60;
+    const cEnd   = cStart + 100;
+    const SEED   = 100;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(SEED)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, 1_000_000, SEED, provider,
+    );
+
+    // Confirm the stream account exists with rent before closing
+    const streamBefore  = await provider.connection.getAccountInfo(cStream);
+    const escrowBefore  = await provider.connection.getAccountInfo(cEscrow);
+    assert.ok(streamBefore !== null, "Stream account should exist before close");
+    assert.ok(escrowBefore !== null, "Escrow account should exist before close");
+    const solBefore     = await provider.connection.getBalance(cc.publicKey);
+
+    // Cancel — returns all unvested tokens to creator, sets is_cancelled=true
+    const cancelIx = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
+    await provider.sendAndConfirm(new Transaction().add(cancelIx), [cc]);
+
+    // Close — escrow should be empty (cancel drained it), so no dust return
+    const closeIx = createCloseIx(programId, cc.publicKey, cStream, cr.publicKey, cMint, cEscrow, ccTA);
+    const closeSig = await provider.sendAndConfirm(new Transaction().add(closeIx), [cc]);
+    assert.ok(closeSig.length > 0, "close_stream should return a tx signature");
+
+    // Both accounts should be deleted
+    const streamAfter = await provider.connection.getAccountInfo(cStream);
+    const escrowAfter = await provider.connection.getAccountInfo(cEscrow);
+    assert.strictEqual(streamAfter, null, "Stream account should be deleted after close");
+    assert.strictEqual(escrowAfter, null, "Escrow account should be deleted after close");
+
+    // SOL rent should have been returned to the creator (minus tx fee)
+    const solAfter = await provider.connection.getBalance(cc.publicKey);
+    assert.ok(
+      solAfter > solBefore - 50_000, // fee is ~5_000 lamports × 2 txs
+      `Creator should recover rent; solBefore=${solBefore}, solAfter=${solAfter}`,
+    );
+  });
+
+  it("close_stream (2/4): fully withdraw then close — dust tokens returned to creator", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    await sleep(5000);
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+
+    const TOTAL = 1_000_000;
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, TOTAL);
+
+    // Start in the past, end very near future so the 2s sleep pushes us past end
+    // (and gives the validator 2 slot boundaries to land a fresh timestamp).
+    const cStart = await getValidatorTime() - 5;
+    const cEnd   = await getValidatorTime() + 2;
+    const SEED   = 101;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(SEED)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, TOTAL, SEED, provider,
+    );
+
+    // Sleep past end_time. The integer-second boundary issue requires us to
+    // sleep at least 1500ms after the end; 3000ms is a safe margin.
+    await sleep(3000);
+
+    // Withdraw — may need multiple passes if the first one is in the same slot
+    // as createStream and the validator hasn't ticked the clock past end yet.
+    let withdrawnTotal = 0;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const withdrawIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
+      try {
+        await provider.sendAndConfirm(new Transaction().add(withdrawIx), [cr]);
+      } catch {
+        // NothingToWithdraw — means we're already at 100%
+      }
+      const recBal = await getAccount(provider.connection, crTA);
+      withdrawnTotal = Number(recBal.amount);
+      if (withdrawnTotal >= TOTAL) break;
+      await sleep(2000);
+    }
+
+    const recipientBal = await getAccount(provider.connection, crTA);
+    assert.strictEqual(
+      Number(recipientBal.amount), TOTAL,
+      `Recipient should have withdrawn all ${TOTAL} tokens, got ${recipientBal.amount}`,
+    );
+
+    // Inspect escrow dust before close (typically 0 or 1 due to u64 division)
+    const escrowBeforeClose = await getAccount(provider.connection, cEscrow);
+    const creatorBalBefore = await getAccount(provider.connection, ccTA);
+    console.log(
+      `close_stream dust test: escrow=${escrowBeforeClose.amount}, ` +
+      `creatorBefore=${creatorBalBefore.amount}, recipient=${Number(recipientBal.amount)}`,
+    );
+
+    // Close the fully-withdrawn stream
+    const closeIx = createCloseIx(programId, cc.publicKey, cStream, cr.publicKey, cMint, cEscrow, ccTA);
+    await provider.sendAndConfirm(new Transaction().add(closeIx), [cc]);
+
+    // Both accounts deleted
+    const streamAfter = await provider.connection.getAccountInfo(cStream);
+    const escrowAfter = await provider.connection.getAccountInfo(cEscrow);
+    assert.strictEqual(streamAfter, null, "Stream account should be deleted");
+    assert.strictEqual(escrowAfter, null, "Escrow account should be deleted");
+
+    // If there was dust, the creator's token balance increased by exactly that amount
+    const dust = Number(escrowBeforeClose.amount);
+    if (dust > 0) {
+      const creatorBalAfter = await getAccount(provider.connection, ccTA);
+      assert.strictEqual(
+        Number(creatorBalAfter.amount),
+        Number(creatorBalBefore.amount) + dust,
+        `Creator should receive ${dust} dust tokens on close`,
+      );
+    }
+  });
+
+  it("close_stream (3/4): close an unsettled stream fails (StreamNotSettled)", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const [s1, s2] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+    ]);
+
+    await sleep(5000);
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+
+    // Stream mid-flight: not cancelled, not fully withdrawn
+    const cStart = await getValidatorTime() - 30;
+    const cEnd   = await getValidatorTime() + 600;
+    const SEED   = 102;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(SEED)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, 1_000_000, SEED, provider,
+    );
+
+    // Try to close — should fail with StreamNotSettled (error 6015 per errors.rs)
+    const closeIx = createCloseIx(programId, cc.publicKey, cStream, cr.publicKey, cMint, cEscrow, ccTA);
+    try {
+      await provider.sendAndConfirm(new Transaction().add(closeIx), [cc]);
+      assert.fail("close_stream on an unsettled stream should have failed");
+    } catch (e: any) {
+      assert.ok(
+        e.message.includes("StreamNotSettled") || e.message.includes("6015") || e.message.includes("0x1797"),
+        `Expected StreamNotSettled, got: ${e.message}`,
+      );
+    }
+
+    // Stream account should still exist (close was rejected)
+    const streamStillThere = await provider.connection.getAccountInfo(cStream);
+    assert.ok(streamStillThere !== null, "Stream account should still exist after rejected close");
+  });
+
+  it("close_stream (4/4): close with a non-creator signer fails (Unauthorized)", async () => {
+    const cc = Keypair.generate();
+    const cr = Keypair.generate();
+    const nonCreator = Keypair.generate();
+    const [s1, s2, s3] = await Promise.all([
+      provider.connection.requestAirdrop(cc.publicKey, 2 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(cr.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+      provider.connection.requestAirdrop(nonCreator.publicKey, 1 * anchor.web3.LAMPORTS_PER_SOL),
+    ]);
+    await Promise.all([
+      provider.connection.confirmTransaction(s1, "confirmed"),
+      provider.connection.confirmTransaction(s2, "confirmed"),
+      provider.connection.confirmTransaction(s3, "confirmed"),
+    ]);
+
+    await sleep(5000);
+    const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
+    const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+
+    const cStart = await getValidatorTime() + 60;
+    const cEnd   = cStart + 100;
+    const SEED   = 103;
+
+    const [cStream] = PublicKey.findProgramAddressSync(
+      [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
+       Buffer.from(new Uint8Array(new BigUint64Array([BigInt(SEED)]).buffer))],
+      programId,
+    );
+    const [cEscrow] = PublicKey.findProgramAddressSync(
+      [Buffer.from("escrow"), cStream.toBuffer()],
+      programId,
+    );
+
+    await createStream(
+      programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
+      cStart, cEnd, 1_000_000, SEED, provider,
+    );
+
+    // Cancel first so the stream is in a settleable state
+    const cancelIx = createCancelIx(programId, cc.publicKey, cStream, cMint, cEscrow, ccTA, crTA);
+    await provider.sendAndConfirm(new Transaction().add(cancelIx), [cc]);
+
+    // nonCreator tries to close — must fail.
+    // The on-chain CloseStream has two checks that can fire in this scenario:
+    //   1. seeds constraint (Anchor error 2006, 0x7d6) — fires first because the
+    //      PDA was derived from (cc.publicKey, cr.publicKey, seed), not nonCreator
+    //   2. explicit `stream.creator == creator.key()` check (error 6008, 0x1778)
+    // Either is a valid rejection of a non-creator signer. We accept both.
+    const closeIx = createCloseIx(
+      programId, nonCreator.publicKey, cStream, cr.publicKey, cMint, cEscrow, ccTA,
+    );
+    try {
+      await provider.sendAndConfirm(new Transaction().add(closeIx), [nonCreator]);
+      assert.fail("close_stream with a non-creator signer should have failed");
+    } catch (e: any) {
+      const msg = e.message;
+      const ok =
+        msg.includes("Unauthorized")  || msg.includes("6008") || msg.includes("0x1778") ||
+        msg.includes("ConstraintSeeds") || msg.includes("2006") || msg.includes("0x7d6");
+      assert.ok(ok, `Expected Unauthorized or ConstraintSeeds, got: ${msg}`);
+    }
+
+    // Stream account should still exist (close was rejected)
+    const streamStillThere = await provider.connection.getAccountInfo(cStream);
+    assert.ok(streamStillThere !== null, "Stream account should still exist after rejected close");
   });
 });

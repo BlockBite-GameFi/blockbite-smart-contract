@@ -39,8 +39,7 @@ export default function TutorialPage() {
   const router = useRouter();
   const { publicKey, connected } = useWallet();
   const { connection } = useConnection();
-  const { lang } = useApp();
-  const id = lang === 'id';
+  const id = false;
   const [campaignEnd, setCampaignEnd] = useState<Date | null>(null);
   const countdown = useCampaignCountdown(campaignEnd);
 

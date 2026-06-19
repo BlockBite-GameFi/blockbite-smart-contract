@@ -39,66 +39,35 @@ const DS = {
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
-// ─── Bilingual strings for the map UI ─────────────────────────────────────────
+// ─── Strings for the map UI ───────────────────────────────────────────────────
 const MAP_TX = {
-  en: {
-    navPlay:        'Play',
-    navHowItWorks:  'How It Works',
-    act:            'Act',
-    diff:           'DIFFICULTY',
-    reward:         'REWARD',
-    goal:           'GOAL',
-    moves:          'MOVES',
-    diff2:          'DIFF',
-    ongoingJourney: 'Ongoing Journey',
-    levelLabel:     'Level',
-    startExpedition:'START EXPEDITION →',
-    playBtn:        'PLAY →',
-    played:         'played',
-    rewardLbl:      'reward',
-    journeyStart:   '▼ JOURNEY START ▼',
-    higherLevels:   '▲ HIGHER LEVELS ▲',
-    blocks:         (n: number) => `${n} blocks`,
-    actGateway:     (act: string, lvl: string) => `ACT ${act} GATEWAY · LVL ${lvl}`,
-    finalLevel:     (lvl: string) => `FINAL LEVEL · LVL ${lvl}`,
-    actEnd:         (act: string) => `ACT ${act} END`,
-    actStart:       (act: string, lvl: string) => `ACT ${act} · LVL ${lvl}`,
-    gameVerif:      'Game Verification',
-    verifSuccess:   'Verification Success!',
-    thanksHuman:    'Thanks, human! 🎉',
-    verifDesc:      (n: number) => `You cleared all ${n} level${n !== 1 ? 's' : ''} of the BlockBite game. Your completion has been recorded — the campaign tokens are now ready to claim.`,
-    claimTokens:    'Claim Tokens →',
-    backToMap:      '← Back to Map',
-  },
-  id: {
-    navPlay:        'Main',
-    navHowItWorks:  'Cara Kerja',
-    act:            'Babak',
-    diff:           'KESULITAN',
-    reward:         'HADIAH',
-    goal:           'TARGET',
-    moves:          'LANGKAH',
-    diff2:          'SULIT',
-    ongoingJourney: 'Perjalanan Aktif',
-    levelLabel:     'Level',
-    startExpedition:'MULAI EKSPEDISI →',
-    playBtn:        'MAIN →',
-    played:         'dimainkan',
-    rewardLbl:      'hadiah',
-    journeyStart:   '▼ MULAI PERJALANAN ▼',
-    higherLevels:   '▲ LEVEL LEBIH TINGGI ▲',
-    blocks:         (n: number) => `${n} blok`,
-    actGateway:     (act: string, lvl: string) => `BABAK ${act} GERBANG · LVL ${lvl}`,
-    finalLevel:     (lvl: string) => `LEVEL AKHIR · LVL ${lvl}`,
-    actEnd:         (act: string) => `BABAK ${act} SELESAI`,
-    actStart:       (act: string, lvl: string) => `BABAK ${act} · LVL ${lvl}`,
-    gameVerif:      'Verifikasi Game',
-    verifSuccess:   'Verifikasi Berhasil!',
-    thanksHuman:    'Terima kasih, manusia! 🎉',
-    verifDesc:      (n: number) => `Kamu menyelesaikan semua ${n} level di game BlockBite. Penyelesaianmu telah dicatat — token kampanye siap diklaim.`,
-    claimTokens:    'Klaim Token →',
-    backToMap:      '← Kembali ke Peta',
-  },
+  navPlay:        'Play',
+  navHowItWorks:  'How It Works',
+  act:            'Act',
+  diff:           'DIFFICULTY',
+  reward:         'REWARD',
+  goal:           'GOAL',
+  moves:          'MOVES',
+  diff2:          'DIFF',
+  ongoingJourney: 'Ongoing Journey',
+  levelLabel:     'Level',
+  startExpedition:'START EXPEDITION →',
+  playBtn:        'PLAY →',
+  played:         'played',
+  rewardLbl:      'reward',
+  journeyStart:   '▼ JOURNEY START ▼',
+  higherLevels:   '▲ HIGHER LEVELS ▲',
+  blocks:         (n: number) => `${n} blocks`,
+  actGateway:     (act: string, lvl: string) => `ACT ${act} GATEWAY · LVL ${lvl}`,
+  finalLevel:     (lvl: string) => `FINAL LEVEL · LVL ${lvl}`,
+  actEnd:         (act: string) => `ACT ${act} END`,
+  actStart:       (act: string, lvl: string) => `ACT ${act} · LVL ${lvl}`,
+  gameVerif:      'Game Verification',
+  verifSuccess:   'Verification Success!',
+  thanksHuman:    'Thanks, human! 🎉',
+  verifDesc:      (n: number) => `You cleared all ${n} level${n !== 1 ? 's' : ''} of the BlockBite game. Your completion has been recorded — the campaign tokens are now ready to claim.`,
+  claimTokens:    'Claim Tokens →',
+  backToMap:      '← Back to Map',
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -359,8 +328,7 @@ function ActSelector({ biome }: { biome: Biome }) {
 }
 
 function FinishFlag({ x, y, biome }: { x: number; y: number; biome: Biome }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   return (
     <g>
       <line x1={x} y1={y} x2={x} y2={y + 50} stroke={biome.glow} strokeWidth="2" />
@@ -373,8 +341,7 @@ function FinishFlag({ x, y, biome }: { x: number; y: number; biome: Biome }) {
 }
 
 function MobileTabBar({ biome }: { biome: Biome }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const navItems = [
     { href: '/map', label: TX.navPlay        },
     { href: '/',    label: TX.navHowItWorks  },
@@ -414,8 +381,7 @@ function DesktopRail({
   biome: Biome; username: string;
   gamesPlayed: number; tier: string; currentLevel: number; walletAddress?: string;
 }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const navItems = [
     { href: '/map', label: TX.navPlay        },
     { href: '/',    label: TX.navHowItWorks  },
@@ -503,8 +469,7 @@ function DesktopRail({
 function TopHeader({ biome, layout, username, tier }: {
   biome: Biome; layout: Layout; username: string; tier: string;
 }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const pad = layout === 'mobile' ? 14 : 20;
   return (
     <div style={{
@@ -533,8 +498,7 @@ function SideCards({
   biome: Biome; level: number; layout: Layout;
   onEnterLevel: (l: number) => void;
 }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const cfg = levelConfig(level);
   const statRows = [
     { label: TX.diff,   value: cfg.rarity },
@@ -625,8 +589,7 @@ function BottomCard({
   biome: Biome; level: number;
   onEnterLevel: (l: number) => void;
 }) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const cfg = levelConfig(level);
   return (
     <div style={{
@@ -665,8 +628,7 @@ function BottomCard({
 }
 
 export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAddress, topOffset = 0, maxLevel, campaignId }: Props) {
-  const { lang } = useApp();
-  const TX = MAP_TX[lang];
+  const TX = MAP_TX;
   const player    = usePlayerData(currentLevel);
   const scrollRef = useRef<HTMLDivElement>(null);
   const Art       = ART[biome.id];
@@ -956,8 +918,8 @@ export function MapScreen({ biome, currentLevel, layout, onEnterLevel, walletAdd
           {/* Full-width — no clamp. SVG fills the available column and scales.
               Removed the rotateX(14deg) perspective tilt: it was a CSS hack
               that made the top of the SVG appear smaller/distant — perceived
-              by users as "the map is shrinking." Real depth now comes from
-              BiomeScene3D (WebGL) sitting behind the SVG nodes. */}
+              by users as "the map is shrinking." The SVG node layout
+              (per-biome art tiles) is rich enough on its own. */}
           <div style={{
             width: '100%',
           }}>

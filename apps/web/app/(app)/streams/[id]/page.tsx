@@ -128,7 +128,6 @@ function humanizeRpcError(e: unknown): string {
 type RawStream = NonNullable<Awaited<ReturnType<typeof fetchStream>>>;
 
 export default function StreamDetailPage() {
-  const { lang } = useApp();
   const params   = useParams();
   const idParam  = params?.id as string | undefined;
 
@@ -380,13 +379,13 @@ export default function StreamDetailPage() {
               background: `var(--p-accent)`, color: '#0b0918', fontWeight: 700, fontSize: 13,
             }}
           >
-            {lang === 'id' ? '↺ Coba Lagi' : '↺ Retry'}
+            {'↺ Retry'}
           </button>
           <Link href="/streams" style={{ color: C.accent, textDecoration: 'none', fontSize: 13, display: 'flex', alignItems: 'center' }}>
-            {lang === 'id' ? '← Semua Stream' : '← All Streams'}
+            {'← All Streams'}
           </Link>
           <Link href="/demo#streams" style={{ color: C.muted, textDecoration: 'none', fontSize: 13, display: 'flex', alignItems: 'center' }}>
-            {lang === 'id' ? 'Lihat data demo' : 'View demo data'}
+            {'View demo data'}
           </Link>
         </div>
       </div>
@@ -498,7 +497,7 @@ export default function StreamDetailPage() {
       }}>
         <div>
           <div style={{ marginBottom: 4 }}>
-            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>{lang === 'id' ? '← Semua Stream' : '← All Streams'}</Link>
+            <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>{'← All Streams'}</Link>
           </div>
           <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: 'var(--p-text)', margin: 0 }}>
             Stream Detail
@@ -518,7 +517,7 @@ export default function StreamDetailPage() {
                   setTimeout(() => setCopiedLink(false), 1800);
                 });
               }}
-              title={lang === 'id' ? 'Salin link stream ini' : 'Copy stream link'}
+              title={'Copy stream link'}
               style={{
                 padding: '3px 10px', borderRadius: 7, border: `1px solid color-mix(in srgb, ${C.accent} 25%, transparent)`,
                 background: copiedLink ? `color-mix(in srgb, ${C.accent} 10%, transparent)` : 'rgba(255,255,255,.03)',
@@ -527,8 +526,8 @@ export default function StreamDetailPage() {
               }}
             >
               {copiedLink
-                ? (lang === 'id' ? '✓ Link Disalin!' : '✓ Link Copied!')
-                : (lang === 'id' ? '⎘ Salin Link' : '⎘ Copy Link')}
+                ? ('✓ Link Copied!')
+                : ('⎘ Copy Link')}
             </button>
             {/* Copy contract address (mint) */}
             <button
@@ -542,7 +541,7 @@ export default function StreamDetailPage() {
                   setTimeout(() => setCopiedMint(false), 1800);
                 });
               }}
-              title={lang === 'id' ? 'Salin alamat kontrak (mint)' : 'Copy contract address (mint)'}
+              title={'Copy contract address (mint)'}
               style={{
                 padding: '3px 10px', borderRadius: 7, border: `1px solid color-mix(in srgb, ${C.gold} 25%, transparent)`,
                 background: copiedMint ? `color-mix(in srgb, ${C.gold} 10%, transparent)` : 'rgba(255,255,255,.03)',
@@ -551,8 +550,8 @@ export default function StreamDetailPage() {
               }}
             >
               {copiedMint
-                ? (lang === 'id' ? '✓ CA Disalin!' : '✓ CA Copied!')
-                : (lang === 'id' ? '◈ Salin CA' : '◈ Copy CA')}
+                ? ('✓ CA Copied!')
+                : ('◈ Copy CA')}
             </button>
           </div>
         </div>
@@ -586,9 +585,9 @@ export default function StreamDetailPage() {
                 opacity: claiming ? 0.6 : 1,
               }}
             >
-              {claimStage === 'approving'  ? (lang === 'id' ? '◈ Setujui di wallet…' : '◈ Approve in wallet…')
-               : claimStage === 'confirming' ? (lang === 'id' ? '▶ Mengonfirmasi di Solana…' : '▶ Confirming on Solana…')
-               : lang === 'id' ? `Klaim ${fmtTokens(claimable, mintDecimals(stream.mint))} token` : `Claim ${fmtTokens(claimable, mintDecimals(stream.mint))} tokens`}
+              {claimStage === 'approving'  ? ('◈ Approve in wallet…')
+               : claimStage === 'confirming' ? ('▶ Confirming on Solana…')
+               : `Claim ${fmtTokens(claimable, mintDecimals(stream.mint))} tokens`}
             </button>
           )}
           {!publicKey && claimable > 0n && (
@@ -615,7 +614,7 @@ export default function StreamDetailPage() {
             >
               {cancelStage === 'approving'  ? '◈ Approve in wallet…'
                : cancelStage === 'confirming' ? '▶ Confirming on Solana…'
-               : lang === 'id' ? 'Batalkan Stream' : 'Cancel Stream'}
+               : 'Cancel Stream'}
             </button>
           )}
           {/* Close button — only visible to creator, only on cancelled or fully settled streams */}
@@ -633,7 +632,7 @@ export default function StreamDetailPage() {
             >
               {closeStage === 'approving'  ? '◈ Approve in wallet…'
                : closeStage === 'confirming' ? '▶ Confirming on Solana…'
-               : lang === 'id' ? 'Tutup Stream' : 'Close Stream'}
+               : 'Close Stream'}
             </button>
           )}
         </div>
@@ -696,13 +695,10 @@ export default function StreamDetailPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
             <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: 'var(--p-text)', margin: '0 0 10px' }}>
-              {lang === 'id' ? 'Batalkan stream ini?' : 'Cancel this stream?'}
+              {'Cancel this stream?'}
             </h2>
             <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 12px' }}>
-              {lang === 'id'
-                ? <>{`Tindakan ini `}<strong style={{ color: C.red }}>tidak dapat dibatalkan</strong>{`. Semua token yang belum vesting akan dikembalikan ke wallet kamu. Penerima tetap mendapatkan token yang sudah vesting.`}</>
-                : <>{'This action is '}<strong style={{ color: C.red }}>irreversible</strong>{'. All unvested tokens will be returned to your wallet. The beneficiary keeps tokens already vested.'}</>
-              }
+              <>{'This action is '}<strong style={{ color: C.red }}>irreversible</strong>{'. All unvested tokens will be returned to your wallet. The beneficiary keeps tokens already vested.'}</>
             </p>
             {/* Clawback risk disclosure — informs both creator and any observers */}
             <div style={{
@@ -726,7 +722,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                {lang === 'id' ? 'Ya, Batalkan Stream' : 'Yes, Cancel Stream'}
+                {'Yes, Cancel Stream'}
               </button>
               <button
                 onClick={() => setConfirmCancel(false)}
@@ -736,7 +732,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                {lang === 'id' ? 'Pertahankan Stream' : 'Keep Stream'}
+                {'Keep Stream'}
               </button>
             </div>
           </div>
@@ -756,13 +752,10 @@ export default function StreamDetailPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
             <h2 style={{ fontFamily: C.serif, fontSize: 20, fontWeight: 800, color: 'var(--p-text)', margin: '0 0 10px' }}>
-              {lang === 'id' ? 'Tutup stream ini?' : 'Close this stream?'}
+              {'Close this stream?'}
             </h2>
             <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.7, margin: '0 0 12px' }}>
-              {lang === 'id'
-                ? <>Tindakan ini akan <strong style={{ color: C.blue }}>menghapus akun stream dari blockchain</strong> dan mengembalikan SOL deposit (rent) ke wallet kamu. Semua token sudah harus ditarik atau stream harus dibatalkan terlebih dahulu.</>
-                : <>This will <strong style={{ color: C.blue }}>delete the stream account from the blockchain</strong> and reclaim the SOL rent deposit to your wallet. All tokens must be withdrawn or the stream must be cancelled first.</>
-              }
+              <>This will <strong style={{ color: C.blue }}>delete the stream account from the blockchain</strong> and reclaim the SOL rent deposit to your wallet. All tokens must be withdrawn or the stream must be cancelled first.</>
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
               <button
@@ -773,7 +766,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                {lang === 'id' ? 'Ya, Tutup Stream' : 'Yes, Close Stream'}
+                {'Yes, Close Stream'}
               </button>
               <button
                 onClick={() => setConfirmClose(false)}
@@ -783,7 +776,7 @@ export default function StreamDetailPage() {
                   cursor: 'pointer', fontFamily: C.serif,
                 }}
               >
-                {lang === 'id' ? 'Batal' : 'Cancel'}
+                {'Cancel'}
               </button>
             </div>
           </div>
@@ -942,7 +935,7 @@ export default function StreamDetailPage() {
         {/* KPI row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,140px),1fr))', gap: 12 }}>
           {[
-            { l: lang === 'id' ? 'Total' : 'Total',       v: fmtTokens(total, mintDecimals(stream.mint)),                                                  c: 'var(--ds-text)' },
+            { l: 'Total',       v: fmtTokens(total, mintDecimals(stream.mint)),                                                  c: 'var(--ds-text)' },
             { l: 'Claimed',     v: fmtTokens(withdrawn, mintDecimals(stream.mint)),                                              c: C.green   },
             { l: 'Unlocked',    v: fmtTokens(claimable, mintDecimals(stream.mint)),                                              c: C.gold    },
             { l: 'Still Locked',v: fmtTokens(total > unlockedTotal ? total - unlockedTotal : 0n, mintDecimals(stream.mint)),    c: C.accent  },
@@ -1100,9 +1093,9 @@ export default function StreamDetailPage() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, color: done ? 'var(--ds-text)' : C.muted, fontWeight: done ? 600 : 400 }}>
-                          {lang === 'id' ? 'Milestone' : 'Milestone'} {i + 1}
+                          {'Milestone'} {i + 1}
                         </div>
-                        <div style={{ fontSize: 9.5, color: C.muted }}>{pct}% unlock · {done ? (lang === 'id' ? 'terverifikasi' : 'verified') : (lang === 'id' ? 'menunggu' : 'pending')}</div>
+                        <div style={{ fontSize: 9.5, color: C.muted }}>{pct}% unlock · {done ? ('verified') : ('pending')}</div>
                       </div>
                       <div style={{ fontFamily: C.mono, fontSize: 11, color: done ? C.green : C.muted }}>
                         {pct}%

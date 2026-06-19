@@ -276,7 +276,7 @@ blockbite-smart-contract/
 │       ├── ci.yml                    # Build + test on every push/PR
 │       └── deploy-devnet.yml         # Manual devnet deployment
 ├── apps/
-│   └── game-server/                  # Game server backend (TypeScript)
+│   └── web/                          # Next.js 14 front-end (dark mode, English)
 ├── clients/                          # Client SDK
 ├── frontend/                         # Next.js frontend (blockbite-tdp.vercel.app)
 ├── docs/

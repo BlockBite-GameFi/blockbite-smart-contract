@@ -54,7 +54,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { t } = useApp();
 
-  // Build translated nav links inside the component so they re-render on lang change
+  // Build nav links inside the component so the t() lookup happens
   const NAV_LINKS = NAV_HREFS.map(item => ({ name: t(item.key), href: item.href }));
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 /**
  * Route-level error boundary for /map/[act].
  *
- * Without this, any uncaught throw in MapScreen / BiomeScene3D / SideCards
+ * Without this, any uncaught throw in MapScreen or SideCards
  * propagates up and Next.js renders its default error page ("Application
  * error: a client-side exception has occurred"), which is opaque and
  * destroys the whole route.
