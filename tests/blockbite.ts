@@ -2046,11 +2046,13 @@ describe("blockbite", () => {
     const TOTAL = 1_000_000;
     await mintTo(provider.connection, cc, cMint, ccTA, cc, TOTAL);
 
-    // Start in the past, end very near future so the 2s sleep pushes us past end
-    // (and gives the validator 2 slot boundaries to land a fresh timestamp).
-    const cStart = await getValidatorTime() - 5;
-    const cEnd   = await getValidatorTime() + 2;
-    const SEED   = 101;
+    // Deterministic: set BOTH start and end in the past so the stream is
+    // already fully vested at createStream time. No timing race conditions
+    // with the validator's integer-second clock.
+    const now     = await getValidatorTime();
+    const cStart  = now - 200;
+    const cEnd    = now - 50;
+    const SEED    = 101;
 
     const [cStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), cc.publicKey.toBuffer(), cr.publicKey.toBuffer(),
@@ -2067,25 +2069,9 @@ describe("blockbite", () => {
       cStart, cEnd, TOTAL, SEED, provider,
     );
 
-    // Sleep past end_time. The integer-second boundary issue requires us to
-    // sleep at least 1500ms after the end; 3000ms is a safe margin.
-    await sleep(3000);
-
-    // Withdraw — may need multiple passes if the first one is in the same slot
-    // as createStream and the validator hasn't ticked the clock past end yet.
-    let withdrawnTotal = 0;
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const withdrawIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
-      try {
-        await provider.sendAndConfirm(new Transaction().add(withdrawIx), [cr]);
-      } catch {
-        // NothingToWithdraw — means we're already at 100%
-      }
-      const recBal = await getAccount(provider.connection, crTA);
-      withdrawnTotal = Number(recBal.amount);
-      if (withdrawnTotal >= TOTAL) break;
-      await sleep(2000);
-    }
+    // Recipient fully withdraws — guaranteed 100% because end < now
+    const withdrawIx = createWithdrawIx(programId, cr.publicKey, cStream, cMint, cEscrow, crTA);
+    await provider.sendAndConfirm(new Transaction().add(withdrawIx), [cr]);
 
     const recipientBal = await getAccount(provider.connection, crTA);
     assert.strictEqual(
