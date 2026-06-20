@@ -26,9 +26,9 @@ const VESTING_TYPES = [
     border: 'hover:border-amber-500/30',
     icon: (
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="text-amber-400">
-        <path d="M8 36 H20 V12 H40" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        <circle cx="20" cy="12" r="3" fill="currentColor" opacity="0.3" />
-        <circle cx="20" cy="36" r="3" fill="currentColor" opacity="0.3" />
+        <path d="M8 38 H20 V10 H40" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <circle cx="20" cy="10" r="3" fill="currentColor" opacity="0.3" />
+        <circle cx="20" cy="38" r="3" fill="currentColor" opacity="0.3" />
       </svg>
     ),
   },
