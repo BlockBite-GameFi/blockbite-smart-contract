@@ -84,6 +84,15 @@ export function useStreamCreate() {
 
     const rawAmount = BigInt(Math.round(amountNum * 10 ** p.decimals));
 
+    // Deployed program (Aso25…) charges a 1% dev fee ON TOP of total_amount:
+    //   dev_fee = total_amount * DEV_FEE_BPS(100) / 10_000   → 1%
+    // It then transfers the FULL total_amount into escrow. So the creator's
+    // token account must hold total_amount * 1.01, not just total_amount.
+    // The SOL-wrap and SPL balance check below MUST account for this fee or the
+    // escrow transfer_checked reverts ("Simulation failed" / "Internal error").
+    const devFee      = rawAmount / 100n;          // matches on-chain *100/10000
+    const totalNeeded = rawAmount + devFee;        // 101% pulled from creator
+
     // All transaction sends/reads below go through a verified-healthy endpoint
     // rather than the wallet-adapter's static api.devnet.solana.com connection,
     // which throws "Transport error" on send when it's throttled/unreachable.
@@ -97,7 +106,7 @@ export function useStreamCreate() {
     if (isNativeSol) {
       // 1. Check native SOL balance (wallet has SOL, not wSOL)
       // Uses withRpcFallback so a rate-limited Ankr endpoint auto-switches
-      const lamportsNeeded = rawAmount + BigInt(20_000_000); // +0.02 SOL fee buffer
+      const lamportsNeeded = totalNeeded + BigInt(20_000_000); // amount + 1% dev fee + 0.02 SOL fee buffer
       let solBalance: number;
       try {
         solBalance = await withRpcFallback(conn => conn.getBalance(publicKey));
@@ -139,7 +148,7 @@ export function useStreamCreate() {
 
         // Transfer SOL lamports into the wSOL ATA then sync
         wrapTx.add(
-          SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: wsolAta, lamports: rawAmount }),
+          SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: wsolAta, lamports: totalNeeded }),
           createSyncNativeInstruction(wsolAta),
         );
 
@@ -205,10 +214,10 @@ export function useStreamCreate() {
         return false;
       }
 
-      if (acctAmount < rawAmount) {
+      if (acctAmount < totalNeeded) {
         const have = (Number(acctAmount) / 10 ** p.decimals).toLocaleString();
-        const need = amountNum.toLocaleString();
-        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need}`);
+        const need = (Number(totalNeeded) / 10 ** p.decimals).toLocaleString();
+        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need} (incl. 1% dev fee)`);
         setTxStatus('error');
         return false;
       }

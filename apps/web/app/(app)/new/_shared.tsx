@@ -562,6 +562,8 @@ export function humanizeError(e: unknown): string {
     return 'RPC free tier blocked. Switching to backup endpoint — please try again.';
   if (msg.includes('timeout') || msg.includes('timed out'))
     return 'Network timeout — Solana devnet may be slow. Retry in a moment.';
+  if (msg.includes('internal error') || msg.includes('-32603'))
+    return 'Devnet RPC internal error — validator was overloaded. Click the button again to retry.';
   if (msg.includes('failed to fetch') || msg.includes('network'))
     return 'Network error — check your connection and try again.';
   // Fallback: surface the raw message, capped at 120 chars

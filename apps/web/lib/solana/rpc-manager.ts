@@ -103,6 +103,7 @@ function isInfraError(err: Error): boolean {
     m.includes('504')                        ||
     m.includes('500')                        ||  // internal server error
     m.includes('internal server')            ||
+    m.includes('internal error')             ||  // JSON-RPC -32603
     m.includes('gateway timeout')            ||
     m.includes('server error')               ||
 
