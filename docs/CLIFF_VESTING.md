@@ -83,22 +83,29 @@ start_time     T=X (set_milestone)     end_time
 
 ## Edge Cases yang Sudah Diuji
 
-Semua kasus ini ada di `utils.rs` unit tests:
+Semua kasus ini ada di `utils.rs` unit tests (20 tests total, includes linear progression dan past-end behavior):
 
 | Test | Skenario | Expected |
 |------|----------|---------|
 | `test_linear_at_0_percent` | Tepat di `start_time` | `0` |
 | `test_linear_at_25_percent` | 25% durasi terlewat | `250_000` dari `1_000_000` |
 | `test_linear_at_50_percent` | 50% durasi terlewat | `500_000` |
+| `test_linear_at_75_percent` | 75% durasi terlewat | `750_000` |
 | `test_linear_at_100_percent` | Tepat di `end_time` | `1_000_000` |
+| `test_linear_past_end` | Lewat `end_time` | `1_000_000` (clamped) |
+| `test_linear_before_start` | Sebelum `start_time` | `0` |
 | `test_cliff_before_cliff_date` | Sebelum cliff | `0` |
 | `test_cliff_at_exact_cliff_date` | Tepat di cliff | `0` (cliff belum "lewat") |
 | `test_cliff_25_percent_after_cliff` | 25% setelah cliff | `250_000` |
+| `test_cliff_50_percent_after_cliff` | 50% setelah cliff | `500_000` |
+| `test_cliff_100_percent` | Tepat di `end_time` dengan cliff | `1_000_000` |
+| `test_cliff_past_end` | Lewat `end_time` dengan cliff | `1_000_000` |
 | `test_milestone_not_reached_zero` | Milestone belum di-set | `0` |
 | `test_milestone_reached_linear` | Milestone di-set, 50% waktu | `500_000` |
+| `test_milestone_reached_past_end` | Milestone di-set, lewat `end_time` | `1_000_000` |
 | `test_cliff_and_milestone_both_block` | Cliff+milestone, keduanya belum | `0` |
 | `test_cliff_passed_milestone_not_reached` | Cliff lewat, milestone belum | `0` |
-| `test_cliff_passed_milestone_reached` | Cliff lewat, milestone di-set | `500_000` |
+| `test_cliff_passed_milestone_reached` | Cliff lewat + milestone di-set | `500_000` |
 | `test_milestone_reached_before_cliff` | Milestone di-set, cliff belum | `0` |
 
 ---

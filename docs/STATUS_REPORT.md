@@ -1,9 +1,9 @@
 # BlockBite Smart Contract — Week 9 Status Report
 
-**Date:** 2026-05-20  
+**Date:** 2026-06-20  
 **Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
 **Network:** Solana Devnet  
-**Framework:** Anchor 0.32.1  
+**Framework:** Anchor 1.0.0
 
 ---
 
@@ -11,7 +11,7 @@
 
 | Environment | Status | Explorer |
 |---|---|---|
-| Localnet (CI) | ✅ Live — 25/25 tests green | GitHub Actions |
+| Localnet (CI) | ✅ Live — 115/115 tests green | GitHub Actions |
 | Devnet | ✅ Deployed | [Solana Explorer](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
 | Mainnet | ⏳ Pending audit | — |
 
@@ -29,12 +29,12 @@
 | Feature | Description | Status |
 |---|---|---|
 | `create_stream` | Linear vesting with cliff + dev fee (1%) | ✅ |
-| `withdraw` | Pro-rata unlock, VGPV anti-bot, MIN_CLAIM_AMOUNT dust filter | ✅ |
+| `withdraw` | Pro-rata unlock, MIN_CLAIM_AMOUNT dust filter | ✅ |
 | `cancel` | Creator reclaims unvested tokens; recipient gets vested share | ✅ |
 | `set_milestone` | Creator unlocks cliff-gated vesting after milestone event | ✅ |
 | `close_stream` | Reclaims rent SOL from settled streams (cancelled or fully withdrawn) | ✅ |
-| VGPV | Velocity Guard Penalty Valve: 3 strikes within 2s → BotDetected | ✅ |
 | Dev Fee | 1% of stream amount transferred to protocol treasury at creation | ✅ |
+| Stream Name | Human-readable label (max 31 UTF-8 chars) stored on-chain | ✅ |
 
 ---
 
@@ -42,9 +42,9 @@
 
 | Suite | Count | Result |
 |---|---|---|
-| Rust unit tests (`calculate_unlocked`) | 13 | ✅ Pass |
-| Integration tests (TypeScript/Mocha) | 28 | ✅ Pass |
-| **Total** | **41** | **✅ All green** |
+| Rust unit tests (`calculate_unlocked` + cancel/campaign/edge cases) | 83 | ✅ Pass |
+| Integration tests (TypeScript/Mocha) | 32 | ✅ Pass |
+| **Total** | **115** | **✅ All green** |
 
 ### Integration test breakdown
 
@@ -67,29 +67,29 @@
 - Invalid timestamp (end ≤ start) → InvalidTimestamp
 - Invalid cliff (cliff > end) → InvalidTimestamp
 - Withdraw before stream start → StreamNotStarted
-- Claimable below MIN_CLAIM_AMOUNT → ClaimTooSmall
+- Claimable below MIN_CLAIM_AMOUNT → NothingToWithdraw
 - set_milestone by non-creator → Unauthorized/ConstraintSeeds
 - set_milestone already reached → MilestoneAlreadyReached
-- set_milestone before cliff → CliffNotReached
-- VGPV: 4th rapid withdraw triggers BotDetected
+- set_milestone before cliff → blocks withdraw via calculate_unlocked
 
 **close_stream (Week 9):**
 - Close cancelled stream → rent recovered ✅
 - Close fully-withdrawn stream → rent recovered ✅
-- Close active stream (non-creator) → StreamNotCloseable / Unauthorized ✅
+- Close active stream (non-creator) → StreamNotSettled / Unauthorized ✅
 
 ---
 
 ## Bug Fixes (Weeks 5–9)
 
 1. **Double-counted discriminator in `space`** — `StreamAccount::LEN` already includes 8 bytes; adding +8 wasted rent
-2. **Borrow checker conflict in VGPV** — snapshotted immutable fields before `&mut ctx.accounts.stream`
+2. **Borrow checker conflict in pure-function refactor** — snapshotted immutable fields before `&mut ctx.accounts.stream`
 3. **Wrong `set_milestone` discriminator in tests** — recomputed to `sha256("global:set_milestone")[0..8]`
 4. **CI: missing `.anchor` parent directory** — added `mkdir -p .anchor` before `solana-test-validator`
 5. **CI: `--bind-address 0.0.0.0` panic** — gossip layer rejects unspecified IP in newer agave; removed flag
 6. **CI: deployer had 0 SOL** — added `solana airdrop 100` before `anchor deploy`
 7. **CI: `ANCHOR_PROVIDER_URL` undefined** — added env vars for `ts-mocha` outside `anchor test`
 8. **Deploy workflow verify hardcoded old ID** — fixed to read program ID dynamically via `anchor keys list`
+9. **`create_stream` missing `name` parameter** — added `[u8; 32]` field to `StreamAccount` (188 → 212 bytes) and `[u8; 32]` parameter to `create_stream`
 
 ---
 
@@ -97,7 +97,7 @@
 
 | Metric | Observation |
 |---|---|
-| `create_stream` cost | ~0.01 SOL rent (StreamAccount: 196 bytes + escrow token account: 165 bytes) |
+| `create_stream` cost | ~0.012 SOL rent (StreamAccount: 220 bytes + escrow token account: 165 bytes) |
 | `withdraw` cost | ~0.000005 SOL (single CPI call, no account init) |
 | `cancel` cost | ~0.000005–0.00001 SOL (1–2 CPI calls depending on vested amount) |
 | `set_milestone` cost | ~0.000005 SOL (state write only, no token transfers) |

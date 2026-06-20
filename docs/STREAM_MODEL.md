@@ -115,7 +115,7 @@ Akun token SPL standar (165 bytes) yang **di-init oleh BlockBite**.
 
 ---
 
-## CampaignAccount (82 bytes data)
+## CampaignAccount (82 bytes data, 90 with discriminator)
 
 PDA untuk campaign reward.  
 Seeds: `["campaign", founder_pubkey, seed_u64_le]`
@@ -131,7 +131,7 @@ Seeds: `["campaign", founder_pubkey, seed_u64_le]`
 
 ---
 
-## MilestoneAccount (150 bytes data)
+## MilestoneAccount (142 bytes data, 150 with discriminator)
 
 PDA per milestone dalam sebuah campaign.  
 Seeds: `["milestone", campaign_pda, milestone_seed_u64_le]`

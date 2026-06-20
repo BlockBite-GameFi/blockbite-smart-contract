@@ -30,8 +30,10 @@ const [escrowPda] = PublicKey.findProgramAddressSync(
 
 // Create a 24-hour linear vesting stream
 const now = Math.floor(Date.now() / 1000);
+const nameBytes = Array.from(Buffer.alloc(32, 0));   // 32-byte null-padded label
+Buffer.from("Team Salary Q1".slice(0, 31), "utf8").copy(Buffer.from(nameBytes));
 await program.methods
-  .createStream(new anchor.BN(1_000_000), new anchor.BN(now), new anchor.BN(now + 86400), new anchor.BN(0), seed, false)
+  .createStream(new anchor.BN(1_000_000), new anchor.BN(now), new anchor.BN(now + 86400), new anchor.BN(0), seed, false, nameBytes)
   .accounts({ creator, recipient, mint, creatorTokenAccount, escrowTokenAccount: escrowPda, stream: streamPda, tokenProgram, systemProgram })
   .rpc();
 ```
@@ -46,7 +48,7 @@ See [`docs/INTEGRATION_GUIDE.md`](./docs/INTEGRATION_GUIDE.md) for the full step
 | **Program ID (Localnet)** | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
 | **Framework** | Anchor 1.0.0 |
 | **Network** | Solana Devnet |
-| **Tests** | 41 total (28 integration + 13 Rust unit) — all green ✅ |
+| **Tests** | 115 total (32 integration + 83 Rust unit) — all green ✅ |
 | **Frontend** | [blockbite-tdp.vercel.app](https://blockbite-tdp.vercel.app) |
 | **Explorer** | [View on Solana Explorer (Devnet)](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
 
@@ -97,6 +99,8 @@ Player ──► claim_milestone ──► tokens transferred from campaign_escr
 
 | Constant | Value | Purpose |
 |---|---|---|
+| `DEV_FEE_BPS` | 100 | 1% protocol fee on `create_stream` |
+| `MIN_CLAIM_AMOUNT` | 1_000 | Dust filter: reject withdrawals below this |
 | `MIN_LEVEL` | 1 | Minimum game target level |
 | `MAX_LEVEL` | 30 | Maximum game target level |
 | `DIFFICULTY_EASY` | 1 | Easy difficulty ID |
@@ -173,7 +177,7 @@ Full parameter tables, error codes, and code examples: [`docs/INSTRUCTION_REFERE
 
 ## Account Structures
 
-### `StreamAccount` (188 bytes + 8 discriminator = 196 total)
+### `StreamAccount` (212 bytes + 8 discriminator = 220 total)
 
 | Field | Type | Description |
 |---|---|---|
@@ -191,6 +195,7 @@ Full parameter tables, error codes, and code examples: [`docs/INSTRUCTION_REFERE
 | `seed` | `u64` | Creator-supplied seed |
 | `milestone_reached` | `bool` | Set by `set_milestone` |
 | `milestone_enabled` | `bool` | Whether milestone gate is active |
+| `name` | `[u8; 32]` | UTF-8 display label (max 31 chars + null) |
 
 ### `CampaignAccount` (90 bytes)
 
@@ -276,9 +281,9 @@ blockbite-smart-contract/
 │       ├── ci.yml                    # Build + test on every push/PR
 │       └── deploy-devnet.yml         # Manual devnet deployment
 ├── apps/
-│   └── web/                          # Next.js 14 front-end (dark mode, English)
-├── clients/                          # Client SDK
-├── frontend/                         # Next.js frontend (blockbite-tdp.vercel.app)
+│   └── web/                          # Next.js 14 front-end (blockbite-tdp.vercel.app)
+├── clients/
+│   └── ts/                           # TypeScript SDK client
 ├── docs/
 │   ├── INSTRUCTION_REFERENCE.md      # Full instruction docs with parameters & examples
 │   ├── INTEGRATION_GUIDE.md          # Step-by-step integration tutorial
@@ -288,9 +293,9 @@ blockbite-smart-contract/
 │       ├── lib.rs                    # Program entrypoint (9 instructions)
 │       ├── constants.rs              # Game level + difficulty constants
 │       ├── errors.rs                 # 21 error codes
-│       ├── utils.rs                  # calculate_unlocked + Rust unit tests
+│   ├── utils.rs                  # calculate_unlocked + 20 Rust unit tests
 │       ├── state/
-│       │   ├── stream.rs             # StreamAccount (188 bytes)
+│   │   ├── stream.rs             # StreamAccount (220 bytes)
 │       │   ├── campaign.rs           # CampaignAccount (90 bytes)
 │       │   └── milestone.rs          # MilestoneAccount (150 bytes)
 │       └── instructions/
@@ -305,8 +310,7 @@ blockbite-smart-contract/
 │           ├── verify_game.rs        # verify_game_impl pure function
 │           └── claim_milestone.rs    # mark_milestone_claimed pure function
 ├── tests/
-│   └── blockbite.ts                  # 28 TypeScript integration tests
-├── trident-tests/                    # Fuzz tests (Trident)
+│   └── blockbite.ts                  # 32 TypeScript integration tests
 ├── Anchor.toml
 ├── Cargo.toml
 ├── AGENTS.md
@@ -332,15 +336,15 @@ yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
 
 | Suite | Count | Status |
 |---|---|---|
-| Rust unit tests (`calculate_unlocked` + cancel/campaign logic) | 13+ | ✅ Pass |
-| Integration tests (TypeScript/Mocha) | 28 | ✅ Pass |
-| **Total** | **41+** | **✅ All green** |
+| Rust unit tests (`calculate_unlocked` + cancel/campaign/edge-case logic) | 83 | ✅ Pass |
+| Integration tests (TypeScript/Mocha) | 32 | ✅ Pass |
+| **Total** | **115** | **✅ All green** |
 
 ## CI/CD Pipeline
 
 | Workflow | Trigger | Description |
 |---|---|---|
-| `Blockbite CI` | Push / PR to `main` | Build + 41 tests |
+| `Blockbite CI` | Push / PR to `main` | Build + 115 tests |
 | `Deploy to Devnet` | Manual (`workflow_dispatch`) | Build + deploy + verify on devnet |
 
 ### Required Secrets

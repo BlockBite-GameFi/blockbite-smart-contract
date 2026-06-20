@@ -8,9 +8,9 @@ Panduan menjalankan semua test suite BlockBite dan menginterpretasi hasilnya.
 
 | Suite | File | Count | Runtime |
 |-------|------|-------|---------|
-| Rust unit tests | `programs/blockbite/src/utils.rs` | 13 | ~0.3 detik |
-| TypeScript integration | `tests/blockbite.ts` | 28 | ~45 detik |
-| **Total** | | **41** | |
+| Rust unit tests | `programs/blockbite/src/utils.rs` + `tests_*.rs` | 83 | ~0.5 detik |
+| TypeScript integration | `tests/blockbite.ts` | 32 | ~45 detik |
+| **Total** | | **115** | |
 
 ---
 
@@ -25,22 +25,30 @@ cargo test -p blockbite
 Output yang diharapkan:
 
 ```
-running 13 tests
+running 20 tests (utils.rs only)
 test tests::test_linear_at_0_percent ... ok
 test tests::test_linear_at_25_percent ... ok
 test tests::test_linear_at_50_percent ... ok
 test tests::test_linear_at_75_percent ... ok
 test tests::test_linear_at_100_percent ... ok
+test tests::test_linear_past_end ... ok
+test tests::test_linear_before_start ... ok
 test tests::test_cliff_before_cliff_date ... ok
 test tests::test_cliff_at_exact_cliff_date ... ok
 test tests::test_cliff_25_percent_after_cliff ... ok
+test tests::test_cliff_50_percent_after_cliff ... ok
+test tests::test_cliff_100_percent ... ok
+test tests::test_cliff_past_end ... ok
 test tests::test_milestone_not_reached_zero ... ok
 test tests::test_milestone_reached_linear ... ok
+test tests::test_milestone_reached_past_end ... ok
 test tests::test_cliff_and_milestone_both_block ... ok
 test tests::test_cliff_passed_milestone_not_reached ... ok
 test tests::test_cliff_passed_milestone_reached ... ok
+test tests::test_milestone_reached_before_cliff ... ok
 
-test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured
+(Total Rust: 83 — additional 63 in tests_logic.rs, tests_cancel.rs, tests_edge_cases.rs, tests_campaign.rs)
 ```
 
 ### Apa yang Diuji
@@ -52,14 +60,21 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured
 | `test_linear_at_50_percent` | 50% durasi berlalu → `500_000` |
 | `test_linear_at_75_percent` | 75% durasi berlalu → `750_000` |
 | `test_linear_at_100_percent` | Di/setelah `end_time` → `1_000_000` (full) |
+| `test_linear_past_end` | Lewat `end_time` (2× duration) → tetap `1_000_000` |
+| `test_linear_before_start` | Sebelum `start_time` → `0` |
 | `test_cliff_before_cliff_date` | Sebelum cliff → `0` |
 | `test_cliff_at_exact_cliff_date` | Tepat di cliff (belum "lewat") → `0` |
 | `test_cliff_25_percent_after_cliff` | 25% setelah cliff → `250_000` |
+| `test_cliff_50_percent_after_cliff` | 50% setelah cliff → `500_000` |
+| `test_cliff_100_percent` | Tepat di `end_time` dengan cliff → `1_000_000` |
+| `test_cliff_past_end` | Lewat `end_time` dengan cliff → `1_000_000` |
 | `test_milestone_not_reached_zero` | Milestone belum di-set → `0` |
 | `test_milestone_reached_linear` | Milestone di-set, 50% waktu → `500_000` |
+| `test_milestone_reached_past_end` | Milestone di-set, lewat `end_time` → `1_000_000` |
 | `test_cliff_and_milestone_both_block` | Cliff + milestone, keduanya belum → `0` |
 | `test_cliff_passed_milestone_not_reached` | Cliff lewat, milestone belum → `0` |
 | `test_cliff_passed_milestone_reached` | Cliff lewat + milestone di-set → `500_000` |
+| `test_milestone_reached_before_cliff` | Milestone di-set, cliff belum → `0` |
 
 ---
 
@@ -107,7 +122,7 @@ BlockBite
     ✓ invalid level range rejected (287ms)
     ✓ invalid difficulty rejected (293ms)
 
-  28 passing (45s)
+  32 passing (45s)
 ```
 
 ---
@@ -150,8 +165,8 @@ Setiap push ke `main` atau PR, GitHub Actions menjalankan:
 ```yaml
 # .github/workflows/ci.yml
 - anchor build
-- cargo test -p blockbite   # 13 Rust unit tests
-- anchor test               # 28 TypeScript integration tests
+- cargo test -p blockbite   # 83 Rust unit tests
+- anchor test               # 32 TypeScript integration tests
 ```
 
 Status badge CI ada di README.

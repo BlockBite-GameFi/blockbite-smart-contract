@@ -103,6 +103,8 @@ async function sleep(ms: number) {
 
   // ── 5. Create stream (1 hour linear vesting) ───────────────────────────────
   const now = Math.floor(Date.now() / 1000);
+  const nameBytes = Array.from(Buffer.alloc(32, 0));
+  Buffer.from("Quickstart Demo".slice(0, 31), "utf8").copy(Buffer.from(nameBytes));
   const createTx = await program.methods
     .createStream(
       new BN(1_000_000),      // total_amount: 1 000 000 token units
@@ -110,7 +112,8 @@ async function sleep(ms: number) {
       new BN(now + 3_600),     // end_time: 1 hour from now
       new BN(0),               // cliff_time: none
       seed,
-      false                    // milestone_enabled: false (pure linear)
+      false,                   // milestone_enabled: false (pure linear)
+      nameBytes                // name: [u8; 32]
     )
     .accounts({
       creator:             creator.publicKey,

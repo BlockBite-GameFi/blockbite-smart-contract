@@ -6,7 +6,7 @@ All three on-chain account types are PDAs (Program Derived Addresses) owned by t
 
 ## `StreamAccount`
 
-**Total size:** 196 bytes (8 discriminator + 188 data)  
+**Total size:** 220 bytes (8 discriminator + 212 data)  
 **PDA seeds:** `["stream", creator_pubkey, recipient_pubkey, seed_u64_le]`
 
 | Field | Type | Bytes | Description |
@@ -25,6 +25,7 @@ All three on-chain account types are PDAs (Program Derived Addresses) owned by t
 | `seed` | `u64` | 8 | Creator-supplied seed |
 | `milestone_reached` | `bool` | 1 | Set by `set_milestone` |
 | `milestone_enabled` | `bool` | 1 | Whether milestone gate is active |
+| `name` | `[u8; 32]` | 32 | UTF-8 display label (max 31 chars + null) |
 
 **Fetch example:**
 

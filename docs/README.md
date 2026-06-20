@@ -119,7 +119,7 @@ Player     ──► claim_milestone  ──► tokens transferred to player wal
 
 ## Account Structures
 
-### StreamAccount — 196 bytes
+### StreamAccount — 220 bytes
 
 Stores the full vesting schedule on-chain.
 

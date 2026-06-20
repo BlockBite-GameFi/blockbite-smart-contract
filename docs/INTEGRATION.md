@@ -10,7 +10,7 @@ Panduan step-by-step untuk developer eksternal yang ingin membuat stream vesting
 | **IDL (on-chain)** | `anchor.Program.fetchIdl(PROGRAM_ID, provider)` |
 | **IDL (local)** | `target/idl/blockbite.json` |
 | **Explorer** | [Solana Explorer (devnet)](https://explorer.solana.com/address/Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq?cluster=devnet) |
-| **Test suite** | 28 integration tests `anchor test` |
+| **Test suite** | 32 integration tests `anchor test` |
 
 ---
 
@@ -390,8 +390,8 @@ await program.methods
     founder: founder.publicKey,
     mint,
     founderTokenAccount: founderAta.address,
-    campaignAccount: campaignPda,
     campaignEscrow: campaignEscrowPda,
+    campaign: campaignPda,
     tokenProgram: TOKEN_PROGRAM_ID,
     systemProgram: anchor.web3.SystemProgram.programId,
   })
@@ -430,8 +430,8 @@ await program.methods
   )
   .accounts({
     founder: founder.publicKey,
-    campaignAccount: campaignPda,
-    milestoneAccount: milestonePda,
+    campaign: campaignPda,
+    milestone: milestonePda,
     systemProgram: anchor.web3.SystemProgram.programId,
   })
   .signers([founder])
@@ -450,8 +450,9 @@ await program.methods
     12           // achieved_level: level aktual yang dicapai player (>= target_level = pass)
   )
   .accounts({
+    campaign: campaignPda,
+    milestone: milestonePda,
     gameAuthority: gameAuthority.publicKey,
-    milestoneAccount: milestonePda,
   })
   .signers([gameAuthority])
   .rpc();
@@ -470,11 +471,12 @@ const playerAta = await getOrCreateAssociatedTokenAccount(
 await program.methods
   .claimMilestone(milestoneSeed, campaignSeed)
   .accounts({
-    player: player.publicKey,
-    milestoneAccount: milestonePda,
-    campaignAccount: campaignPda,
+    recipient: player.publicKey,
+    milestone: milestonePda,
+    campaign: campaignPda,
+    mint,
     campaignEscrow: campaignEscrowPda,
-    playerTokenAccount: playerAta.address,
+    recipientTokenAccount: playerAta.address,
     tokenProgram: TOKEN_PROGRAM_ID,
   })
   .signers([player])

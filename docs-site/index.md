@@ -56,7 +56,7 @@ features:
 | **Framework** | Anchor 1.0.0 |
 | **Instructions** | 9 (5 vesting + 4 campaign/milestone) |
 | **Error Codes** | 21 |
-| **Tests** | 41+ (all green ✅) |
+| **Tests** | 115 (83 Rust unit + 32 TS integration — all green ✅) |
 | **Frontend** | [blockbite-tdp.vercel.app](https://blockbite-tdp.vercel.app) |
 
 </div>

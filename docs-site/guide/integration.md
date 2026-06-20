@@ -78,6 +78,10 @@ Deposits `total_amount` tokens into PDA-owned escrow and initialises the vesting
 ```typescript
 const now = Math.floor(Date.now() / 1000);
 
+// Encode stream name: max 31 UTF-8 chars, null-padded to 32 bytes
+const nameBytes = Array.from(Buffer.alloc(32, 0));
+Buffer.from("Team Salary Q1".slice(0, 31), "utf8").copy(Buffer.from(nameBytes));
+
 await program.methods
   .createStream(
     new BN(1_000_000),      // total_amount
@@ -85,7 +89,8 @@ await program.methods
     new BN(now + 86_400),    // end_time: 24h later
     new BN(0),               // cliff_time: none
     seed,
-    false                    // milestone_enabled: false
+    false,                   // milestone_enabled: false
+    nameBytes                // name: [u8; 32]
   )
   .accounts({
     creator:             wallet.publicKey,
@@ -165,9 +170,11 @@ Use when tokens should be locked until a KPI is confirmed.
 // Create stream with milestone_enabled = true
 const mseed = new BN(Date.now() + 1);
 // ... (derive msStreamPda + msEscrowPda same as above)
+const msNameBytes = Array.from(Buffer.alloc(32, 0));
+Buffer.from("Milestone Grant".slice(0, 31), "utf8").copy(Buffer.from(msNameBytes));
 
 await program.methods
-  .createStream(new BN(500_000), new BN(now), new BN(now + 86_400), new BN(0), mseed, true)
+  .createStream(new BN(500_000), new BN(now), new BN(now + 86_400), new BN(0), mseed, true, msNameBytes)
   .accounts({ /* ... */ })
   .rpc();
 

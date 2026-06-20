@@ -76,11 +76,11 @@ cargo test -p blockbite
 
 Output yang diharapkan:
 ```
-running 13 tests
+running 83 tests
 test tests::test_linear_at_50_percent ... ok
 test tests::test_cliff_25_percent_after_cliff ... ok
 ...
-test result: ok. 13 passed; 0 failed
+test result: ok. 83 passed; 0 failed
 ```
 
 ### TypeScript Integration Tests
@@ -96,7 +96,7 @@ BlockBite
   ✓ recipient can withdraw vested tokens (800ms)
   ✓ creator can cancel a stream (900ms)
   ...
-  28 passing (45s)
+  32 passing (45s)
 ```
 
 ---
@@ -140,5 +140,5 @@ make lint     # cargo clippy
 
 | Workflow | Trigger | Apa yang Dijalankan |
 |----------|---------|---------------------|
-| `ci.yml` | Push/PR ke main | Build, Rust tests (13), TypeScript tests (28) |
+| `ci.yml` | Push/PR ke main | Build, Rust tests (83), TypeScript tests (32) |
 | `deploy-devnet.yml` | Manual dispatch | `anchor deploy` ke devnet |

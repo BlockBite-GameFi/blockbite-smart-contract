@@ -4,7 +4,7 @@
 **Due:** 2026-06-13  
 **Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
 **Network:** Solana Devnet  
-**Framework:** Anchor 0.32.1  
+**Framework:** Anchor 1.0.0  
 **Frontend:** Next.js 14 (deployed on Vercel)
 
 ---
@@ -55,7 +55,7 @@ This week I focused on:
 | `/dashboard` — stream appears | ✅ Works (after fix) | Was broken when wallet RPC blocked `getProgramAccounts`; fixed via `withRpcFallback` |
 | `/streams` — stream list | ✅ Works | Real-time claimable amounts, filter by status |
 | `/streams/[id]` — stream detail | ✅ Works | Vesting curve chart, timeline, 3-stage TX progress |
-| Withdraw (claim) | ✅ Works | VGPV anti-bot check; minimum claim amount enforced |
+| Withdraw (claim) | ✅ Works | VGPV anti-bot check (later removed in refactor; MIN_CLAIM_AMOUNT dust filter is the current guard) |
 | Cancel stream | ✅ Works | Shows confirmation modal; unvested → creator, vested → recipient |
 | Close stream | ✅ Works | Reclaims SOL rent after cancel or full withdrawal |
 
@@ -79,7 +79,7 @@ This week I focused on:
 | # | Bug | Status |
 |---|---|---|
 | 1 | Double-counted discriminator in `space` (8 bytes wasted rent) | ✅ Fixed |
-| 2 | Borrow checker conflict in VGPV snapshot | ✅ Fixed |
+| 2 | Borrow checker conflict in pure-function refactor (snapshotted immutable fields) | ✅ Fixed |
 | 3 | Wrong `set_milestone` discriminator in tests | ✅ Fixed |
 | 4 | CI: missing `.anchor` parent directory | ✅ Fixed |
 | 5 | CI: `--bind-address 0.0.0.0` panic in agave | ✅ Fixed |
@@ -111,7 +111,7 @@ This week I focused on:
 
 ## What's Working Well
 
-- **Smart contract correctness:** 41/41 tests passing (13 Rust unit + 28 TypeScript integration). Every happy-path and error-path case is covered.
+- **Smart contract correctness:** 41/41 tests passing as of Week 8 (13 Rust unit + 28 TypeScript integration). Every happy-path and error-path case is covered.
 - **RPC resilience:** The multi-tier `withRpcFallback` system handles Helius auth/rate issues, official devnet `getProgramAccounts` blocks, and endpoint timeouts transparently. Users never see a blank error — it just works.
 - **End-to-end UX:** The create → streams → detail → claim / cancel flow is smooth. The 3-stage transaction progress bar (approve → sending → confirmed) gives users clear feedback.
 - **Vesting curve visualisation:** The SVG chart on the stream detail page renders the correct curve shape (linear, cliff, hybrid, milestone) from real on-chain timestamps.
@@ -146,7 +146,7 @@ This week I focused on:
 
 ## Self-Assessment
 
-**What went well:** The smart contract is solid. 41 tests cover every edge case we documented in the spec, including the VGPV anti-bot valve, milestone gates, cancel/close rent recovery, and dust filters. The frontend RPC fallback system is robust — users on any network/wallet combination can interact with the program.
+**What went well:** The smart contract was solid at this checkpoint. 41 tests covered every edge case we documented in the spec, including the MIN_CLAIM_AMOUNT dust filter, milestone gates, cancel/close rent recovery, and `set_milestone` idempotency. The frontend RPC fallback system was robust — users on any network/wallet combination could interact with the program.
 
 **What could have been better:** The dashboard decimal bug (hardcoded `1e6`) should have been caught in week 6 when we added wSOL support. A simple unit test on the display helpers would have caught it. The RPC fallback bug in `dashboard/page.tsx` was a copy-paste omission — the streams page correctly used `withRpcFallback` but the dashboard didn't.
 

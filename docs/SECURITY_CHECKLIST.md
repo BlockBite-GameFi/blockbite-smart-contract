@@ -15,8 +15,7 @@ Program: `blockbite` · Framework: Anchor 1.0.0 · Network: Solana Devnet
 | `close_stream` | Stream Vesting | creator (signer) |
 | `create_campaign` | Campaign & Milestone | founder (signer) |
 | `create_milestone` | Campaign & Milestone | founder (signer) |
-| `submit_proof` | Campaign & Milestone | recipient (signer) |
-| `verify_game` | Campaign & Milestone | anyone (no signer required; only game_program key is checked) |
+| `verify_game` | Campaign & Milestone | game_authority (signer) — must match `milestone.game_authority` |
 | `claim_milestone` | Campaign & Milestone | recipient (signer) |
 
 ---
@@ -31,9 +30,8 @@ Program: `blockbite` · Framework: Anchor 1.0.0 · Network: Solana Devnet
 | Only stream creator can call `close_stream` | `_dispatch.rs:CloseStream` — `constraint = stream.creator == creator.key() @ Unauthorized` | ✅ |
 | Only campaign founder can call `create_campaign` | `_dispatch.rs:CreateCampaign` — `founder: Signer<'info>` | ✅ |
 | Only campaign founder can call `create_milestone` | `_dispatch.rs:CreateMilestone` — `constraint = campaign.founder == founder.key() @ Unauthorized` | ✅ |
-| Only milestone recipient can call `submit_proof` | `_dispatch.rs:SubmitProof` — `constraint = milestone.recipient == recipient.key() @ Unauthorized` | ✅ |
 | Only milestone recipient can call `claim_milestone` | `_dispatch.rs:ClaimMilestone` — `constraint = milestone.recipient == recipient.key() @ Unauthorized` | ✅ |
-| `verify_game` requires no signer (anyone can submit game results) | `_dispatch.rs:VerifyGame` — no `Signer` account; only `game_program.key()` is compared | ✅ |
+| `verify_game` requires `game_authority` to be the signer AND match `milestone.game_authority` | `_dispatch.rs:VerifyGame` — `game_authority: Signer<'info>` + `constraint = milestone.game_authority == game_authority.key() @ InvalidGameAuthority` | ✅ |
 | All required signers use Anchor's `Signer<'info>` (on-chain key check) | All instructions | ✅ |
 
 **Test coverage:** "Withdraw by non-recipient fails" (`tests/blockbite.ts:362`), "Cancel by non-creator fails" (`tests/blockbite.ts:437`), "set_milestone by non-creator fails" (`tests/blockbite.ts:1039`)
@@ -55,7 +53,7 @@ Program: `blockbite` · Framework: Anchor 1.0.0 · Network: Solana Devnet
 |---|---|---|
 | `CampaignAccount` | `["campaign", founder, seed_le_bytes]` | `_dispatch.rs:CreateCampaign`, `CreateMilestone`, `ClaimMilestone` |
 | `CampaignEscrow` | `["campaign_escrow", campaign_key]` | `_dispatch.rs:CreateCampaign`, `ClaimMilestone` |
-| `MilestoneAccount` | `["milestone", campaign_key, seed_le_bytes]` | `_dispatch.rs:CreateMilestone`, `SubmitProof`, `VerifyGame`, `ClaimMilestone` |
+| `MilestoneAccount` | `["milestone", campaign_key, seed_le_bytes]` | `_dispatch.rs:CreateMilestone`, `VerifyGame`, `ClaimMilestone` |
 
 ### Properties
 
@@ -64,7 +62,7 @@ Program: `blockbite` · Framework: Anchor 1.0.0 · Network: Solana Devnet
 - ✅ `creator`/`recipient`/`founder` pubkeys are part of the seed — prevents cross-stream/cross-campaign replay
 - ✅ Bump is stored in the account (`bump: u8`) and verified on every instruction via `bump = account.bump`
 - ✅ Anchor's `seeds` + `bump` constraint auto-verifies the PDA on every call (raises `ConstraintSeeds` on mismatch)
-- ✅ `submit_proof` and `verify_game` correctly include the `milestone` PDA's `campaign` parent account as an extra seed, preventing proofs being submitted for arbitrary accounts
+- ✅ `verify_game` and `claim_milestone` correctly include the `milestone` PDA's `campaign` parent account as an extra seed, preventing verifications/claims being submitted for arbitrary accounts
 
 ---
 
@@ -91,7 +89,7 @@ No raw `+`/`-`/`*` operators in any business-logic path.
 | Mint account validated by SPL discriminator | `Box<Account<'info, Mint>>` on every instruction | ✅ |
 | Token accounts validated by mint | `token::mint = mint` constraint on every TokenAccount param | ✅ |
 | Stream/Campaign/Milestone state accounts | `Box<Account<'info, T>>` (Anchor's 8-byte discriminator + deserialise) | ✅ |
-| `UncheckedAccount<'info>` usage | Only for `recipient` (stored as pubkey), `campaign` (PDA seed only), `game_program` (key comparison only) — all explicitly documented with `/// CHECK` | ✅ |
+| `UncheckedAccount<'info>` usage | Only for `recipient` in `create_stream` (stored as pubkey), `campaign` in `verify_game`/`claim_milestone` (PDA seed derivation), and `recipient` in `close_stream` (re-derivation only) — all explicitly documented with `/// CHECK` | ✅ |
 
 ---
 
@@ -112,10 +110,12 @@ No raw `+`/`-`/`*` operators in any business-logic path.
 | `token_amount > 0` (init_milestone) | `InvalidAmount` | `create_milestone.rs:45` |
 | `total_budget > 0` (init_campaign) | `InvalidAmount` | `create_campaign.rs:54` |
 | `allocated + token_amount <= total_budget` | `InsufficientBudget` | `create_milestone.rs:47-51` |
-| `!milestone.is_verified` (submit_proof, verify_game) | `MilestoneAlreadyVerified` | `_dispatch.rs:SubmitProof`, `VerifyGame` |
-| `!milestone.proof_submitted` (submit_proof) | `AlreadySubmitted` | `_dispatch.rs:SubmitProof` |
-| `milestone.game_program_id == game_program` (verify_game) | `InvalidGameProgram` | `verify_game.rs:38-40` |
-| `milestone.proof_hash == session_result_hash` (verify_game) | `InvalidProof` | `verify_game.rs:42-44` |
+| `target_level` in 1..=30 (create_milestone) | `InvalidLevel` | `create_milestone.rs` |
+| `difficulty` in {1, 2, 3} (create_milestone) | `InvalidDifficulty` | `create_milestone.rs` |
+| `milestone.game_authority == game_authority.key()` (verify_game) | `InvalidGameAuthority` | `verify_game.rs` constraint |
+| `!milestone.is_verified` (verify_game) | `MilestoneAlreadyVerified` | `_dispatch.rs:VerifyGame` |
+| `achieved_level` in 1..=30 (verify_game) | `InvalidLevel` | `verify_game.rs` |
+| `achieved_level >= target_level` (verify_game) | `LevelNotReached` | `verify_game.rs` |
 | `milestone.is_verified` (claim_milestone) | `MilestoneNotVerified` | `_dispatch.rs:ClaimMilestone` |
 | `!milestone.is_claimed` (claim_milestone) | `AlreadyClaimed` | `_dispatch.rs:ClaimMilestone` |
 
@@ -125,7 +125,7 @@ No raw `+`/`-`/`*` operators in any business-logic path.
 
 Solana's execution model is single-threaded per transaction — no other instruction can observe mid-transaction state. Anchor enforces **Checks → Effects → Interactions** (CEI):
 
-- All pure business-logic functions (`init_stream`, `compute_withdraw`, `compute_cancel`, `set_milestone_reached`, `init_campaign`, `init_milestone`, `submit_proof_impl`, `verify_game_impl`, `mark_milestone_claimed`, `validate_closeable`) update state and return a value **before** any handler performs a CPI call.
+- All pure business-logic functions (`init_stream`, `compute_withdraw`, `compute_cancel`, `set_milestone_reached`, `init_campaign`, `init_milestone`, `verify_game_impl`, `mark_milestone_claimed`, `validate_closeable`) update state and return a value **before** any handler performs a CPI call.
 - The `is_cancelled` flag (in `compute_cancel`) and `is_claimed` flag (in `mark_milestone_claimed`) are flipped **before** the `token::transfer_checked` CPI — even if the CPI were to invoke a malicious program that re-entered the instruction (it cannot, but defense-in-depth), the state already reflects the new value.
 - All `&mut` borrows of state accounts are scoped to the pure function and released before the CPI plumbing in the handler.
 
@@ -139,7 +139,7 @@ Solana's execution model is single-threaded per transaction — no other instruc
 |---|---|---|
 | Recipient front-runs cancel | `compute_cancel` sends the vested portion to the recipient before returning the remainder to the creator (`cancel.rs:62-70`) | ✅ |
 | Concurrent withdraws on same stream | Solana serialises writes to the same account within a slot; `compute_withdraw` updates `amount_withdrawn` before CPI, so a concurrent second withdraw would observe the new total and compute `claimable = 0` (rejected with `NothingToWithdraw`) | ✅ |
-| `submit_proof` griefing | `proof_submitted` guard prevents the recipient from overwriting `proof_hash` after the first submission, even if the creator hasn't yet called `verify_game` | ✅ |
+| `verify_game` re-call griefing | `is_verified` guard makes a second `verify_game` call fail with `MilestoneAlreadyVerified` regardless of CPI outcome | ✅ |
 | `claim_milestone` double-spend | `is_claimed` guard makes a second `claim_milestone` call fail with `AlreadyClaimed` regardless of CPI outcome | ✅ |
 
 ---
@@ -156,10 +156,9 @@ Solana's execution model is single-threaded per transaction — no other instruc
 | 6 | Deployer had 0 SOL in ephemeral CI keypair | Deploy failure | Added `solana airdrop 100` before `anchor deploy` |
 | 7 | `ANCHOR_PROVIDER_URL` not set for `ts-mocha` outside `anchor test` | Runtime panic | Added `ANCHOR_PROVIDER_URL` + `ANCHOR_WALLET` to CI env |
 | 8 | Deploy workflow verify step used stale hardcoded program ID | Deploy CI failure | Changed verify step to read ID dynamically via `anchor keys list` |
-| 9 | **`claim_milestone` had no idempotency guard** — `is_verified` stays `true` after a successful claim, so a recipient could call `claim_milestone` repeatedly to drain the campaign escrow | **Critical** | Added `is_claimed: bool` field to `MilestoneAccount` (LEN 179 → 180) + new `AlreadyClaimed` error code + constraint `!milestone.is_claimed @ AlreadyClaimed` on the `ClaimMilestone` Account struct. State flip happens **before** the CPI in `mark_milestone_claimed` (CEI). Test: `test_milestone_claim_idempotency_guard` (`tests_edge_cases.rs:73-92`) |
-| 10 | **`submit_proof` had no idempotency guard** — a recipient could resubmit a new `proof_hash` right before `verify_game` runs, changing what the verifier sees | **High** | Added `proof_submitted: bool` field to `MilestoneAccount` (LEN 180) + new `AlreadySubmitted` error code + constraint `!milestone.proof_submitted @ AlreadySubmitted` on `SubmitProof`. Test: `test_milestone_proof_immutability_guard` (`tests_edge_cases.rs:107-138`) |
+| 9 | **`claim_milestone` had no idempotency guard** — `is_verified` stays `true` after a successful claim, so a recipient could call `claim_milestone` repeatedly to drain the campaign escrow | **Critical** | Added `is_claimed: bool` field to `MilestoneAccount` + new `AlreadyClaimed` error code + constraint `!milestone.is_claimed @ AlreadyClaimed` on the `ClaimMilestone` Account struct. State flip happens **before** the CPI in `mark_milestone_claimed` (CEI). Test: `test_milestone_claim_idempotency_guard` (`tests_edge_cases.rs:73-92`) |
 | 11 | **`withdraw` / `cancel` mutated state mid-handler** while performing CPIs, blurring the CEI boundary | Low | Extracted pure functions `compute_withdraw` (`withdraw.rs:42-57`) and `compute_cancel` (`cancel.rs:56-76`) that take `&mut StreamAccount` and return a value; the handler now does state mutation first, snapshot the fields needed for the CPI, then performs `token::transfer_checked`. |
-| 12 | **`submit_proof` / `verify_game` had no PDA `seeds` constraint** — anyone could submit a proof for any account by passing it as the `milestone` parameter | **High** | Added `#[instruction(milestone_seed: u64)]` + a `campaign: UncheckedAccount<'info>` field to both account structs, with `seeds = [b"milestone", campaign.key().as_ref(), &milestone_seed.to_le_bytes()]` on the `milestone` field. The handler now requires the canonical campaign + seed pair, so the account must be the actual PDA. |
+| 12 | **`verify_game` had no PDA `seeds` constraint** — anyone could pass an arbitrary account as `milestone` and forge a verification | **High** | Added `#[instruction(milestone_seed: u64)]` + a `campaign: UncheckedAccount<'info>` field to the `VerifyGame` account struct, with `seeds = [b"milestone", campaign.key().as_ref(), &milestone_seed.to_le_bytes()]` on the `milestone` field. The handler now requires the canonical campaign + seed pair, so the account must be the actual PDA. |
 
 ---
 
@@ -172,13 +171,13 @@ Measured with `cargo-llvm-cov` (Rust 1.89 stable; `#[coverage(off)]` is nightly-
 | `make coverage` (default) | 93.05% | 91.38% | 94.66% | `instructions/_dispatch.rs` |
 | `make coverage-strict` | 99.41% | 100% | 98.35% | `instructions/_dispatch.rs` + `lib.rs` |
 
-**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic lives in the per-instruction files as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested in `tests_logic.rs` / `tests_campaign.rs` / `tests_edge_cases.rs` / `tests_cancel.rs`. The 28/28 TypeScript integration tests cover the BPF dispatch end-to-end on a real validator.
+**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic lives in the per-instruction files as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested in `tests_logic.rs` / `tests_campaign.rs` / `tests_edge_cases.rs` / `tests_cancel.rs`. The 32/32 TypeScript integration tests cover the BPF dispatch end-to-end on a real validator.
 
 | Test suite | Count |
 |---|---|
 | Rust unit tests (`cargo test --lib`) | 83 |
-| TypeScript integration tests (`anchor test`) | 28 |
-| **Total** | **111** |
+| TypeScript integration tests (`anchor test`) | 32 |
+| **Total** | **115** |
 
 ---
 

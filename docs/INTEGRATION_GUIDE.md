@@ -3,7 +3,7 @@
 This guide walks you through integrating with the BlockBite on-chain program from scratch. By the end you will have a working TypeScript client that creates a vesting stream, withdraws tokens, and interacts with the campaign/milestone reward system.
 
 **Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
-**Last updated:** 2026-06-14  
+**Last updated:** 2026-06-20  
 **Reviewed for clarity by:** BlockBite Marketing Team ✅
 
 ---

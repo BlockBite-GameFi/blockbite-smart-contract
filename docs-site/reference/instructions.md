@@ -26,6 +26,7 @@ Creates a vesting stream and locks `total_amount` tokens into a PDA-owned escrow
 | `cliff_time` | `i64` | Cliff unlock timestamp. `0` = no cliff. If > 0, nothing unlocks before this time |
 | `seed` | `u64` | Unique seed for PDA derivation |
 | `milestone_enabled` | `bool` | If `true`, tokens are additionally gated until `set_milestone` is called |
+| `name` | `[u8; 32]` | Display label (UTF-8, null-padded, max 31 chars). Display only — does not affect vesting logic |
 
 ### Accounts
 
@@ -62,6 +63,10 @@ const [escrowPda] = PublicKey.findProgramAddressSync(
 );
 const now = Math.floor(Date.now() / 1000);
 
+// Encode stream name: max 31 UTF-8 chars, null-padded to 32 bytes
+const nameBytes = Array.from(Buffer.alloc(32, 0));
+Buffer.from("Team Salary Q1".slice(0, 31), "utf8").copy(Buffer.from(nameBytes));
+
 await program.methods
   .createStream(
     new anchor.BN(1_000_000), // total_amount
@@ -69,7 +74,8 @@ await program.methods
     new anchor.BN(now + 86400),// end_time: 24h
     new anchor.BN(0),          // cliff_time: none
     seed,
-    false                      // milestone_enabled
+    false,                     // milestone_enabled
+    nameBytes                  // name: [u8; 32]
   )
   .accounts({
     creator: creator.publicKey, recipient: recipient.publicKey, mint,

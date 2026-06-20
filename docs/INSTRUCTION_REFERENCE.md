@@ -3,7 +3,7 @@
 **Program ID (Devnet):** `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`  
 **Program ID (Localnet):** `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX`  
 **Framework:** Anchor 1.0.0 · **Network:** Solana Devnet  
-**Last updated:** 2026-06-17
+**Last updated:** 2026-06-20
 
 ---
 
@@ -817,7 +817,7 @@ try {
 
 ## Unlock Calculation Logic
 
-The core unlock function (`programs/blockbite/src/utils.rs`) is a pure Rust function with 13+ unit tests:
+The core unlock function (`programs/blockbite/src/utils.rs`) is a pure Rust function with 20 unit tests (within `utils.rs` alone; 83 total Rust unit tests in the project):
 
 ```rust
 pub fn calculate_unlocked(stream: &StreamAccount, current_time: i64) -> u64 {

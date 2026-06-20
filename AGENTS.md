@@ -5,20 +5,20 @@
 ```
 blockbite/
 ├── .github/workflows/
-│   ├── ci.yml               # Build + 79 Rust + 29 TS tests on every push
+│   ├── ci.yml               # Build + 83 Rust + 32 TS tests on every push
 │   └── deploy-devnet.yml    # Manual devnet deployment
 ├── Anchor.toml              # anchor_version = "1.0.0"
 ├── Cargo.toml               # workspace: programs/blockbite
 ├── programs/blockbite/src/
 │   ├── lib.rs               # 9 instructions exposed
-│   ├── constants.rs         # VGPV + DEV_FEE constants
-│   ├── errors.rs            # 17 error codes
-│   ├── utils.rs             # calculate_unlocked
+│   ├── constants.rs         # DEV_FEE + dust filter + level/difficulty constants
+│   ├── errors.rs            # 21 error codes (6000–6020)
+│   ├── utils.rs             # calculate_unlocked + 20 inline unit tests
 │   ├── tests_logic.rs       # Unlock math + pure logic
 │   ├── tests_cancel.rs      # Cancel logic
 │   ├── tests_edge_cases.rs  # Boundary conditions
 │   ├── tests_campaign.rs    # Campaign/milestone system
-│   ├── state/stream.rs      # StreamAccount (196 bytes)
+│   ├── state/stream.rs      # StreamAccount (220 bytes)
 │   └── instructions/
 │       ├── create_stream.rs
 │       ├── withdraw.rs
@@ -29,7 +29,7 @@ blockbite/
 │       ├── create_milestone.rs
 │       ├── verify_game.rs
 │       └── claim_milestone.rs
-├── tests/blockbite.ts       # 29 TypeScript integration tests
+├── tests/blockbite.ts       # 32 TypeScript integration tests
 ├── apps/web/                # Next.js 14 front-end (dark mode, English only)
 ├── apps/game-server/        # (Removed — web app has its own /api/game/* routes)
 ├── clients/ts/              # TypeScript SDK client
@@ -95,12 +95,12 @@ Keypair: `target/deploy/blockbite-keypair.json` (also GitHub secret `ANCHOR_PROG
 | Instruction | File | Signer | Purpose |
 |---|---|---|---|
 | `create_stream`   | `create_stream.rs`   | creator    | Deposit tokens into escrow PDA, set vesting schedule |
-| `withdraw`        | `withdraw.rs`        | recipient  | Claim pro-rata unlocked tokens (VGPV + dust guard) |
+| `withdraw`        | `withdraw.rs`        | recipient  | Claim pro-rata unlocked tokens (dust guard: `MIN_CLAIM_AMOUNT`) |
 | `cancel`          | `cancel.rs`          | creator    | Cancel stream, split escrow between parties |
 | `set_milestone`   | `set_milestone.rs`   | creator    | Unlock cliff-gated vesting by confirming a KPI |
 | `close_stream`    | `close_stream.rs`    | creator    | Close settled stream, recover rent SOL |
-| `create_campaign` | `create_campaign.rs` | creator    | Initialize a CampaignAccount |
-| `create_milestone`| `create_milestone.rs`| creator    | Add a milestone gate to an existing stream |
+| `create_campaign` | `create_campaign.rs` | founder    | Initialize a CampaignAccount + escrow vault |
+| `create_milestone`| `create_milestone.rs`| founder    | Add a milestone gate to a campaign |
 | `verify_game`     | `verify_game.rs`     | game auth  | Sign game-level completion (anti-bot oracle) |
 | `claim_milestone` | `claim_milestone.rs` | recipient  | Claim tokens unlocked by a verified milestone |
 
@@ -127,9 +127,10 @@ Keypair: `target/deploy/blockbite-keypair.json` (also GitHub secret `ANCHOR_PROG
 |---|---|---|
 | `DEV_FEE_BPS` | 100 | 1% protocol fee on `create_stream` |
 | `MIN_CLAIM_AMOUNT` | 1_000 | Dust filter: reject withdrawals below this |
-| `MIN_ACTION_INTERVAL` | 2 | Seconds; faster → VGPV strike |
-| `MAX_VELOCITY_STRIKES` | 3 | Strikes before `BotDetected` |
-| `VELOCITY_RESET_INTERVAL` | 3_600 | Seconds of inactivity to reset strikes |
+| `MIN_LEVEL` / `MAX_LEVEL` | 1 / 30 | Game target level range |
+| `DIFFICULTY_EASY` / `MEDIUM` / `HARD` | 1 / 2 / 3 | Milestone difficulty IDs |
+
+> **Note:** `MIN_ACTION_INTERVAL`, `MAX_VELOCITY_STRIKES`, and `VELOCITY_RESET_INTERVAL` are declared in `constants.rs` (VGPV stubs) but are **not currently consumed** by any instruction. Reserved for a future anti-bot rate limiter.
 
 ### Core Math (`utils.rs`)
 
@@ -144,7 +145,7 @@ unlocked = total_amount × (current_time - start_time) / (end_time - start_time)
 
 All instructions follow **Checks → Effects → Interactions**:
 1. **Checks**: Anchor constraints + `require!` validations
-2. **Effects**: Update state (`amount_withdrawn`, `is_cancelled`, VGPV fields)
+2. **Effects**: Update state (`amount_withdrawn`, `is_cancelled`, `is_claimed`, etc.)
 3. **Interactions**: CPI `token::transfer_checked` / `token::close_account` last
 
 All arithmetic uses `checked_*` or `u128` intermediate — never raw operators.
@@ -174,7 +175,7 @@ make coverage
 | `make coverage-strict` | 99.4% | 100% | 98.4% | `lib.rs` (9 BPF dispatch wrappers) + `_dispatch.rs` (9 Account structs + 9 `*_handler` fns) |
 | `make coverage` | 93.1% | 91.4% | 94.7% | `_dispatch.rs` only |
 
-**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic (validation, state mutation, computation) lives in the per-instruction files (create_stream.rs, withdraw.rs, etc.) as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested via `tests_logic.rs`, `tests_campaign.rs`, `tests_edge_cases.rs`, and `tests_cancel.rs`. The 29/29 TS integration tests cover the BPF dispatch end-to-end on a real validator.
+**Why `_dispatch.rs` is excluded**: it holds the `#[derive(Accounts)]` Account structs and the `*_handler` functions that wire them into Anchor CPIs. None of that code is reachable from `cargo test` — it only runs inside the BPF VM at runtime. The pure business logic (validation, state mutation, computation) lives in the per-instruction files (create_stream.rs, withdraw.rs, etc.) as `pub fn init_stream`, `compute_withdraw`, etc. and is fully unit-tested via `tests_logic.rs`, `tests_campaign.rs`, `tests_edge_cases.rs`, and `tests_cancel.rs`. The 32/32 TS integration tests cover the BPF dispatch end-to-end on a real validator.
 
 ## Test Quirks
 
@@ -192,7 +193,8 @@ Tests use `anchor.workspace.blockbite.programId` — never hardcoded strings.
 ### Error Assertion Pattern
 
 ```typescript
-assert.ok(e.message.includes("BotDetected") || e.message.includes("0x1776"));
+// AnchorError errorCode.number is the integer 6000–6020; .code is the camelCase name
+assert.ok(e.message.includes("NothingToWithdraw") || e.message.includes("0x1771"));
 ```
 
 ### Solana Integer-Second Timestamps

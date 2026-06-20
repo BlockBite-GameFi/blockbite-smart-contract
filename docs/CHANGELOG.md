@@ -11,11 +11,14 @@ Ringkasan perubahan per minggu pengembangan dalam program Mancer S1.
 - Tambah `docs/PROGRAM.md` — referensi lengkap semua 9 instruksi dengan parameter, accounts, errors, TypeScript snippets
 - Tambah `docs/INTEGRATION.md` — panduan integrasi step-by-step
 - Tambah `docs/STREAM_MODEL.md` — layout byte field-by-field StreamAccount, CampaignAccount, MilestoneAccount + lifecycle diagram
-- Tambah `docs/ADR.md` — 6 Architecture Decision Records
+- Tambah `docs/ARCHITECTURE_DECISIONS.md` — 6 Architecture Decision Records
 - Tambah `docs/ERROR_MAP.md` — 21 error codes dengan kondisi dan cara mengatasi
-- Tambah `docs/CLIFF_VESTING.md` — penjelasan `calculate_unlocked`, 4 mode vesting, 13 edge cases
+- Tambah `docs/CLIFF_VESTING.md` — penjelasan `calculate_unlocked`, 4 mode vesting, 20 edge cases
 - Tambah `docs/SETUP.md` — prerequisites, build, test, deploy guide
-- Tambah `.gitbook.yaml` + `SUMMARY.md` untuk fix GitBook navigation
+- Tambah `docs-site/` (VitePress) — public-facing documentation site
+- Tambah `docs/TESTING.md` — test suite breakdown
+- Tambah `docs/SECURITY_CHECKLIST.md` — full security audit
+- 83 Rust unit tests, 32 TypeScript integration tests (total 115 — all green)
 
 ---
 
@@ -29,7 +32,7 @@ Ringkasan perubahan per minggu pengembangan dalam program Mancer S1.
 - `verify_game` requires signature dari `game_authority` keypair (server-side oracle)
 - `title_hash` dan `description_hash` menggunakan SHA-256 32-byte on-chain, konten lengkap off-chain
 - Error codes 6010–6020 untuk subsistem campaign
-- 28 TypeScript integration tests (naik dari 17 di Week 7)
+- 32 TypeScript integration tests (naik dari 17 di Week 7; +4 close_stream tests di Week 9)
 
 ---
 
@@ -55,7 +58,7 @@ Ringkasan perubahan per minggu pengembangan dalam program Mancer S1.
 - Tambah `milestone_enabled` + `milestone_reached` boolean flags
 - `calculate_unlocked()` di `utils.rs` menangani 4 kombinasi: Pure Linear, Cliff, Milestone, Cliff+Milestone
 - `set_milestone` instruksi untuk one-way flip `milestone_reached = true`
-- 13 Rust unit tests di `utils.rs` untuk semua edge case `calculate_unlocked`
+- 20 Rust unit tests di `utils.rs` untuk semua edge case `calculate_unlocked`
 - Dispatch pattern: pisah `_dispatch.rs` (Anchor boilerplate) dari pure functions (testable tanpa BPF)
 
 ---

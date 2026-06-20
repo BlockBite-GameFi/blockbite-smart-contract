@@ -77,7 +77,7 @@ BlockBite
     ✔ rejects zero amount (432ms)
     ...
 
-  41 passing (28s)
+  32 passing (45s)
 ```
 
 ---
@@ -88,7 +88,7 @@ BlockBite
 cargo test --package blockbite
 ```
 
-These test the pure `calculate_unlocked` function and cancel/campaign logic without spinning up a Solana validator. 13+ tests, runs in under 2 seconds.
+These test the pure `calculate_unlocked` function and cancel/campaign logic without spinning up a Solana validator. 83 tests, runs in under 2 seconds.
 
 ---
 
@@ -119,11 +119,11 @@ blockbite-smart-contract/
 │   ├── lib.rs                    # Program entrypoint — 9 instructions declared
 │   ├── constants.rs              # Game level + difficulty constants
 │   ├── errors.rs                 # 21 error codes
-│   ├── utils.rs                  # calculate_unlocked() + 13 Rust unit tests
-│   ├── state/
-│   │   ├── stream.rs             # StreamAccount (196 bytes)
-│   │   ├── campaign.rs           # CampaignAccount (90 bytes)
-│   │   └── milestone.rs          # MilestoneAccount (150 bytes)
+│       ├── utils.rs                  # calculate_unlocked() + 20 Rust unit tests
+│       ├── state/
+│       │   ├── stream.rs             # StreamAccount (220 bytes)
+│       │   ├── campaign.rs           # CampaignAccount (90 bytes)
+│       │   └── milestone.rs          # MilestoneAccount (150 bytes)
 │   └── instructions/
 │       ├── _dispatch.rs          # Anchor #[derive(Accounts)] structs + handlers
 │       ├── create_stream.rs      # init_stream pure function
@@ -135,7 +135,7 @@ blockbite-smart-contract/
 │       ├── create_milestone.rs   # init_milestone pure function
 │       ├── verify_game.rs        # verify_game_impl pure function
 │       └── claim_milestone.rs    # mark_milestone_claimed pure function
-├── tests/blockbite.ts            # 29 integration tests (TypeScript/Mocha)
+├── tests/blockbite.ts            # 32 integration tests (TypeScript/Mocha)
 ├── clients/ts/                   # TypeScript client SDK
 ├── apps/web/                     # Next.js 14 frontend (dark mode, English)
 └── docs/                         # Markdown source docs

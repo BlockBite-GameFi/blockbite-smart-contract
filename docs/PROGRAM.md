@@ -5,8 +5,8 @@
 | **Program ID (Devnet)** | `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq` |
 | **Program ID (Localnet)** | `9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX` |
 | **IDL** | `target/idl/blockbite.json` setelah `anchor build` |
-| **Status** | Semua 9 instruksi **live di devnet** — 41/41 tests passing |
-| **Test coverage** | 13 Rust unit tests (`cargo test -p blockbite`), 28 TypeScript integration tests (`anchor test`) |
+| **Status** | Semua 9 instruksi **live di devnet** — 115/115 tests passing |
+| **Test coverage** | 83 Rust unit tests (`cargo test -p blockbite`), 32 TypeScript integration tests (`anchor test`) |
 
 BlockBite mengekspos **9 instruksi** yang dibagi menjadi dua subsistem: Stream Vesting dan Campaign & Game Rewards.
 
@@ -18,13 +18,13 @@ BlockBite mengekspos **9 instruksi** yang dibagi menjadi dua subsistem: Stream V
 programs/blockbite/src/
 ├── lib.rs                    ← entry points (9 instruksi)
 ├── errors.rs                 ← 21 error codes (6000–6020)
-├── utils.rs                  ← calculate_unlocked() + 13 unit tests
+├── utils.rs                  ← calculate_unlocked() + 20 unit tests
 ├── state/
-│   ├── stream.rs             ← StreamAccount struct (188 bytes)
+│   ├── stream.rs             ← StreamAccount struct (220 bytes)
 │   ├── campaign.rs           ← CampaignAccount + MilestoneAccount
 │   └── mod.rs
 └── instructions/
-    ├── _dispatch.rs          ← Anchor #[derive(Accounts)] structs
+    ├── _dispatch.rs          ← Anchor boilerplate (#[derive(Accounts)] structs + 9 *_handler functions; excluded from coverage)
     ├── create_stream.rs      ← pure fn init_stream()
     ├── withdraw.rs           ← pure fn compute_withdraw()
     ├── cancel.rs             ← pure fn compute_cancel()
@@ -69,6 +69,8 @@ programs/blockbite/src/
 | `seed` | `u64` | Seed unik dari creator untuk derivasi PDA. Memungkinkan banyak stream antar pasangan yang sama. |
 | `milestone_enabled` | `bool` | `true` = token terkunci sampai creator panggil `set_milestone`. `false` = pure time-based. |
 | `name` | `[u8; 32]` | Label stream (UTF-8, null-padded, max 31 karakter bermakna). Hanya untuk display; tidak memengaruhi vesting. |
+
+> **Catatan:** `name` adalah byte array 32-elemen, bukan string. Encode client-side: `Buffer.alloc(32, 0)` lalu `Buffer.from(label.slice(0, 31), "utf8").copy(buf)`.
 
 ### Accounts
 
@@ -383,7 +385,7 @@ const [campaignEscrow] = PublicKey.findProgramAddressSync(
 );
 
 await program.methods
-  .createCampaign(campaignSeed, new anchor.BN(100_000_000), titleHash)
+  .createCampaign(titleHash, new BN(100_000_000), campaignSeed)
   .accounts({
     founder: founder.publicKey,
     mint,
@@ -407,13 +409,14 @@ await program.methods
 
 | Parameter | Tipe | Deskripsi |
 |-----------|------|-----------|
+| `description_hash` | `[u8; 32]` | SHA-256 dari deskripsi milestone |
+| `campaign_seed` | `u64` | Seed dari parent campaign PDA |
 | `milestone_seed` | `u64` | Seed unik untuk milestone ini dalam campaign |
 | `token_amount` | `u64` | Reward token untuk milestone ini. `allocated_amount + token_amount` tidak boleh melebihi `total_budget`. |
+| `game_authority` | `Pubkey` | Pubkey game server yang akan menandatangani `verify_game` |
+| `recipient` | `Pubkey` | Player yang berhak klaim milestone ini |
 | `target_level` | `u8` | Level minimum yang harus dicapai player (1–30) |
 | `difficulty` | `u8` | `1`=easy, `2`=medium, `3`=hard |
-| `description_hash` | `[u8; 32]` | SHA-256 dari deskripsi milestone |
-| `recipient` | `Pubkey` | Player yang berhak klaim milestone ini |
-| `game_authority` | `Pubkey` | Pubkey game server yang akan menandatangani `verify_game` |
 
 ### Accounts
 
@@ -434,6 +437,42 @@ await program.methods
 | 6018 | `InvalidLevel` | `target_level` di luar range 1–30 |
 | 6020 | `InvalidDifficulty` | `difficulty` bukan 1, 2, atau 3 |
 
+### Contoh TypeScript
+
+```typescript
+import { createHash } from "crypto";
+
+const milestoneSeed = new BN(1);
+const descHash      = Array.from(createHash("sha256").update("Reach Level 10").digest());
+const gameAuthority = Keypair.generate();  // hot wallet game server
+const player        = Keypair.generate();  // player wallet
+
+const [milestonePda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("milestone"), campaignPda.toBuffer(), milestoneSeed.toArrayLike(Buffer, "le", 8)],
+  PROGRAM_ID
+);
+
+await program.methods
+  .createMilestone(
+    descHash,                 // description_hash
+    campaignSeed,             // campaign_seed (parent)
+    milestoneSeed,            // milestone_seed
+    new BN(50_000_000),       // token_amount: 50 token reward
+    gameAuthority.publicKey,  // game_authority
+    player.publicKey,         // recipient
+    10,                       // target_level
+    2                         // difficulty: medium
+  )
+  .accounts({
+    founder: founder.publicKey,
+    campaign: campaignPda,
+    milestone: milestonePda,
+    systemProgram: SystemProgram.programId,
+  })
+  .signers([founder])
+  .rpc();
+```
+
 ---
 
 ## 8. `verify_game`
@@ -444,21 +483,23 @@ await program.methods
 
 | Parameter | Tipe | Deskripsi |
 |-----------|------|-----------|
-| `achieved_level` | `u8` | Level aktual yang dicapai player. Harus ≥ `milestone.target_level`. |
+| `milestone_seed` | `u64` | Seed dari milestone yang akan diverifikasi |
+| `achieved_level` | `u8` | Level aktual yang dicapai player. Harus ≥ `milestone.target_level` dan ≤ 30 |
 
 ### Accounts
 
 | Field | Tipe | W | S | Deskripsi |
 |-------|------|---|---|-----------|
-| `game_authority` | `Signer` | — | ✓ | Harus cocok dengan `milestone.game_authority` |
+| `campaign` | `UncheckedAccount` | — | — | Parent campaign PDA (untuk seed derivation) |
 | `milestone` | `MilestoneAccount` | ✓ | — | Field `is_verified` dan `achieved_level` diisi |
+| `game_authority` | `Signer` | — | ✓ | Harus cocok dengan `milestone.game_authority` |
 
 ### Perilaku
 
 1. Validasi `signer == milestone.game_authority` → `InvalidGameAuthority`
 2. Validasi `!milestone.is_verified` → `MilestoneAlreadyVerified`
-3. Validasi `achieved_level >= milestone.target_level` → `LevelNotReached`
-4. Validasi `achieved_level` dalam range 1–30 → `InvalidLevel`
+3. Validasi `achieved_level` dalam range 1–30 → `InvalidLevel`
+4. Validasi `achieved_level >= milestone.target_level` → `LevelNotReached`
 5. Set `milestone.achieved_level = achieved_level`
 6. Set `milestone.is_verified = true`
 
@@ -476,10 +517,11 @@ await program.methods
 ```typescript
 // Harus dipanggil dari backend game server, bukan dari client player
 await program.methods
-  .verifyGame(25) // achieved_level: player berhasil capai level 25
+  .verifyGame(milestoneSeed, 25) // milestone_seed, achieved_level
   .accounts({
-    gameAuthority: gameServerKeypair.publicKey,
+    campaign: campaignPda,
     milestone: milestonePda,
+    gameAuthority: gameServerKeypair.publicKey,
   })
   .signers([gameServerKeypair]) // PENTING: bukan wallet player
   .rpc();
@@ -495,24 +537,28 @@ await program.methods
 
 ### Parameter
 
-Tidak ada.
+| Parameter | Tipe | Deskripsi |
+|-----------|------|-----------|
+| `milestone_seed` | `u64` | Seed dari milestone yang diklaim |
+| `campaign_seed` | `u64` | Seed dari parent campaign (diperlukan untuk PDA derivation) |
 
 ### Accounts
 
 | Field | Tipe | W | S | Deskripsi |
 |-------|------|---|---|-----------|
-| `player` | `Signer` | — | ✓ | Harus cocok dengan `milestone.recipient` |
-| `campaign` | `CampaignAccount` | — | — | Parent campaign (untuk validasi) |
+| `recipient` | `Signer` | — | ✓ | Harus cocok dengan `milestone.recipient` |
 | `milestone` | `MilestoneAccount` | ✓ | — | Field `is_claimed` di-set `true` |
+| `campaign` | `UncheckedAccount` | — | — | Parent campaign (untuk validasi) |
+| `mint` | `Mint` | — | — | SPL mint dari token reward |
 | `campaign_escrow` | `TokenAccount` | ✓ | — | Vault campaign, sumber token |
-| `player_token_account` | `TokenAccount` | ✓ | — | ATA player, tujuan token |
+| `recipient_token_account` | `TokenAccount` | ✓ | — | ATA recipient, tujuan token |
 | `token_program` | `Program` | — | — | SPL Token Program |
 
 ### Perilaku (CEI)
 
 1. **Checks**: `signer == milestone.recipient`, `is_verified == true`, `!is_claimed`
 2. **Effects**: Set `milestone.is_claimed = true`
-3. **Interactions**: Transfer `milestone.token_amount` dari `campaign_escrow` → `player_token_account` via PDA-signed CPI
+3. **Interactions**: Transfer `milestone.token_amount` dari `campaign_escrow` → `recipient_token_account` via PDA-signed CPI
 
 ### Error yang Relevan
 
@@ -526,13 +572,14 @@ Tidak ada.
 
 ```typescript
 await program.methods
-  .claimMilestone()
+  .claimMilestone(milestoneSeed, campaignSeed)
   .accounts({
-    player: player.publicKey,
-    campaign: campaignPda,
+    recipient: player.publicKey,
     milestone: milestonePda,
+    campaign: campaignPda,
+    mint,
     campaignEscrow,
-    playerTokenAccount: playerAta.address,
+    recipientTokenAccount: playerAta.address,
     tokenProgram: TOKEN_PROGRAM_ID,
   })
   .signers([player])
