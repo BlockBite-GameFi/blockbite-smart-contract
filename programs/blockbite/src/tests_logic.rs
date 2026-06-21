@@ -14,8 +14,8 @@ use crate::instructions::{
     claim_milestone::mark_milestone_claimed,
     close_stream::{compute_close_dust, validate_closeable},
     create_campaign::init_campaign,
-    create_milestone::init_milestone,
-    create_stream::init_stream,
+    create_milestone::{compute_game_verification_fee, init_milestone},
+    create_stream::{compute_stream_fee, init_stream},
     set_milestone::set_milestone_reached,
     verify_game::verify_game_impl,
     withdraw::{build_stream_signer_seeds, compute_withdraw},
@@ -49,6 +49,7 @@ fn empty_campaign() -> CampaignAccount {
         title_hash:       [0u8; 32],
         total_budget:     0,
         allocated_amount: 0,
+        allocated_fees:   0,
         milestone_count:  0,
         bump:             0,
     }
@@ -96,7 +97,7 @@ fn test_init_stream_happy_path() {
     let mint = Pubkey::new_unique();
     let escrow = Pubkey::new_unique();
 
-    init_stream(
+    let fee = init_stream(
         &mut s,
         creator, recipient, mint, escrow,
         1_000_000, 1000, 2000, 0,
@@ -117,6 +118,9 @@ fn test_init_stream_happy_path() {
     assert_eq!(s.seed, 42);
     assert!(!s.milestone_reached);
     assert!(!s.milestone_enabled);
+
+    // 0.9% of 1_000_000 = 9_000
+    assert_eq!(fee, 9_000);
 }
 
 #[test]
@@ -383,7 +387,7 @@ fn test_init_milestone_happy_path() {
     let recipient = Pubkey::new_unique();
     let game = Pubkey::new_unique();
 
-    init_milestone(
+    let fee = init_milestone(
         &mut c, &mut m,
         campaign_key, recipient, [1u8; 32], game,
         10_000, 10, 2, 252,
@@ -400,7 +404,10 @@ fn test_init_milestone_happy_path() {
     assert!(!m.is_claimed);
     assert_eq!(m.bump, 252);
 
+    // 0.1% of 10_000 = 10
+    assert_eq!(fee, 10);
     assert_eq!(c.allocated_amount, 10_000);
+    assert_eq!(c.allocated_fees, 10);
     assert_eq!(c.milestone_count, 1);
 }
 
@@ -426,7 +433,10 @@ fn test_init_milestone_rejects_budget_overflow() {
         Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::new_unique(),
         20_000, 10, 2, 0,
     ).unwrap_err();
-    assert_eq!(err_code(err), err_for(ErrorCode::InsufficientBudget));
+    // New error: budget overflow now reports InsufficientBudgetForFee
+    // because the total committed (recipient allocation + game-verification fee)
+    // exceeds total_budget.
+    assert_eq!(err_code(err), err_for(ErrorCode::InsufficientBudgetForFee));
 }
 
 #[test]
@@ -493,7 +503,9 @@ fn test_init_milestone_accumulates_allocated() {
         20_000, 15, 2, 0,
     ).unwrap();
 
+    // 0.1% of 30_000 = 30; 0.1% of 20_000 = 20.
     assert_eq!(c.allocated_amount, 50_000);
+    assert_eq!(c.allocated_fees, 50);
     assert_eq!(c.milestone_count, 2);
 }
 
@@ -682,4 +694,115 @@ fn test_build_stream_signer_seeds_zero_seed_and_bump() {
     assert_eq!(seeds[2], [0u8; 32]);
     assert_eq!(seeds[3], &[0u8; 8][..]);
     assert_eq!(seeds[4], &[0u8][..]);
+}
+
+// =============================================================================
+// Fee math (create_stream + create_milestone)
+// =============================================================================
+
+#[test]
+fn test_stream_fee_0_9_percent() {
+    // Exact multiple of 10_000 — clean division.
+    assert_eq!(compute_stream_fee(1_000_000).unwrap(), 9_000);
+    assert_eq!(compute_stream_fee(10_000).unwrap(), 90);
+    assert_eq!(compute_stream_fee(100_000).unwrap(), 900);
+}
+
+#[test]
+fn test_stream_fee_rounds_down() {
+    // Integer division truncates the remainder, so the protocol never overcharges.
+    assert_eq!(compute_stream_fee(1_001).unwrap(), 9);
+    assert_eq!(compute_stream_fee(99).unwrap(), 0);
+    assert_eq!(compute_stream_fee(10).unwrap(), 0);
+}
+
+#[test]
+fn test_stream_fee_zero_for_tiny_amounts() {
+    assert_eq!(compute_stream_fee(0).unwrap(), 0);
+    assert_eq!(compute_stream_fee(1).unwrap(), 0);
+    assert_eq!(compute_stream_fee(111).unwrap(), 0);
+}
+
+#[test]
+fn test_stream_fee_max_value() {
+    // u64::MAX * 90 / 10_000 must not overflow. The u128 intermediate handles it.
+    let fee = compute_stream_fee(u64::MAX).unwrap();
+    // Sanity: fee < total_amount, and (close to) 0.9% within rounding.
+    let expected = (u64::MAX as u128) * 90 / 10_000;
+    assert_eq!(fee as u128, expected);
+}
+
+#[test]
+fn test_game_verification_fee_no_authority_is_zero() {
+    // game_authority == Pubkey::default() ⇒ no fee, even on huge amounts.
+    assert_eq!(compute_game_verification_fee(0, Pubkey::default()).unwrap(), 0);
+    assert_eq!(compute_game_verification_fee(1_000_000, Pubkey::default()).unwrap(), 0);
+    assert_eq!(compute_game_verification_fee(u64::MAX, Pubkey::default()).unwrap(), 0);
+}
+
+#[test]
+fn test_game_verification_fee_0_1_percent() {
+    let game = Pubkey::new_unique();
+    assert_eq!(compute_game_verification_fee(1_000_000, game).unwrap(), 1_000);
+    assert_eq!(compute_game_verification_fee(10_000, game).unwrap(), 10);
+    assert_eq!(compute_game_verification_fee(100_000, game).unwrap(), 100);
+}
+
+#[test]
+fn test_game_verification_fee_rounds_down() {
+    let game = Pubkey::new_unique();
+    assert_eq!(compute_game_verification_fee(1_001, game).unwrap(), 1);
+    assert_eq!(compute_game_verification_fee(99, game).unwrap(), 0);
+}
+
+#[test]
+fn test_milestone_budget_rejects_when_only_fee_overflows() {
+    // The recipient allocation alone fits, but the fee pushes us over the budget.
+    // total_budget = 10_000; token_amount = 10_000, fee = 10 → 10_010 > 10_000.
+    let mut c = empty_campaign();
+    c.total_budget = 10_000;
+    let mut m = empty_milestone();
+    let game = Pubkey::new_unique();
+    let err = init_milestone(
+        &mut c, &mut m,
+        Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], game,
+        10_000, 10, 2, 0,
+    ).unwrap_err();
+    assert_eq!(err_code(err), err_for(ErrorCode::InsufficientBudgetForFee));
+}
+
+#[test]
+fn test_milestone_budget_exact_match_succeeds() {
+    // Budget = amount + exact fee, no headroom. Must still succeed.
+    // 10_000 * 0.1% = 10 ⇒ total = 10_010.
+    let mut c = empty_campaign();
+    c.total_budget = 10_010;
+    let mut m = empty_milestone();
+    let game = Pubkey::new_unique();
+    let fee = init_milestone(
+        &mut c, &mut m,
+        Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], game,
+        10_000, 10, 2, 0,
+    ).unwrap();
+    assert_eq!(fee, 10);
+    assert_eq!(c.allocated_amount, 10_000);
+    assert_eq!(c.allocated_fees, 10);
+}
+
+#[test]
+fn test_milestone_without_game_authority_charges_no_fee() {
+    // Default game_authority ⇒ 0% fee, even on a large amount.
+    let mut c = empty_campaign();
+    c.total_budget = 100_000;
+    let mut m = empty_milestone();
+    let fee = init_milestone(
+        &mut c, &mut m,
+        Pubkey::new_unique(), Pubkey::new_unique(), [0u8; 32], Pubkey::default(),
+        50_000, 10, 2, 0,
+    ).unwrap();
+    assert_eq!(fee, 0);
+    assert_eq!(c.allocated_amount, 50_000);
+    assert_eq!(c.allocated_fees, 0);
+    // Budget check only covers allocated_amount.
+    assert!(c.allocated_amount + c.allocated_fees <= c.total_budget);
 }

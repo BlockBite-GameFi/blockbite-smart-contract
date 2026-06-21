@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
   TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
@@ -19,6 +20,11 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Protocol treasury wallet. Module-level so the instruction builders below
+// can derive the per-mint treasury ATA without it being passed through every
+// function signature.
+const treasury = Keypair.generate();
 
 async function airdropAndConfirm(
   pubkey: PublicKey,
@@ -56,6 +62,40 @@ function createStreamData(
   encodeStreamName(name).copy(data, 49);
   return data;
 }
+
+function mkInitProtocolConfigData(treasury: PublicKey): Buffer {
+  // sha256("global:init_protocol_config")[0..8]
+  const discriminator = [91, 97, 211, 137, 96, 222, 139, 40];
+  const data = Buffer.alloc(8 + 32);
+  discriminator.forEach((b, i) => (data[i] = b));
+  treasury.toBuffer().copy(data, 8);
+  return data;
+}
+
+function getProtocolConfigPda(programId: PublicKey): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("protocol_config")],
+    programId,
+  );
+  return pda;
+}
+
+function getTreasuryAta(treasury: PublicKey, mint: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [
+      treasury.toBuffer(),
+      TOKEN_PROGRAM_ID.toBuffer(),
+      mint.toBuffer(),
+    ],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  )[0];
+}
+
+// Module-level on-chain treasury pubkey, set in before() to the value stored
+// in ProtocolConfig.treasury (which may differ from the local `treasury`
+// keypair if a previous test run already initialised the protocol config).
+// Used by all ATA derivations so the on-chain constraint matches.
+let ONCHAIN_TREASURY: PublicKey | null = null;
 
 function createWithdrawIx(
   programId: PublicKey,
@@ -147,15 +187,30 @@ async function createStream(
   milestoneEnabled = false,
   name: string = "",
 ): Promise<void> {
+  const protocolConfig      = getProtocolConfigPda(programId);
+  const treasuryTokenAccount = getTreasuryAta(ONCHAIN_TREASURY!, mint);
+  // Debug: verify protocol_config exists and is owned by the program
+  const pcInfo = await provider.connection.getAccountInfo(protocolConfig);
+  if (!pcInfo) {
+    throw new Error(`protocol_config PDA ${protocolConfig.toBase58()} does not exist; init_protocol_config was not run`);
+  }
+  if (!pcInfo.owner.equals(programId)) {
+    throw new Error(
+      `protocol_config PDA ${protocolConfig.toBase58()} is owned by ${pcInfo.owner.toBase58()}, ` +
+      `not by the program ${programId.toBase58()} — surfpool ledger is stale, please reset.`,
+    );
+  }
   const ix = new anchor.web3.TransactionInstruction({
     keys: [
-      { pubkey: creator.publicKey,     isSigner: true,  isWritable: true  },
-      { pubkey: recipient,             isSigner: false, isWritable: false },
-      { pubkey: mint,                  isSigner: false, isWritable: false },
-      { pubkey: creatorTokenAccount,   isSigner: false, isWritable: true  },
-      { pubkey: escrowTokenAccount,    isSigner: false, isWritable: true  },
-      { pubkey: streamPda,             isSigner: false, isWritable: true  },
-      { pubkey: TOKEN_PROGRAM_ID,      isSigner: false, isWritable: false },
+      { pubkey: creator.publicKey,       isSigner: true,  isWritable: true  },
+      { pubkey: recipient,               isSigner: false, isWritable: false },
+      { pubkey: mint,                    isSigner: false, isWritable: false },
+      { pubkey: creatorTokenAccount,     isSigner: false, isWritable: true  },
+      { pubkey: escrowTokenAccount,      isSigner: false, isWritable: true  },
+      { pubkey: streamPda,               isSigner: false, isWritable: true  },
+      { pubkey: protocolConfig,          isSigner: false, isWritable: false },
+      { pubkey: treasuryTokenAccount,    isSigner: false, isWritable: true  },
+      { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     programId,
@@ -194,6 +249,56 @@ function mkCreateMilestoneData(
   data[128] = targetLevel;
   data[129] = difficulty;
   return data;
+}
+
+/**
+ * Build a `create_milestone` instruction with the new 0.1% fee accounts.
+ *
+ * Account order (matches CreateMilestone in _dispatch.rs):
+ *   0  founder                – signer, payer
+ *   1  campaign               – mut
+ *   2  milestone              – mut, init
+ *   3  protocol_config        – PDA, readable
+ *   4  mint                   – readable
+ *   5  campaign_escrow        – mut, source of fee
+ *   6  treasury_token_account – mut, destination of fee
+ *   7  token_program
+ *   8  system_program
+ */
+function createMilestoneIx(
+  programId: PublicKey,
+  founder: PublicKey,
+  campaignPda: PublicKey,
+  milestonePda: PublicKey,
+  mint: PublicKey,
+  campaignEscrow: PublicKey,
+  descHash: Buffer,
+  campaignSeed: bigint,
+  milestoneSeed: bigint,
+  tokenAmount: bigint,
+  gameAuthority: PublicKey,
+  recipient: PublicKey,
+  targetLevel: number,
+  difficulty: number,
+): anchor.web3.TransactionInstruction {
+  return new anchor.web3.TransactionInstruction({
+    keys: [
+      { pubkey: founder,              isSigner: true,  isWritable: true  },
+      { pubkey: campaignPda,          isSigner: false, isWritable: true  },
+      { pubkey: milestonePda,         isSigner: false, isWritable: true  },
+      { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+      { pubkey: mint,                 isSigner: false, isWritable: false },
+      { pubkey: campaignEscrow,       isSigner: false, isWritable: true  },
+      { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, mint), isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data: mkCreateMilestoneData(
+      descHash, campaignSeed, milestoneSeed, tokenAmount,
+      gameAuthority, recipient, targetLevel, difficulty,
+    ),
+  });
 }
 
 function mkVerifyGameData(milestoneSeed: bigint, achievedLevel: number): Buffer {
@@ -240,13 +345,16 @@ describe("blockbite", () => {
   let escrowTokenAccount: PublicKey;
 
   const TOTAL_AMOUNT = 1_000_000;
+  // 0.9% protocol fee on every create_stream. Creator must mint enough to
+  // cover BOTH the escrow deposit AND the fee.
+  const STREAM_FEE = Math.floor(TOTAL_AMOUNT * 90 / 10_000);
   const SEED         = 1;
   let startTime: number;
   let endTime: number;
 
   // ── Global setup ───────────────────────────────────────────────────────────
   before(async () => {
-    for (const kp of [creator, recipient]) {
+    for (const kp of [creator, recipient, treasury]) {
       const sig = await provider.connection.requestAirdrop(
         kp.publicKey,
         2 * anchor.web3.LAMPORTS_PER_SOL,
@@ -254,6 +362,51 @@ describe("blockbite", () => {
       await provider.connection.confirmTransaction(sig, "confirmed");
     }
     await sleep(10000);
+
+    // Default to the local keypair. If the protocol config already exists
+    // on-chain (from a previous test run), the on-chain treasury is the
+    // source of truth and overrides this below.
+    ONCHAIN_TREASURY = treasury.publicKey;
+
+    // Initialise ProtocolConfig (admin = provider wallet, treasury = `treasury`).
+    // Idempotent: skip the init if the PDA is already occupied (e.g. the
+    // surfpool ledger has the account from a previous run). In that case,
+    // the on-chain treasury is the source of truth — use it to derive the
+    // per-mint treasury ATAs so they match the on-chain constraint.
+    const protocolConfigPda = getProtocolConfigPda(programId);
+    const protocolConfigInfo = await provider.connection.getAccountInfo(protocolConfigPda);
+    let onchainTreasury: PublicKey = ONCHAIN_TREASURY!;
+    if (protocolConfigInfo === null) {
+      const ix = new anchor.web3.TransactionInstruction({
+        keys: [
+          { pubkey: provider.wallet.publicKey, isSigner: true,  isWritable: true  },
+          { pubkey: protocolConfigPda,         isSigner: false, isWritable: true  },
+          { pubkey: SystemProgram.programId,   isSigner: false, isWritable: false },
+        ],
+        programId,
+        data: mkInitProtocolConfigData(ONCHAIN_TREASURY!),
+      });
+      await provider.sendAndConfirm(new Transaction().add(ix), []);
+    } else {
+      // Sanity check: the program must own the PDA, otherwise the on-chain
+      // constraint `seeds = [b"protocol_config"], bump = protocol_config.bump`
+      // in CreateStream / CreateMilestone will reject every stream/milestone.
+      if (!protocolConfigInfo.owner.equals(programId)) {
+        throw new Error(
+          `ProtocolConfig PDA ${protocolConfigPda.toBase58()} is owned by ` +
+          `${protocolConfigInfo.owner.toBase58()}, not by the program (${programId.toBase58()}). ` +
+          `The ledger is stale; please reset the surfpool validator.`,
+        );
+      }
+      // The ProtocolConfig account is `[disc][admin(32)][treasury(32)][bump(1)]`.
+      // Skip the 8-byte Anchor discriminator to read the treasury pubkey at
+      // offset 8+32 = 40. (We can't use Anchor's auto-deserialisation here
+      // because we want this to work even on stale ledgers that predate the
+      // current TypeScript IDL.)
+      onchainTreasury = new PublicKey(protocolConfigInfo.data.subarray(40, 72));
+    }
+    ONCHAIN_TREASURY = onchainTreasury;
+
     mint = await createMint(
       provider.connection,
       creator,
@@ -280,13 +433,24 @@ describe("blockbite", () => {
       )
     ).address;
 
+    // Pre-create the protocol treasury's ATA so the create_stream CPI has
+    // somewhere to land the 0.9% fee. getOrCreate pays for ATA rent from
+    // the connected wallet.
+    await getOrCreateAssociatedTokenAccount(
+      provider.connection,
+      provider.wallet.payer,
+      mint,
+      ONCHAIN_TREASURY!,
+    );
+
+    // Mint enough to cover the stream amount PLUS the 0.9% fee.
     await mintTo(
       provider.connection,
       creator,
       mint,
       creatorTokenAccount,
       creator,
-      TOTAL_AMOUNT,
+      TOTAL_AMOUNT + STREAM_FEE,
     );
 
     startTime = await getValidatorTime() - 60;
@@ -331,10 +495,25 @@ describe("blockbite", () => {
     assert.ok(info!.owner.equals(programId), "Owned by program");
   });
 
-  it("Tokens are locked in PDA — creator balance decreased by total_amount", async () => {
+  it("Tokens are locked in PDA — creator balance decreased by total_amount + stream fee", async () => {
     const creatorBal = await getAccount(provider.connection, creatorTokenAccount);
-    // Creator started with TOTAL_AMOUNT minted, deposited TOTAL_AMOUNT into escrow
-    assert.strictEqual(Number(creatorBal.amount), 0, "Creator should have 0 tokens after deposit");
+    // Creator minted (TOTAL_AMOUNT + STREAM_FEE) and paid it all: STREAM_FEE
+    // to the protocol treasury, TOTAL_AMOUNT into the escrow. Remainder = 0.
+    assert.strictEqual(
+      Number(creatorBal.amount),
+      0,
+      `Creator should have 0 tokens left after paying fee + deposit`,
+    );
+  });
+
+  it("Treasury received the 0.9% stream fee", async () => {
+    const treasuryAta = getTreasuryAta(ONCHAIN_TREASURY!, mint);
+    const treasuryBal = await getAccount(provider.connection, treasuryAta);
+    assert.strictEqual(
+      Number(treasuryBal.amount),
+      STREAM_FEE,
+      `Treasury should hold STREAM_FEE (${STREAM_FEE}) after create_stream`,
+    );
   });
 
   // ── Withdraw flow ──────────────────────────────────────────────────────────
@@ -372,8 +551,10 @@ describe("blockbite", () => {
     await sleep(5000);
     const fwMint = await createMint(provider.connection, fwC, fwC.publicKey, null, 6);
     const fwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwC, fwMint, fwC.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fwMint, ONCHAIN_TREASURY!);
     const fwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, fwR, fwMint, fwR.publicKey)).address;
-    await mintTo(provider.connection, fwC, fwMint, fwCTA, fwC, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fwMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, fwC, fwMint, fwCTA, fwC, 1_010_000);
 
     const now     = await getValidatorTime();
     const fwStart = now - 200;
@@ -417,8 +598,10 @@ describe("blockbite", () => {
     await sleep(5000);
     const dwMint = await createMint(provider.connection, dwC, dwC.publicKey, null, 6);
     const dwCTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwC, dwMint, dwC.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, dwMint, ONCHAIN_TREASURY!);
     const dwRTA = (await getOrCreateAssociatedTokenAccount(provider.connection, dwR, dwMint, dwR.publicKey)).address;
-    await mintTo(provider.connection, dwC, dwMint, dwCTA, dwC, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, dwMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, dwC, dwMint, dwCTA, dwC, 1_010_000);
 
     const dwStart = await getValidatorTime() - 200; // already fully vested
     const dwEnd   = await getValidatorTime() - 50;
@@ -500,9 +683,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_010_000);
 
     const cStart = await getValidatorTime() + 60; // future start — stream hasn't begun
     const cEnd   = cStart + 100;
@@ -575,9 +762,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_010_000);
 
     const cStart = await getValidatorTime() - 20;
     const cEnd   = cStart + 100;
@@ -623,6 +814,8 @@ describe("blockbite", () => {
     await sleep(5000);
     const zMint = await createMint(provider.connection, zc, zc.publicKey, null, 6);
     const zcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, zc, zMint, zc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, zMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, zMint, ONCHAIN_TREASURY!);
 
     const [zStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), zc.publicKey.toBuffer(), zr.publicKey.toBuffer(),
@@ -642,6 +835,8 @@ describe("blockbite", () => {
         { pubkey: zcTA,                 isSigner: false, isWritable: true  },
         { pubkey: zEscrow,              isSigner: false, isWritable: true  },
         { pubkey: zStream,              isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, zMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -667,6 +862,8 @@ describe("blockbite", () => {
     await sleep(5000);
     const sMint = await createMint(provider.connection, sc, sc.publicKey, null, 6);
     const scTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, sc, sMint, sc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, sMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, sMint, ONCHAIN_TREASURY!);
 
     const [sStream] = PublicKey.findProgramAddressSync(
       [Buffer.from("stream"), sc.publicKey.toBuffer(), sc.publicKey.toBuffer(),
@@ -686,6 +883,8 @@ describe("blockbite", () => {
         { pubkey: scTA,                 isSigner: false, isWritable: true  },
         { pubkey: sEscrow,              isSigner: false, isWritable: true  },
         { pubkey: sStream,              isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, sMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -718,9 +917,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_010_000);
 
     const cStart = await getValidatorTime();
     const cEnd   = cStart + 100;
@@ -771,9 +974,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_010_000);
 
     const cStart = await getValidatorTime();
     const cEnd   = cStart + 300;
@@ -821,9 +1028,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_010_000);
 
     const cStart = await getValidatorTime() - 120;
     const cEnd   = cStart + 300;
@@ -872,9 +1083,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
     const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_010_000);
 
     const mStart = await getValidatorTime() - 10;
     const mEnd   = mStart + 100;
@@ -898,6 +1113,8 @@ describe("blockbite", () => {
         { pubkey: mcTA,                 isSigner: false, isWritable: true  },
         { pubkey: mEscrow,              isSigner: false, isWritable: true  },
         { pubkey: mStream,              isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, mMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -953,9 +1170,13 @@ describe("blockbite", () => {
     await sleep(5000);
     const fMint = await createMint(provider.connection, fc, fc.publicKey, null, 6);
     const fcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fc, fMint, fc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fMint, ONCHAIN_TREASURY!);
     const frTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, fr, fMint, fr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, fMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_000_000);
+    await mintTo(provider.connection, fc, fMint, fcTA, fc, 1_010_000);
 
     // Stream already fully vested at creation time — no waiting needed
     const now    = await getValidatorTime();
@@ -980,6 +1201,8 @@ describe("blockbite", () => {
         { pubkey: fcTA,                 isSigner: false, isWritable: true  },
         { pubkey: fEscrow,              isSigner: false, isWritable: true  },
         { pubkey: fStream,              isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, fMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -1011,7 +1234,9 @@ describe("blockbite", () => {
     await sleep(5000);
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
-    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, iMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, iMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_010_000);
 
     const now = await getValidatorTime();
     const [iStream] = PublicKey.findProgramAddressSync(
@@ -1032,6 +1257,8 @@ describe("blockbite", () => {
         { pubkey: icTA,                    isSigner: false, isWritable: true  },
         { pubkey: iEscrow,                 isSigner: false, isWritable: true  },
         { pubkey: iStream,                 isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, iMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -1058,7 +1285,9 @@ describe("blockbite", () => {
     await sleep(5000);
     const iMint = await createMint(provider.connection, ic, ic.publicKey, null, 6);
     const icTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, ic, iMint, ic.publicKey)).address;
-    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, iMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, iMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, ic, iMint, icTA, ic, 1_010_000);
 
     const now = await getValidatorTime();
     const [iStream] = PublicKey.findProgramAddressSync(
@@ -1079,6 +1308,8 @@ describe("blockbite", () => {
         { pubkey: icTA,                    isSigner: false, isWritable: true  },
         { pubkey: iEscrow,                 isSigner: false, isWritable: true  },
         { pubkey: iStream,                 isSigner: false, isWritable: true  },
+        { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
+        { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, iMint), isSigner: false, isWritable: true },
         { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       ],
@@ -1111,8 +1342,12 @@ describe("blockbite", () => {
     await sleep(5000);
     const nMint = await createMint(provider.connection, nc, nc.publicKey, null, 6);
     const ncTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nc, nMint, nc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, nMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, nMint, ONCHAIN_TREASURY!);
     const nrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, nr, nMint, nr.publicKey)).address;
-    await mintTo(provider.connection, nc, nMint, ncTA, nc, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, nMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, nMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, nc, nMint, ncTA, nc, 1_010_000);
 
     const now    = await getValidatorTime();
     const nStart = now + 10_000;
@@ -1159,7 +1394,9 @@ describe("blockbite", () => {
     await sleep(5000);
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_010_000);
 
     const now    = await getValidatorTime();
     const mCliff = now - 1;
@@ -1215,7 +1452,9 @@ describe("blockbite", () => {
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_010_000);
 
     const now    = await getValidatorTime();
     const mCliff = now - 1;
@@ -1272,8 +1511,15 @@ describe("blockbite", () => {
 
     const mMint = await createMint(provider.connection, mc, mc.publicKey, null, 6);
     const mcTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mc, mMint, mc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
     const mrTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, mr, mMint, mr.publicKey)).address;
-    await mintTo(provider.connection, mc, mMint, mcTA, mc, 1_000_000);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mMint, ONCHAIN_TREASURY!);
+    const MM_TOTAL = 1_000_000;
+    const MM_FEE   = Math.floor(MM_TOTAL * 90 / 10_000);
+    await mintTo(provider.connection, mc, mMint, mcTA, mc, MM_TOTAL + MM_FEE);
 
     const now    = await getValidatorTime();
     const mCliff = now + 100;
@@ -1290,7 +1536,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, mc, mr.publicKey, mMint, mcTA, mEscrow, mStream,
-      now, now + 200, 1_000_000, 16, provider, mCliff, true,
+      now, now + 200, MM_TOTAL, 16, provider, mCliff, true,
     );
 
     const msIx = new anchor.web3.TransactionInstruction({
@@ -1332,8 +1578,12 @@ describe("blockbite", () => {
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA   = (await getOrCreateAssociatedTokenAccount(provider.connection, founder,   mint, founder.publicKey)).address;
     const recipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, recipient, mint, recipient.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    // Pre-create treasury ATA so the 0.1% game-verification fee has a destination.
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
+    const GAME_FEE = AMOUNT * BigInt(10) / BigInt(10_000); // 0.1%
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
     await sleep(5000);
 
@@ -1371,22 +1621,25 @@ describe("blockbite", () => {
     const campaignInfo = await provider.connection.getAccountInfo(campaignPDA);
     assert.ok(campaignInfo !== null, "Campaign account should exist");
 
-    // 3. create_milestone
-    await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true,  isWritable: true  },
-          { pubkey: campaignPDA,       isSigner: false, isWritable: true  },
-          { pubkey: milestonePDA,      isSigner: false, isWritable: true  },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
-        programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 2), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
-      [founder],
+    // 3. create_milestone (now also routes 0.1% GAME_FEE to treasury)
+    const msIx = createMilestoneIx(
+      programId,
+      founder.publicKey,
+      campaignPDA,
+      milestonePDA,
+      mint,
+      campaignEscrow,
+      Buffer.alloc(32, 2), campaignSeed, milestoneSeed, AMOUNT,
+      gameAuthority.publicKey, recipient.publicKey, 10, 1,
+    );
+    await provider.sendAndConfirm(new Transaction().add(msIx), [founder]);
+
+    // Treasury should now hold GAME_FEE for this mint.
+    const treasuryBal = await getAccount(provider.connection, getTreasuryAta(ONCHAIN_TREASURY!, mint));
+    assert.strictEqual(
+      Number(treasuryBal.amount),
+      Number(GAME_FEE),
+      `Treasury should hold ${GAME_FEE} after create_milestone`,
     );
 
     // 4. verify_game — game authority signs (simulates game server callback after level completion)
@@ -1465,6 +1718,8 @@ describe("blockbite", () => {
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
@@ -1504,19 +1759,16 @@ describe("blockbite", () => {
 
     // create_milestone with real gameAuthority
     await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-          { pubkey: campaignPDA, isSigner: false, isWritable: true },
-          { pubkey: milestonePDA, isSigner: false, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
+      new Transaction().add(createMilestoneIx(
         programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 4), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
+        founder.publicKey,
+        campaignPDA,
+        milestonePDA,
+        mint,
+        campaignEscrow,
+        Buffer.alloc(32, 4), campaignSeed, milestoneSeed, AMOUNT,
+        gameAuthority.publicKey, recipient.publicKey, 10, 1,
+      )),
       [founder],
     );
 
@@ -1553,6 +1805,8 @@ describe("blockbite", () => {
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
@@ -1590,19 +1844,16 @@ describe("blockbite", () => {
       [founder],
     );
     await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-          { pubkey: campaignPDA, isSigner: false, isWritable: true },
-          { pubkey: milestonePDA, isSigner: false, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
+      new Transaction().add(createMilestoneIx(
         programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 6), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
+        founder.publicKey,
+        campaignPDA,
+        milestonePDA,
+        mint,
+        campaignEscrow,
+        Buffer.alloc(32, 6), campaignSeed, milestoneSeed, AMOUNT,
+        gameAuthority.publicKey, recipient.publicKey, 10, 1,
+      )),
       [founder],
     );
 
@@ -1653,7 +1904,10 @@ describe("blockbite", () => {
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const recipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, recipient, mint, recipient.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
@@ -1691,19 +1945,16 @@ describe("blockbite", () => {
       [founder],
     );
     await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-          { pubkey: campaignPDA, isSigner: false, isWritable: true },
-          { pubkey: milestonePDA, isSigner: false, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
+      new Transaction().add(createMilestoneIx(
         programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 8), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
+        founder.publicKey,
+        campaignPDA,
+        milestonePDA,
+        mint,
+        campaignEscrow,
+        Buffer.alloc(32, 8), campaignSeed, milestoneSeed, AMOUNT,
+        gameAuthority.publicKey, recipient.publicKey, 10, 1,
+      )),
       [founder],
     );
 
@@ -1746,7 +1997,10 @@ describe("blockbite", () => {
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const wrongRecipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, wrongRecipient, mint, wrongRecipient.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
@@ -1784,19 +2038,16 @@ describe("blockbite", () => {
       [founder],
     );
     await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-          { pubkey: campaignPDA, isSigner: false, isWritable: true },
-          { pubkey: milestonePDA, isSigner: false, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
+      new Transaction().add(createMilestoneIx(
         programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 10), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
+        founder.publicKey,
+        campaignPDA,
+        milestonePDA,
+        mint,
+        campaignEscrow,
+        Buffer.alloc(32, 10), campaignSeed, milestoneSeed, AMOUNT,
+        gameAuthority.publicKey, recipient.publicKey, 10, 1,
+      )),
       [founder],
     );
 
@@ -1851,7 +2102,10 @@ describe("blockbite", () => {
 
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA = (await getOrCreateAssociatedTokenAccount(provider.connection, founder, mint, founder.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const recipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, recipient, mint, recipient.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
@@ -1889,25 +2143,28 @@ describe("blockbite", () => {
       [founder],
     );
     await provider.sendAndConfirm(
-      new Transaction().add(new anchor.web3.TransactionInstruction({
-        keys: [
-          { pubkey: founder.publicKey, isSigner: true, isWritable: true },
-          { pubkey: campaignPDA, isSigner: false, isWritable: true },
-          { pubkey: milestonePDA, isSigner: false, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
+      new Transaction().add(createMilestoneIx(
         programId,
-        data: mkCreateMilestoneData(
-          Buffer.alloc(32, 12), campaignSeed, milestoneSeed, AMOUNT, gameAuthority.publicKey, recipient.publicKey,
-          10, 1,
-        ),
-      })),
+        founder.publicKey,
+        campaignPDA,
+        milestonePDA,
+        mint,
+        campaignEscrow,
+        Buffer.alloc(32, 12), campaignSeed, milestoneSeed, AMOUNT,
+        gameAuthority.publicKey, recipient.publicKey, 10, 1,
+      )),
       [founder],
     );
 
-    // Check escrow balance before claim
+    // Check escrow balance before claim. The 0.1% GAME_FEE was already
+    // debited from the campaign_escrow at create_milestone time.
+    const GAME_FEE = AMOUNT * BigInt(10) / BigInt(10_000);
     const escrowBefore = await getAccount(provider.connection, campaignEscrow);
-    assert.strictEqual(Number(escrowBefore.amount), Number(BUDGET), "Escrow should hold full budget");
+    assert.strictEqual(
+      Number(escrowBefore.amount),
+      Number(BUDGET) - Number(GAME_FEE),
+      `Escrow should hold BUDGET - GAME_FEE (${Number(BUDGET) - Number(GAME_FEE)})`,
+    );
 
     // verify_game + claim
     await provider.sendAndConfirm(
@@ -1939,12 +2196,13 @@ describe("blockbite", () => {
       [recipient],
     );
 
-    // Check escrow balance after claim
+    // Check escrow balance after claim. Escrow was BUDGET - GAME_FEE; the
+    // claim drains AMOUNT, leaving BUDGET - GAME_FEE - AMOUNT.
     const escrowAfter = await getAccount(provider.connection, campaignEscrow);
     assert.strictEqual(
       Number(escrowAfter.amount),
-      Number(BUDGET) - Number(AMOUNT),
-      "Escrow should decrease by claimed amount",
+      Number(BUDGET) - Number(AMOUNT) - Number(GAME_FEE),
+      "Escrow should decrease by AMOUNT + GAME_FEE",
     );
   });
 
@@ -1972,9 +2230,18 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    // Pre-create treasury ATA for the 0.9% stream fee.
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    // Mint enough to cover the stream amount PLUS the 0.9% fee.
+    const CLOSE_TOTAL = 1_000_000;
+    const CLOSE_FEE   = Math.floor(CLOSE_TOTAL * 90 / 10_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, CLOSE_TOTAL + CLOSE_FEE);
 
     // Use a future start so no tokens vest before cancel
     const cStart = await getValidatorTime() + 60;
@@ -1993,7 +2260,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, 1_000_000, SEED, provider,
+      cStart, cEnd, CLOSE_TOTAL, SEED, provider,
     );
 
     // Confirm the stream account exists with rent before closing
@@ -2041,10 +2308,16 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
     const TOTAL = 1_000_000;
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, TOTAL);
+    const FEE   = Math.floor(TOTAL * 90 / 10_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, TOTAL + FEE);
 
     // Deterministic: set BOTH start and end in the past so the stream is
     // already fully vested at createStream time. No timing race conditions
@@ -2124,9 +2397,16 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    const CLOSE3_TOTAL = 1_000_000;
+    const CLOSE3_FEE   = Math.floor(CLOSE3_TOTAL * 90 / 10_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, CLOSE3_TOTAL + CLOSE3_FEE);
 
     // Stream mid-flight: not cancelled, not fully withdrawn
     const cStart = await getValidatorTime() - 30;
@@ -2145,7 +2425,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, 1_000_000, SEED, provider,
+      cStart, cEnd, CLOSE3_TOTAL, SEED, provider,
     );
 
     // Try to close — should fail with StreamNotSettled (error 6015 per errors.rs)
@@ -2183,9 +2463,16 @@ describe("blockbite", () => {
     await sleep(5000);
     const cMint = await createMint(provider.connection, cc, cc.publicKey, null, 6);
     const ccTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cc, cMint, cc.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
     const crTA  = (await getOrCreateAssociatedTokenAccount(provider.connection, cr, cMint, cr.publicKey)).address;
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
+    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, cMint, ONCHAIN_TREASURY!);
 
-    await mintTo(provider.connection, cc, cMint, ccTA, cc, 1_000_000);
+    const CLOSE4_TOTAL = 1_000_000;
+    const CLOSE4_FEE   = Math.floor(CLOSE4_TOTAL * 90 / 10_000);
+    await mintTo(provider.connection, cc, cMint, ccTA, cc, CLOSE4_TOTAL + CLOSE4_FEE);
 
     const cStart = await getValidatorTime() + 60;
     const cEnd   = cStart + 100;
@@ -2203,7 +2490,7 @@ describe("blockbite", () => {
 
     await createStream(
       programId, cc, cr.publicKey, cMint, ccTA, cEscrow, cStream,
-      cStart, cEnd, 1_000_000, SEED, provider,
+      cStart, cEnd, CLOSE4_TOTAL, SEED, provider,
     );
 
     // Cancel first so the stream is in a settleable state

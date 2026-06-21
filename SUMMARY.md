@@ -20,7 +20,7 @@
 
 ## Reports & Status
 
-* [Week 8 Status Report](docs/STATUS_REPORT_WEEK8.md)
+* [Week 8 Status Report](STATUS_REPORT_WEEK8.md)
 * [Week 9 Status Report](STATUS_REPORT_WEEK9.md)
 * [Status Report (current)](docs/STATUS_REPORT.md)
 * [Security Checklist](docs/SECURITY_CHECKLIST.md)

@@ -17,8 +17,9 @@
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, TransferChecked};
+use anchor_spl::associated_token::get_associated_token_address;
 
-use crate::state::{CampaignAccount, MilestoneAccount, StreamAccount};
+use crate::state::{CampaignAccount, MilestoneAccount, ProtocolConfig, StreamAccount};
 
 use super::cancel::compute_cancel;
 use super::claim_milestone::mark_milestone_claimed;
@@ -26,23 +27,69 @@ use super::close_stream::{compute_close_dust, validate_closeable};
 use super::create_campaign::init_campaign;
 use super::create_milestone::init_milestone;
 use super::create_stream::init_stream;
+use super::init_protocol_config::init_protocol_config;
 use super::set_milestone::set_milestone_reached;
 use super::verify_game::verify_game_impl;
 use super::withdraw::{build_stream_signer_seeds, compute_withdraw};
+
+// ── Protocol Config ──────────────────────────────────────────────────────────
+
+/// One-time initialiser for the protocol's singleton config PDA.
+///
+/// Account order (3 accounts):
+///   0  admin             – signer, payer
+///   1  protocol_config   – PDA, init
+///   2  system_program
+#[derive(Accounts)]
+pub struct InitProtocolConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = ProtocolConfig::LEN,
+        seeds = [b"protocol_config"],
+        bump,
+    )]
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
+
+    pub system_program: Program<'info, System>,
+}
+
+pub fn init_protocol_config_handler(
+    ctx: Context<InitProtocolConfig>,
+    treasury: Pubkey,
+) -> Result<()> {
+    init_protocol_config(
+        &mut ctx.accounts.protocol_config,
+        ctx.accounts.admin.key(),
+        treasury,
+        ctx.bumps.protocol_config,
+    )?;
+    msg!(
+        "ProtocolConfig initialised: admin={} treasury={}",
+        ctx.accounts.admin.key(),
+        treasury
+    );
+    Ok(())
+}
 
 // ── Stream Vesting ───────────────────────────────────────────────────────────
 
 /// Creator initialises a new vesting stream.
 ///
-/// Account order (7 accounts + 2 programs = 9 total):
+/// Account order (8 accounts + 2 programs = 10 total):
 ///   0  creator                 – signer, payer
 ///   1  recipient               – unchecked (just stored)
 ///   2  mint                    – SPL mint
 ///   3  creator_token_account   – source of tokens
 ///   4  escrow_token_account    – PDA token vault (init)
 ///   5  stream                  – stream state PDA (init)
-///   6  token_program
-///   7  system_program
+///   6  protocol_config         – PDA, readable (treasury pubkey)
+///   7  treasury_token_account  – destination of the 0.9% fee
+///   8  token_program
+///   9  system_program
 #[derive(Accounts)]
 #[instruction(total_amount: u64, start_time: i64, end_time: i64, cliff_time: i64, seed: u64, milestone_enabled: bool, name: [u8; 32])]
 pub struct CreateStream<'info> {
@@ -80,6 +127,22 @@ pub struct CreateStream<'info> {
     )]
     pub stream: Box<Account<'info, StreamAccount>>,
 
+    #[account(
+        seeds = [b"protocol_config"],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
+
+    /// The protocol treasury's ATA for the stream's mint. Validated against
+    /// the canonical `(treasury, mint)` ATA derivation and against
+    /// `protocol_config.treasury`.
+    #[account(
+        mut,
+        token::mint = mint,
+        constraint = treasury_token_account.key() == get_associated_token_address(&protocol_config.treasury, &mint.key()) @ crate::errors::ErrorCode::InvalidTreasury,
+    )]
+    pub treasury_token_account: Box<Account<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -95,7 +158,7 @@ pub fn create_stream_handler(
     name: [u8; 32],
 ) -> Result<()> {
     // ── Effects (CEI): initialise stream state via pure function ──────────────
-    init_stream(
+    let fee = init_stream(
         &mut ctx.accounts.stream,
         ctx.accounts.creator.key(),
         ctx.accounts.recipient.key(),
@@ -111,23 +174,44 @@ pub fn create_stream_handler(
         name,
     )?;
 
-    // ── Interaction (CEI): escrow deposit ─────────────────────────────────────
+    // ── Interaction (CEI): fee transfer + escrow deposit ──────────────────────
     let decimals = ctx.accounts.mint.decimals;
+    let token_program_ai = ctx.accounts.token_program.to_account_info();
+    let mint_ai = ctx.accounts.mint.to_account_info();
+    let creator_ta_ai = ctx.accounts.creator_token_account.to_account_info();
+    let creator_ai = ctx.accounts.creator.to_account_info();
+    let escrow_ai = ctx.accounts.escrow_token_account.to_account_info();
+    let treasury_ta_ai = ctx.accounts.treasury_token_account.to_account_info();
+
+    if fee > 0 {
+        let fee_cpi = TransferChecked {
+            from:      creator_ta_ai.clone(),
+            mint:      mint_ai.clone(),
+            to:        treasury_ta_ai,
+            authority: creator_ai.clone(),
+        };
+        token::transfer_checked(
+            CpiContext::new(token_program_ai.key(), fee_cpi),
+            fee,
+            decimals,
+        )?;
+    }
+
     let escrow_cpi = TransferChecked {
-        from:      ctx.accounts.creator_token_account.to_account_info(),
-        mint:      ctx.accounts.mint.to_account_info(),
-        to:        ctx.accounts.escrow_token_account.to_account_info(),
-        authority: ctx.accounts.creator.to_account_info(),
+        from:      creator_ta_ai,
+        mint:      mint_ai,
+        to:        escrow_ai,
+        authority: creator_ai,
     };
     token::transfer_checked(
-        CpiContext::new(ctx.accounts.token_program.key(), escrow_cpi),
+        CpiContext::new(token_program_ai.key(), escrow_cpi),
         total_amount,
         decimals,
     )?;
 
     msg!(
-        "Stream created: total={} start={} end={} cliff={} milestone={}",
-        total_amount, start_time, end_time, cliff_time, milestone_enabled
+        "Stream created: total={} fee={} start={} end={} cliff={} milestone={}",
+        total_amount, fee, start_time, end_time, cliff_time, milestone_enabled
     );
 
     Ok(())
@@ -514,13 +598,40 @@ pub struct CreateMilestone<'info> {
     )]
     pub milestone: Box<Account<'info, MilestoneAccount>>,
 
+    #[account(
+        seeds = [b"protocol_config"],
+        bump = protocol_config.bump,
+    )]
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
+
+    pub mint: Box<Account<'info, Mint>>,
+
+    /// Campaign escrow — source of the 0.1% game-verification fee.
+    #[account(
+        mut,
+        token::mint = mint,
+        token::authority = campaign,
+        seeds = [b"campaign_escrow", campaign.key().as_ref()],
+        bump,
+    )]
+    pub campaign_escrow: Box<Account<'info, TokenAccount>>,
+
+    /// The protocol treasury's ATA for the campaign's mint.
+    #[account(
+        mut,
+        token::mint = mint,
+        constraint = treasury_token_account.key() == get_associated_token_address(&protocol_config.treasury, &mint.key()) @ crate::errors::ErrorCode::InvalidTreasury,
+    )]
+    pub treasury_token_account: Box<Account<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
 pub fn create_milestone_handler(
     ctx: Context<CreateMilestone>,
     description_hash: [u8; 32],
-    _campaign_seed: u64,
+    campaign_seed: u64,
     _milestone_seed: u64,
     token_amount: u64,
     game_authority: Pubkey,
@@ -530,7 +641,7 @@ pub fn create_milestone_handler(
 ) -> Result<()> {
     // ── Effects (CEI): initialise milestone + update campaign via pure function
     let campaign_key = ctx.accounts.campaign.key();
-    init_milestone(
+    let fee = init_milestone(
         &mut ctx.accounts.campaign,
         &mut ctx.accounts.milestone,
         campaign_key,
@@ -543,9 +654,35 @@ pub fn create_milestone_handler(
         ctx.bumps.milestone,
     )?;
 
+    // ── Interaction (CEI): route the 0.1% fee from campaign escrow to treasury
+    if fee > 0 {
+        let decimals = ctx.accounts.mint.decimals;
+        let campaign_seeds: &[&[u8]] = &[
+            b"campaign",
+            ctx.accounts.campaign.founder.as_ref(),
+            &campaign_seed.to_le_bytes(),
+            &[ctx.accounts.campaign.bump],
+        ];
+        let signer_seeds = &[campaign_seeds];
+
+        let cpi_accounts = TransferChecked {
+            from:      ctx.accounts.campaign_escrow.to_account_info(),
+            mint:      ctx.accounts.mint.to_account_info(),
+            to:        ctx.accounts.treasury_token_account.to_account_info(),
+            authority: ctx.accounts.campaign.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            cpi_accounts,
+            signer_seeds,
+        );
+        token::transfer_checked(cpi_ctx, fee, decimals)?;
+    }
+
     msg!(
-        "Milestone created: amount={} game_authority={} recipient={} target_level={} difficulty={}",
+        "Milestone created: amount={} fee={} game_authority={} recipient={} target_level={} difficulty={}",
         token_amount,
+        fee,
         game_authority,
         recipient,
         target_level,

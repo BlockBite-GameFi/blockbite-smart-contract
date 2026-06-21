@@ -45,4 +45,15 @@ pub enum ErrorCode {
     LevelNotReached,
     #[msg("Difficulty must be 1 (easy), 2 (medium), or 3 (hard)")]
     InvalidDifficulty,
+    // ── Protocol fee ──────────────────────────────────────────────────────────
+    #[msg("Protocol config has not been initialised yet")]
+    ProtocolNotInitialized,
+    #[msg("Protocol config is already initialised")]
+    ProtocolAlreadyInitialized,
+    #[msg("Provided treasury token account does not match ProtocolConfig.treasury for this mint")]
+    InvalidTreasury,
+    #[msg("Provided protocol config admin does not match signer")]
+    InvalidProtocolAdmin,
+    #[msg("Campaign budget is insufficient to cover this milestone's reward and fee")]
+    InsufficientBudgetForFee,
 }

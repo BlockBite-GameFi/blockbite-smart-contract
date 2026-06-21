@@ -25,6 +25,15 @@ declare_id!("9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX");
 pub mod blockbite {
     use super::*;
 
+    // ── Protocol Config ───────────────────────────────────────────────────────
+
+    pub fn init_protocol_config(
+        ctx: Context<InitProtocolConfig>,
+        treasury: Pubkey,
+    ) -> Result<()> {
+        init_protocol_config::handler(ctx, treasury)
+    }
+
     // ── Stream Vesting ────────────────────────────────────────────────────────
 
     pub fn create_stream(
