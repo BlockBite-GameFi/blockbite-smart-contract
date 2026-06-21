@@ -30,7 +30,7 @@ import {
 // Override via NEXT_PUBLIC_CAMPAIGN_PROGRAM_ID for localnet (Surfpool) testing.
 export const CAMPAIGN_PROGRAM_ID = new PublicKey(
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_CAMPAIGN_PROGRAM_ID) ||
-  'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
+  '9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX',
 );
 
 /**
@@ -59,18 +59,27 @@ export const GAME_AUTHORITY_PUBKEY = new PublicKey(
   'Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq',
 );
 
-export const CAMPAIGN_ACCOUNT_SIZE = 90;
-// Rust: 8 (disc) + 32+32+32+32 (pubkeys) + 8 (u64) + 6 (u8 fields) = 150
+// CampaignAccount: 98 bytes = 8 disc + 32 founder + 32 title_hash + 8 total_budget
+//                             + 8 allocated_amount + 8 allocated_fees + 1 milestone_count + 1 bump
+export const CAMPAIGN_ACCOUNT_SIZE = 98;
+// MilestoneAccount: 150 bytes
 export const MILESTONE_ACCOUNT_SIZE = 150;
 
 // Instruction discriminators: sha256("global:<name>")[0..8]
-const DISC_CREATE_CAMPAIGN  = Buffer.from([111, 131, 187, 98, 160, 193, 114, 244]);
-const DISC_CREATE_MILESTONE = Buffer.from([239, 58, 201, 28, 40, 186, 173, 48]);
-const DISC_SUBMIT_PROOF     = Buffer.from([54, 241, 46, 84, 4, 212, 46, 94]);
-const DISC_VERIFY_GAME      = Buffer.from([81, 26, 37, 190, 207, 209, 205, 211]);
-const DISC_CLAIM_MILESTONE  = Buffer.from([211, 134, 152, 37, 3, 82, 214, 189]);
+const DISC_CREATE_CAMPAIGN    = Buffer.from([111, 131, 187, 98, 160, 193, 114, 244]);
+const DISC_CREATE_MILESTONE   = Buffer.from([239, 58, 201, 28, 40, 186, 173, 48]);
+const DISC_VERIFY_GAME        = Buffer.from([81, 26, 37, 190, 207, 209, 205, 211]);
+const DISC_CLAIM_MILESTONE    = Buffer.from([211, 134, 152, 37, 3, 82, 214, 189]);
+const DISC_INIT_PROTOCOL_CFG  = Buffer.from([80, 148, 57, 230, 228, 247, 51, 164]);
 
 // ─── PDA derivation ───────────────────────────────────────────────────────────
+
+export function deriveProtocolConfigPDA(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('protocol_config')],
+    CAMPAIGN_PROGRAM_ID,
+  );
+}
 
 export function deriveCampaignPDA(
   founder: PublicKey,
@@ -111,6 +120,7 @@ export interface CampaignInfo {
   titleHash:       Uint8Array;
   totalBudget:     BN;
   allocatedAmount: BN;
+  allocatedFees:   BN;  // sum of game-verification fees reserved to treasury
   milestoneCount:  number;
   bump:            number;
 }
@@ -151,9 +161,10 @@ function decodeCampaign(pubkey: PublicKey, rawData: Uint8Array): CampaignInfo | 
     const titleHash       = new Uint8Array(data.slice(off, off + 32)); off += 32;
     const totalBudget     = new BN(data.readBigUInt64LE(off).toString()); off += 8;
     const allocatedAmount = new BN(data.readBigUInt64LE(off).toString()); off += 8;
+    const allocatedFees   = new BN(data.readBigUInt64LE(off).toString()); off += 8;
     const milestoneCount  = data[off]; off += 1;
     const bump            = data[off];
-    return { pubkey, founder, titleHash, totalBudget, allocatedAmount, milestoneCount, bump };
+    return { pubkey, founder, titleHash, totalBudget, allocatedAmount, allocatedFees, milestoneCount, bump };
   } catch {
     return null;
   }
@@ -349,60 +360,46 @@ function mkCreateCampaignIx(
 }
 
 function mkCreateMilestoneIx(
-  founder: PublicKey,
-  campaignPDA: PublicKey,
-  milestonePDA: PublicKey,
+  founder:         PublicKey,
+  campaignPDA:     PublicKey,
+  milestonePDA:    PublicKey,
+  protocolConfig:  PublicKey,
+  mint:            PublicKey,
+  campaignEscrow:  PublicKey,
+  treasuryTA:      PublicKey,
   descriptionHash: Uint8Array,
-  campaignSeed: bigint,
-  milestoneSeed: bigint,
-  tokenAmount: bigint,
-  gameAuthority: PublicKey,
-  recipient: PublicKey,
-  targetLevel: number,
-  difficulty: number,
+  campaignSeed:    bigint,
+  milestoneSeed:   bigint,
+  tokenAmount:     bigint,
+  gameAuthority:   PublicKey,
+  recipient:       PublicKey,
+  targetLevel:     number,
+  difficulty:      number,
 ): TransactionInstruction {
-  // Rust: description_hash(32) + campaign_seed(8) + milestone_seed(8) + token_amount(8)
-  //       + game_authority(32) + recipient(32) + target_level(1) + difficulty(1) = 122
-  // + 8 discriminator = 130 bytes total
+  // disc(8) + desc_hash(32) + campaign_seed(8) + milestone_seed(8) + token_amount(8)
+  // + game_authority(32) + recipient(32) + target_level(1) + difficulty(1) = 130 bytes
   const data = Buffer.alloc(130);
   DISC_CREATE_MILESTONE.copy(data, 0);
   Buffer.from(descriptionHash).copy(data, 8);
-  data.writeBigUInt64LE(campaignSeed, 40);
+  data.writeBigUInt64LE(campaignSeed,  40);
   data.writeBigUInt64LE(milestoneSeed, 48);
-  data.writeBigUInt64LE(tokenAmount, 56);
-  gameAuthority.toBuffer().copy(data, 64);
-  recipient.toBuffer().copy(data, 96);
+  data.writeBigUInt64LE(tokenAmount,   56);
+  gameAuthority.toBuffer().copy(data,  64);
+  recipient.toBuffer().copy(data,      96);
   data[128] = targetLevel;
   data[129] = difficulty;
   return new TransactionInstruction({
     programId: CAMPAIGN_PROGRAM_ID,
     keys: [
-      { pubkey: founder,        isSigner: true,  isWritable: true  },
-      { pubkey: campaignPDA,    isSigner: false, isWritable: true  },
-      { pubkey: milestonePDA,   isSigner: false, isWritable: true  },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-    data,
-  });
-}
-
-function mkSubmitProofIx(
-  recipient: PublicKey,
-  campaign: PublicKey,
-  milestonePDA: PublicKey,
-  milestoneSeed: bigint,
-  proofHash: Uint8Array,
-): TransactionInstruction {
-  const data = Buffer.alloc(48);
-  DISC_SUBMIT_PROOF.copy(data, 0);
-  data.writeBigUInt64LE(milestoneSeed, 8);
-  Buffer.from(proofHash).copy(data, 16);
-  return new TransactionInstruction({
-    programId: CAMPAIGN_PROGRAM_ID,
-    keys: [
-      { pubkey: recipient,    isSigner: true,  isWritable: true  },
-      { pubkey: campaign,     isSigner: false, isWritable: false },
-      { pubkey: milestonePDA, isSigner: false, isWritable: true  },
+      { pubkey: founder,                 isSigner: true,  isWritable: true  }, // 0
+      { pubkey: campaignPDA,             isSigner: false, isWritable: true  }, // 1
+      { pubkey: milestonePDA,            isSigner: false, isWritable: true  }, // 2
+      { pubkey: protocolConfig,          isSigner: false, isWritable: false }, // 3
+      { pubkey: mint,                    isSigner: false, isWritable: false }, // 4
+      { pubkey: campaignEscrow,          isSigner: false, isWritable: true  }, // 5
+      { pubkey: treasuryTA,              isSigner: false, isWritable: true  }, // 6
+      { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false }, // 7
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 8
     ],
     data,
   });
@@ -499,11 +496,13 @@ export interface CreateMilestoneParams {
   founder:         PublicKey;
   campaignPDA:     PublicKey;
   milestonePDA:    PublicKey;
+  mint:            PublicKey;  // SPL mint of the campaign
+  treasury:        PublicKey;  // wallet that owns treasury ATAs (TEAM_WALLET)
   descriptionHash: Uint8Array;
   campaignSeed:    bigint;
   milestoneSeed:   bigint;
   tokenAmount:     bigint;
-  /** Game server's signing public key. Must match game server's GAME_AUTHORITY_SECRET_KEY. */
+  /** Game server's signing public key (on-chain oracle). */
   gameProgramId:   PublicKey;
   recipient:       PublicKey;
   /** Level recipient must reach to unlock claim. Range: 1–30. */
@@ -514,9 +513,14 @@ export interface CreateMilestoneParams {
 }
 
 export async function createMilestone(p: CreateMilestoneParams): Promise<string> {
+  const [protocolConfig]  = deriveProtocolConfigPDA();
+  const [campaignEscrow]  = deriveCampaignEscrowPDA(p.campaignPDA);
+  const treasuryTA        = await getAssociatedTokenAddress(p.mint, p.treasury);
+
   const tx = new Transaction();
   tx.add(mkCreateMilestoneIx(
     p.founder, p.campaignPDA, p.milestonePDA,
+    protocolConfig, p.mint, campaignEscrow, treasuryTA,
     p.descriptionHash,
     p.campaignSeed, p.milestoneSeed, p.tokenAmount,
     p.gameProgramId,
@@ -544,19 +548,9 @@ export interface SubmitProofParams {
   sendTransaction: SendTx;
 }
 
-export async function submitProof(p: SubmitProofParams): Promise<string> {
-  const tx = new Transaction();
-  tx.add(mkSubmitProofIx(
-    p.recipient, p.campaign, p.milestonePDA, p.milestoneSeed, p.proofHash,
-  ));
-
-  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
-  tx.recentBlockhash = blockhash;
-  tx.feePayer = p.recipient;
-
-  const sig = await p.sendTransaction(tx, p.connection);
-  await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-  return sig;
+/** @deprecated submit_proof removed from on-chain program. Kept for API compatibility. */
+export async function submitProof(_p: SubmitProofParams): Promise<string> {
+  throw new Error('submitProof is no longer supported — use verifyGame (server-side) instead.');
 }
 
 export interface VerifyGameParams {
@@ -622,6 +616,43 @@ export async function claimMilestone(p: ClaimMilestoneParams): Promise<string> {
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
   tx.recentBlockhash = blockhash;
   tx.feePayer = p.recipient;
+
+  const sig = await p.sendTransaction(tx, p.connection);
+  await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+  return sig;
+}
+
+// ─── Protocol Config ──────────────────────────────────────────────────────────
+
+export interface InitProtocolConfigParams {
+  connection:      Connection;
+  admin:           PublicKey;   // signer, payer
+  treasury:        PublicKey;   // wallet that will own per-mint treasury ATAs
+  sendTransaction: SendTx;
+}
+
+/** One-time initialiser — call once after deploying the program. Admin signs. */
+export async function initProtocolConfig(p: InitProtocolConfigParams): Promise<string> {
+  const [protocolConfig] = deriveProtocolConfigPDA();
+  // disc(8) + treasury Pubkey(32) = 40 bytes
+  const data = Buffer.alloc(40);
+  DISC_INIT_PROTOCOL_CFG.copy(data, 0);
+  p.treasury.toBuffer().copy(data, 8);
+
+  const ix = new TransactionInstruction({
+    programId: CAMPAIGN_PROGRAM_ID,
+    keys: [
+      { pubkey: p.admin,                 isSigner: true,  isWritable: true  },
+      { pubkey: protocolConfig,          isSigner: false, isWritable: true  },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+
+  const tx = new Transaction().add(ix);
+  const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('confirmed');
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = p.admin;
 
   const sig = await p.sendTransaction(tx, p.connection);
   await p.connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
