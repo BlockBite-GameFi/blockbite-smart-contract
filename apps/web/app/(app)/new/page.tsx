@@ -69,12 +69,12 @@ export default function CreateStreamPage() {
             >
               <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${type.gradient} opacity-0 transition-opacity group-hover:opacity-100`} />
 
-              <div className="relative">
+              <div className="relative flex flex-1 flex-col">
                 <div className="mb-5">{type.icon}</div>
                 <h2 className="text-[17px] font-semibold text-white">{type.label}</h2>
                 <p className="mt-2 text-[13px] leading-6 text-[#8b92a5]">{type.desc}</p>
 
-                <div className="mt-5 flex items-center gap-1.5 text-[12px] font-medium text-[#6f7c95] transition-colors group-hover:text-white">
+                <div className="mt-auto pt-5 flex items-center gap-1.5 text-[12px] font-medium text-[#6f7c95] transition-colors group-hover:text-white">
                   Configure
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5">
                     <path d="M5 12h14" />
