@@ -62,10 +62,10 @@ export default function CreateStreamPage() {
 
       <div className="grid gap-5 md:grid-cols-3">
         {VESTING_TYPES.map((type) => (
-          <ScrollReveal key={type.slug}>
+          <ScrollReveal key={type.slug} className="h-full">
             <Link
               href={`/new/${type.slug}`}
-              className={`group relative flex flex-col rounded-2xl border border-white/[0.08] bg-[#0d1117] p-6 transition-all duration-200 ${type.border} hover:bg-white/[0.02]`}
+              className={`group relative flex h-full flex-col rounded-2xl border border-white/[0.08] bg-[#0d1117] p-6 transition-all duration-200 ${type.border} hover:bg-white/[0.02]`}
             >
               <div className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${type.gradient} opacity-0 transition-opacity group-hover:opacity-100`} />
 
