@@ -323,6 +323,7 @@ export function StreamSidebar({
           {[
             { l: 'Stream Type',       v: typeLabel,                                          c: typeColor  },
             { l: 'Total Deposit',     v: totalDeposit > 0 ? `${totalDeposit.toLocaleString()} ${token}` : '0 —', c: 'var(--p-text)' },
+            { l: 'Platform fee (0.9%)', v: totalDeposit > 0 ? `${(totalDeposit * 0.009).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${token}` : '—', c: C.gold },
             { l: 'Recipients',        v: recipientCount > 0 ? String(recipientCount) : '—',  c: C.blue     },
             { l: 'Network Fee (est.)',v: '~0.000005 SOL',                                    c: C.muted    },
           ].map(r => (
