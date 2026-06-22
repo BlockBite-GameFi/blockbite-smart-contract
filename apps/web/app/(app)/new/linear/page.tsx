@@ -24,6 +24,7 @@ export default function LinearPage() {
   const [token,      setToken]      = useState('');      // display symbol
   const [mintAddress,setMintAddress]= useState('');      // actual mint pubkey
   const [decimals,   setDecimals]   = useState(6);       // fetched from chain
+  const [streamName,setStreamName] = useState('');      // optional 32-byte on-chain label
   const [recipient,  setRecipient]  = useState('');
   const [amount,     setAmount]     = useState('');
   const [startDate,  setStartDate]  = useState('');
@@ -78,6 +79,7 @@ export default function LinearPage() {
       startTs,
       cliffTs,
       endTs,
+      name: streamName,
       requiredTier: gameGate ? levelToTier(gameLevel) : 0,
     });
   };
@@ -161,6 +163,19 @@ export default function LinearPage() {
               Mint: {mintAddress.slice(0,16)}… · {decimals} decimals
             </div>
           )}
+        </div>
+
+        <div>
+          <Label>Stream Name <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></Label>
+          <SInput value={streamName}
+            onChange={v => setStreamName(v.slice(0, 31))}
+            placeholder="e.g. Team Salary Q3 2026"
+            mono={false} />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+            {streamName.length > 0
+              ? `${streamName.length}/31 chars · stored on-chain as a 32-byte UTF-8 label`
+              : 'Optional human-readable label stored on-chain (max 31 chars)'}
+          </div>
         </div>
 
         <div>

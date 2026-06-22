@@ -58,6 +58,7 @@ export default function MilestonePage() {
   const [token,      setToken]      = useState('');
   const [mintAddress, setMintAddress] = useState('');
   const [decimals,    setDecimals]    = useState(6);
+  const [streamName, setStreamName]  = useState('');
   const [recipient,  setRecipient]  = useState('');
   const [cancelable, setCancelable] = useState(false);
   const [milestones, setMilestones] = useState<MS[]>([
@@ -114,6 +115,7 @@ export default function MilestonePage() {
       startTs,
       cliffTs,
       endTs,
+      name: streamName,
       requiredTier: gameGate ? levelToTier(gameLevel) : (msTotal > 0 ? 1 : 0),
     });
   };
@@ -173,7 +175,20 @@ export default function MilestonePage() {
             error={fieldErrors.token}
           />
         </div>
-        
+
+        <div>
+          <Label>Stream Name <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></Label>
+          <SInput value={streamName}
+            onChange={v => setStreamName(v.slice(0, 31))}
+            placeholder="e.g. Milestone campaign — Phase 1"
+            mono={false} />
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 5 }}>
+            {streamName.length > 0
+              ? `${streamName.length}/31 chars · stored on-chain as a 32-byte UTF-8 label`
+              : 'Optional human-readable label stored on-chain (max 31 chars)'}
+          </div>
+        </div>
+
           <div>
             <Label required>Recipient</Label>
             <SInput value={recipient} onChange={v => { setRecipient(v); setFieldErrors(p => ({ ...p, recipient: '' })); }} placeholder="Solana wallet address…" />

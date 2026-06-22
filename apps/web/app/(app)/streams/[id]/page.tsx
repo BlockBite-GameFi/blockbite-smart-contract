@@ -500,7 +500,7 @@ export default function StreamDetailPage() {
             <Link href="/streams" style={{ color: C.muted, fontSize: 12, textDecoration: 'none' }}>{'← All Streams'}</Link>
           </div>
           <h1 style={{ fontFamily: C.serif, fontSize: 24, fontWeight: 800, color: 'var(--p-text)', margin: 0 }}>
-            Stream Detail
+            {stream.name ? stream.name : 'Stream Detail'}
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
             <p style={{ fontSize: 11, color: C.muted, margin: 0, fontFamily: C.mono, wordBreak: 'break-all' }}>
