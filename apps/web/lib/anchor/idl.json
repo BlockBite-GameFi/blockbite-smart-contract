@@ -1,5 +1,5 @@
 {
-  "address": "9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX",
+  "address": "EVSuD7EHDgJuDmpYdhmUBWdokHZf4hdtcb34hWtWtrKS",
   "metadata": {
     "name": "blockbite",
     "version": "0.1.0",
@@ -510,6 +510,50 @@
           }
         },
         {
+          "name": "mint"
+        },
+        {
+          "name": "campaign_escrow",
+          "docs": [
+            "Campaign escrow — backs the milestone's reward payout on `claim_milestone`.",
+            "No protocol fee is charged on `create_milestone`; the full `total_budget`",
+            "is held in escrow and paid out as milestones are claimed."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  109,
+                  112,
+                  97,
+                  105,
+                  103,
+                  110,
+                  95,
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "campaign"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -637,6 +681,42 @@
           }
         },
         {
+          "name": "protocol_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_token_account",
+          "docs": [
+            "The protocol treasury's ATA for the stream's mint. Validated against",
+            "the canonical `(treasury, mint)` ATA derivation and against",
+            "`protocol_config.treasury`."
+          ],
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
@@ -678,6 +758,64 @@
               32
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "init_protocol_config",
+      "discriminator": [
+        91,
+        97,
+        211,
+        137,
+        96,
+        222,
+        139,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "protocol_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "treasury",
+          "type": "pubkey"
         }
       ]
     },
@@ -903,6 +1041,19 @@
       ]
     },
     {
+      "name": "ProtocolConfig",
+      "discriminator": [
+        207,
+        91,
+        250,
+        28,
+        152,
+        179,
+        215,
+        209
+      ]
+    },
+    {
       "name": "StreamAccount",
       "discriminator": [
         243,
@@ -1021,6 +1172,26 @@
       "code": 6020,
       "name": "InvalidDifficulty",
       "msg": "Difficulty must be 1 (easy), 2 (medium), or 3 (hard)"
+    },
+    {
+      "code": 6021,
+      "name": "ProtocolNotInitialized",
+      "msg": "Protocol config has not been initialised yet"
+    },
+    {
+      "code": 6022,
+      "name": "ProtocolAlreadyInitialized",
+      "msg": "Protocol config is already initialised"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidTreasury",
+      "msg": "Provided treasury token account does not match ProtocolConfig.treasury for this mint"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidProtocolAdmin",
+      "msg": "Provided protocol config admin does not match signer"
     }
   ],
   "types": [
@@ -1110,6 +1281,44 @@
           {
             "name": "is_claimed",
             "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProtocolConfig",
+      "docs": [
+        "Protocol-wide configuration. Single PDA, init once by the deployer.",
+        "",
+        "Stores the canonical treasury wallet that owns the per-mint treasury ATAs.",
+        "`create_stream` charges a 0.9% fee and routes it to the treasury ATA for",
+        "the stream's mint. `create_milestone` charges no protocol fee — game",
+        "verification is free.",
+        "",
+        "PDA seeds: `[\"protocol_config\"]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Wallet authorised to update `treasury` (single-signer for now; a",
+              "multisig can sit in front of this pubkey for production governance)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Wallet that owns the per-mint treasury ATAs. Fees are paid into the",
+              "ATA derived from `(treasury, mint)` for each stream/milestone mint."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "bump",

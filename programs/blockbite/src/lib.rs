@@ -19,7 +19,7 @@ pub use errors::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX");
+declare_id!("EVSuD7EHDgJuDmpYdhmUBWdokHZf4hdtcb34hWtWtrKS");
 
 #[program]
 pub mod blockbite {
