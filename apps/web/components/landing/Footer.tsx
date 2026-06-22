@@ -26,7 +26,7 @@ export function Footer() {
           </div>
           <div className="lp-footer-col">
             <h4>Resources</h4>
-            <a href="https://github.com/raisha/blockbite" target="_blank" rel="noopener noreferrer">
+            <a href="https://github.com/BlockBite-GameFi/blockbite-smart-contract" target="_blank" rel="noopener noreferrer">
               GitHub
             </a>
             <Link href="/new">Open app</Link>

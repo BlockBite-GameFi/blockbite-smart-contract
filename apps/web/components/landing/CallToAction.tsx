@@ -17,7 +17,7 @@ export function CallToAction() {
           <Link href="/new" className="lp-btn lp-btn-primary">
             Launch App &rarr;
           </Link>
-          <a href="https://github.com/raisha/blockbite" target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-secondary">
+          <a href="https://github.com/BlockBite-GameFi/blockbite-smart-contract/tree/main/docs" target="_blank" rel="noopener noreferrer" className="lp-btn lp-btn-secondary">
             Open docs
           </a>
         </div>
