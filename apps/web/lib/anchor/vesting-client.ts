@@ -50,7 +50,9 @@ import {
   getAssociatedTokenAddress,
   getAccount,
   createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
 } from '@solana/spl-token';
+import { FEE_WALLET } from '@/lib/solana/config';
 
 // ─── Program constants ────────────────────────────────────────────────────────
 export const VESTING_PROGRAM_ID = new PublicKey(
@@ -447,7 +449,15 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
 
   const tx = new Transaction();
 
-  // NOTE: upgraded program has NO developer-fee account — nothing extra to create here.
+  // NOTE: the deployed Aso25 program does NOT collect any fee on-chain — its
+  // create_stream only moves `amount` into escrow. To make the advertised 0.9%
+  // platform fee REAL without changing the smart contract, we attach a plain
+  // SPL token transfer (creator → FEE_WALLET ATA) in the SAME transaction.
+  // The caller (useStreamCreate) already reserves amount × 1.009 in creatorTA,
+  // so this transfer never causes an insufficient-funds revert.
+  const STREAM_FEE_BPS = 90n;                       // 0.9%
+  const devFee = (p.amount * STREAM_FEE_BPS) / 10_000n;
+
   tx.add(mkCreateIx(
     p.authority, p.beneficiary, p.mint, creatorTA, escrowTA, streamPDA,
     p.amount,
@@ -455,6 +465,15 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
     p.streamId,
     milestoneEnabled, nameBuf,
   ));
+
+  // Real 0.9% fee collection — only when it rounds to a non-zero amount.
+  if (devFee > 0n) {
+    const feeAta = await getAssociatedTokenAddress(p.mint, FEE_WALLET);
+    // Create the treasury's ATA for this mint if it doesn't exist yet (creator pays rent).
+    const feeAtaIx = await ensureAtaIx(p.connection, p.authority, FEE_WALLET, p.mint);
+    if (feeAtaIx) tx.add(feeAtaIx);
+    tx.add(createTransferInstruction(creatorTA, feeAta, p.authority, devFee));
+  }
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
   tx.recentBlockhash = blockhash;
