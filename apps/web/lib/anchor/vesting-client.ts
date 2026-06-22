@@ -46,7 +46,6 @@ import {
   getAccount,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
-import { TEAM_WALLET } from '@/lib/solana/config';
 
 // ─── Program constants ────────────────────────────────────────────────────────
 export const VESTING_PROGRAM_ID = new PublicKey(
@@ -60,8 +59,9 @@ const DISC_CANCEL   = Buffer.from([232, 219, 223, 41,  219, 236, 220, 190]);
 const DISC_MILESTONE= Buffer.from([174, 213, 91,  82,  156, 42,  105, 3  ]);
 const DISC_CLOSE    = Buffer.from([255, 241, 196, 212, 95, 93,  160, 89 ]);
 
-// StreamAccount constants
-export const STREAM_ACCOUNT_SIZE = 196;
+// StreamAccount — 220 bytes on the upgraded program:
+//   ...seed(178..186) milestone_reached(186) milestone_enabled(187) name[u8;32](188..220)
+export const STREAM_ACCOUNT_SIZE = 220;
 const OFFSET_CREATOR   = 8;
 const OFFSET_RECIPIENT = 40;
 
@@ -158,9 +158,13 @@ function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null
     const isCancelled        = data[off] !== 0;           off++;
     const bump               = data[off];                 off++;
     const seed               = data.readBigUInt64LE(off); off += 8;
-    const milestoneReached   = data[off] !== 0;           off++;
-    const velocityStrikes    = data[off];                 off++;
-    const lastActionTs       = data.readBigInt64LE(off);
+    const milestoneReached   = data[off] !== 0;           off++; // 186
+    const milestoneEnabled   = data[off] !== 0;           off++; // 187
+    // name [u8;32] follows at 188..220 (not surfaced here)
+    void milestoneEnabled;
+    // velocity_strikes / last_action_ts were removed in the upgrade
+    const velocityStrikes    = 0;
+    const lastActionTs       = 0n;
 
     return {
       pubkey,
@@ -309,27 +313,37 @@ export async function ensureAtaIx(
  * Args: total_amount(u64) start_time(i64) end_time(i64) cliff_time(i64) seed(u64)
  * Account 6: developer_token_account — receives DEV_FEE_BPS (1%) of total_amount
  */
+// Matches the UPGRADED on-chain Aso25 program (verified via on-chain simulation,
+// not the stale published IDL). create_stream takes:
+//   data: 81 bytes = disc(8) + total_amount u64(8) + start_time i64(8) + end_time i64(8)
+//         + cliff_time i64(8) + seed u64(8) + milestone_enabled bool(1) + name [u8;32]
+//   accounts: 8 — creator, recipient, mint, creator_ta, escrow_ta, stream,
+//             token_program, system_program. (developer_token_account / 1% dev fee was
+//             REMOVED in the upgrade — token_program now sits at slot 6.)
 function mkCreateIx(
-  creator:     PublicKey,
-  recipient:   PublicKey,
-  mint:        PublicKey,
-  creatorTA:   PublicKey,
-  escrowTA:    PublicKey,
-  streamPDA:   PublicKey,
-  developerTA: PublicKey,
-  totalAmount: bigint,
-  startTime:   bigint,
-  endTime:     bigint,
-  cliffTime:   bigint,
-  seed:        bigint,
+  creator:          PublicKey,
+  recipient:        PublicKey,
+  mint:             PublicKey,
+  creatorTA:        PublicKey,
+  escrowTA:         PublicKey,
+  streamPDA:        PublicKey,
+  totalAmount:      bigint,
+  startTime:        bigint,
+  endTime:          bigint,
+  cliffTime:        bigint,
+  seed:             bigint,
+  milestoneEnabled: boolean,
+  name:             Uint8Array,   // exactly 32 bytes (zero-padded)
 ): TransactionInstruction {
-  const data = Buffer.alloc(48); // 8 disc + 5×8 args
+  const data = Buffer.alloc(81);
   DISC_CREATE.copy(data, 0);
   data.writeBigUInt64LE(totalAmount, 8);
   data.writeBigInt64LE(startTime,   16);
   data.writeBigInt64LE(endTime,     24);
   data.writeBigInt64LE(cliffTime,   32);
   data.writeBigUInt64LE(seed,       40);
+  data[48] = milestoneEnabled ? 1 : 0;
+  Buffer.from(name).copy(data, 49, 0, 32);
   return new TransactionInstruction({
     programId: VESTING_PROGRAM_ID,
     keys: [
@@ -339,9 +353,8 @@ function mkCreateIx(
       { pubkey: creatorTA,               isSigner: false, isWritable: true  }, // 3
       { pubkey: escrowTA,                isSigner: false, isWritable: true  }, // 4
       { pubkey: streamPDA,               isSigner: false, isWritable: true  }, // 5
-      { pubkey: developerTA,             isSigner: false, isWritable: true  }, // 6 DEV FEE
-      { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false }, // 7
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 8
+      { pubkey: TOKEN_PROGRAM_ID,        isSigner: false, isWritable: false }, // 6
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 7
     ],
     data,
   });
@@ -409,7 +422,8 @@ export interface CreateStreamParams {
   startTs:         number;
   cliffTs:         number;        // 0 = no cliff (pure linear)
   endTs:           number;
-  requiredTier?:   0 | 1 | 2;    // ignored — cliff presence is the gate
+  requiredTier?:   0 | 1 | 2;    // >0 sets milestone_enabled (game-gated unlock)
+  streamName?:     string;        // optional label, stored on-chain (max 32 bytes)
   sendTransaction: SendTx;
 }
 
@@ -419,20 +433,22 @@ export async function createStream(p: CreateStreamParams): Promise<string> {
   const [escrowTA]  = deriveEscrowPDA(streamPDA);
   const creatorTA   = await getAssociatedTokenAddress(p.mint, p.authority);
 
-  // Developer fee account — TEAM_WALLET's ATA for this mint
-  const devTA = await getAssociatedTokenAddress(p.mint, TEAM_WALLET);
+  // 32-byte zero-padded UTF-8 stream name (truncated at 32 bytes)
+  const nameBuf = new Uint8Array(32);
+  if (p.streamName) nameBuf.set(new TextEncoder().encode(p.streamName).slice(0, 32));
+
+  // milestone_enabled gates unlock on a game milestone — on iff a tier is required
+  const milestoneEnabled = (p.requiredTier ?? 0) > 0;
 
   const tx = new Transaction();
 
-  // Ensure developer ATA exists (create if missing — payer = creator)
-  const devAtaIx = await ensureAtaIx(p.connection, p.authority, TEAM_WALLET, p.mint);
-  if (devAtaIx) tx.add(devAtaIx);
-
+  // NOTE: upgraded program has NO developer-fee account — nothing extra to create here.
   tx.add(mkCreateIx(
-    p.authority, p.beneficiary, p.mint, creatorTA, escrowTA, streamPDA, devTA,
+    p.authority, p.beneficiary, p.mint, creatorTA, escrowTA, streamPDA,
     p.amount,
     BigInt(p.startTs), BigInt(p.endTs), BigInt(p.cliffTs),
     p.streamId,
+    milestoneEnabled, nameBuf,
   ));
 
   const { blockhash, lastValidBlockHeight } = await p.connection.getLatestBlockhash('finalized');
