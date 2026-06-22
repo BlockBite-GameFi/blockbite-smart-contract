@@ -54,6 +54,4 @@ pub enum ErrorCode {
     InvalidTreasury,
     #[msg("Provided protocol config admin does not match signer")]
     InvalidProtocolAdmin,
-    #[msg("Campaign budget is insufficient to cover this milestone's reward and fee")]
-    InsufficientBudgetForFee,
 }

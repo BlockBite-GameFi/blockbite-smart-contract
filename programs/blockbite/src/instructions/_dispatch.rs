@@ -598,15 +598,11 @@ pub struct CreateMilestone<'info> {
     )]
     pub milestone: Box<Account<'info, MilestoneAccount>>,
 
-    #[account(
-        seeds = [b"protocol_config"],
-        bump = protocol_config.bump,
-    )]
-    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
-
     pub mint: Box<Account<'info, Mint>>,
 
-    /// Campaign escrow — source of the 0.1% game-verification fee.
+    /// Campaign escrow — backs the milestone's reward payout on `claim_milestone`.
+    /// No protocol fee is charged on `create_milestone`; the full `total_budget`
+    /// is held in escrow and paid out as milestones are claimed.
     #[account(
         mut,
         token::mint = mint,
@@ -616,14 +612,6 @@ pub struct CreateMilestone<'info> {
     )]
     pub campaign_escrow: Box<Account<'info, TokenAccount>>,
 
-    /// The protocol treasury's ATA for the campaign's mint.
-    #[account(
-        mut,
-        token::mint = mint,
-        constraint = treasury_token_account.key() == get_associated_token_address(&protocol_config.treasury, &mint.key()) @ crate::errors::ErrorCode::InvalidTreasury,
-    )]
-    pub treasury_token_account: Box<Account<'info, TokenAccount>>,
-
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -631,7 +619,7 @@ pub struct CreateMilestone<'info> {
 pub fn create_milestone_handler(
     ctx: Context<CreateMilestone>,
     description_hash: [u8; 32],
-    campaign_seed: u64,
+    _campaign_seed: u64,
     _milestone_seed: u64,
     token_amount: u64,
     game_authority: Pubkey,
@@ -641,7 +629,7 @@ pub fn create_milestone_handler(
 ) -> Result<()> {
     // ── Effects (CEI): initialise milestone + update campaign via pure function
     let campaign_key = ctx.accounts.campaign.key();
-    let fee = init_milestone(
+    init_milestone(
         &mut ctx.accounts.campaign,
         &mut ctx.accounts.milestone,
         campaign_key,
@@ -654,35 +642,9 @@ pub fn create_milestone_handler(
         ctx.bumps.milestone,
     )?;
 
-    // ── Interaction (CEI): route the 0.1% fee from campaign escrow to treasury
-    if fee > 0 {
-        let decimals = ctx.accounts.mint.decimals;
-        let campaign_seeds: &[&[u8]] = &[
-            b"campaign",
-            ctx.accounts.campaign.founder.as_ref(),
-            &campaign_seed.to_le_bytes(),
-            &[ctx.accounts.campaign.bump],
-        ];
-        let signer_seeds = &[campaign_seeds];
-
-        let cpi_accounts = TransferChecked {
-            from:      ctx.accounts.campaign_escrow.to_account_info(),
-            mint:      ctx.accounts.mint.to_account_info(),
-            to:        ctx.accounts.treasury_token_account.to_account_info(),
-            authority: ctx.accounts.campaign.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.key(),
-            cpi_accounts,
-            signer_seeds,
-        );
-        token::transfer_checked(cpi_ctx, fee, decimals)?;
-    }
-
     msg!(
-        "Milestone created: amount={} fee={} game_authority={} recipient={} target_level={} difficulty={}",
+        "Milestone created: amount={} game_authority={} recipient={} target_level={} difficulty={}",
         token_amount,
-        fee,
         game_authority,
         recipient,
         target_level,

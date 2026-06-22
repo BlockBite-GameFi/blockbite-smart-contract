@@ -111,7 +111,8 @@
 
 ## Known Limitations / Future Work
 
-- **Fixed DEV_FEE_BPS:** Fee is hardcoded at 1%. A governance mechanism for adjusting fee is planned.
+- **Fixed STREAM_FEE_BPS:** Fee is hardcoded at 0.9%. A governance mechanism for adjusting fee is planned.
+- **Game verification is free:** `create_milestone` charges no protocol fee — founders only pay the 0.9% stream-creation fee on the amount they distribute.
 - **No referral tracking on-chain:** The referral system described in the FAQ is currently off-chain. On-chain referral PDA is planned.
 - **Formal audit:** Scheduled before Mainnet launch (noted in SECURITY_CHECKLIST.md).
 

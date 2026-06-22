@@ -99,7 +99,7 @@ Player ──► claim_milestone ──► tokens transferred from campaign_escr
 
 | Constant | Value | Purpose |
 |---|---|---|
-| `DEV_FEE_BPS` | 100 | 1% protocol fee on `create_stream` |
+| `STREAM_FEE_BPS` | 90 | 0.9% protocol fee on `create_stream` |
 | `MIN_CLAIM_AMOUNT` | 1_000 | Dust filter: reject withdrawals below this |
 | `MIN_LEVEL` | 1 | Minimum game target level |
 | `MAX_LEVEL` | 30 | Maximum game target level |

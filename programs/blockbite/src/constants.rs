@@ -5,13 +5,6 @@
 /// the recipient still receives the full `total_amount`.
 pub const STREAM_FEE_BPS: u64 = 90;
 
-/// Additional protocol fee on `create_milestone` when the founder opts in to
-/// a game authority (anti-bot oracle). 0.1% of the milestone's `token_amount`.
-/// Combined with `STREAM_FEE_BPS`, max total take rate is 1.0%.
-/// Charged from the campaign escrow at `create_milestone` time; the founder
-/// must budget for it in `create_campaign.total_budget`.
-pub const GAME_VERIFICATION_FEE_BPS: u64 = 10;
-
 /// Basis-points denominator. 10_000 bps == 100%.
 pub const FEE_BASIS_POINTS_DENOMINATOR: u64 = 10_000;
 

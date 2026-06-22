@@ -252,18 +252,19 @@ function mkCreateMilestoneData(
 }
 
 /**
- * Build a `create_milestone` instruction with the new 0.1% fee accounts.
+ * Build a `create_milestone` instruction.
  *
  * Account order (matches CreateMilestone in _dispatch.rs):
  *   0  founder                – signer, payer
  *   1  campaign               – mut
  *   2  milestone              – mut, init
- *   3  protocol_config        – PDA, readable
- *   4  mint                   – readable
- *   5  campaign_escrow        – mut, source of fee
- *   6  treasury_token_account – mut, destination of fee
- *   7  token_program
- *   8  system_program
+ *   3  mint                   – readable
+ *   4  campaign_escrow        – mut, holds the campaign's full budget
+ *   5  token_program
+ *   6  system_program
+ *
+ * Note: no protocol fee is charged on `create_milestone` (game verification is
+ * free). No `protocol_config` or `treasury_token_account` account is needed.
  */
 function createMilestoneIx(
   programId: PublicKey,
@@ -286,10 +287,8 @@ function createMilestoneIx(
       { pubkey: founder,              isSigner: true,  isWritable: true  },
       { pubkey: campaignPda,          isSigner: false, isWritable: true  },
       { pubkey: milestonePda,         isSigner: false, isWritable: true  },
-      { pubkey: getProtocolConfigPda(programId), isSigner: false, isWritable: false },
       { pubkey: mint,                 isSigner: false, isWritable: false },
       { pubkey: campaignEscrow,       isSigner: false, isWritable: true  },
-      { pubkey: getTreasuryAta(ONCHAIN_TREASURY!, mint), isSigner: false, isWritable: true },
       { pubkey: TOKEN_PROGRAM_ID,     isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
@@ -1578,12 +1577,8 @@ describe("blockbite", () => {
     const mint = await createMint(provider.connection, founder, founder.publicKey, null, 6);
     const founderTA   = (await getOrCreateAssociatedTokenAccount(provider.connection, founder,   mint, founder.publicKey)).address;
     const recipientTA = (await getOrCreateAssociatedTokenAccount(provider.connection, recipient, mint, recipient.publicKey)).address;
-    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
-    // Pre-create treasury ATA so the 0.1% game-verification fee has a destination.
-    await getOrCreateAssociatedTokenAccount(provider.connection, provider.wallet.payer, mint, ONCHAIN_TREASURY!);
     const BUDGET = BigInt(500_000);
     const AMOUNT = BigInt(100_000);
-    const GAME_FEE = AMOUNT * BigInt(10) / BigInt(10_000); // 0.1%
     await mintTo(provider.connection, founder, mint, founderTA, founder, Number(BUDGET));
     await sleep(5000);
 
@@ -1621,7 +1616,8 @@ describe("blockbite", () => {
     const campaignInfo = await provider.connection.getAccountInfo(campaignPDA);
     assert.ok(campaignInfo !== null, "Campaign account should exist");
 
-    // 3. create_milestone (now also routes 0.1% GAME_FEE to treasury)
+    // 3. create_milestone — game verification is free, no protocol fee charged.
+    //    The full BUDGET stays in the campaign_escrow PDA and is paid out per milestone.
     const msIx = createMilestoneIx(
       programId,
       founder.publicKey,
@@ -1634,12 +1630,12 @@ describe("blockbite", () => {
     );
     await provider.sendAndConfirm(new Transaction().add(msIx), [founder]);
 
-    // Treasury should now hold GAME_FEE for this mint.
-    const treasuryBal = await getAccount(provider.connection, getTreasuryAta(ONCHAIN_TREASURY!, mint));
+    // Escrow should still hold the full BUDGET (no fee deducted on create_milestone).
+    const escrowBal = await getAccount(provider.connection, campaignEscrow);
     assert.strictEqual(
-      Number(treasuryBal.amount),
-      Number(GAME_FEE),
-      `Treasury should hold ${GAME_FEE} after create_milestone`,
+      Number(escrowBal.amount),
+      Number(BUDGET),
+      `Escrow should hold full BUDGET (${BUDGET}) after create_milestone — no fee`,
     );
 
     // 4. verify_game — game authority signs (simulates game server callback after level completion)
@@ -2156,14 +2152,13 @@ describe("blockbite", () => {
       [founder],
     );
 
-    // Check escrow balance before claim. The 0.1% GAME_FEE was already
-    // debited from the campaign_escrow at create_milestone time.
-    const GAME_FEE = AMOUNT * BigInt(10) / BigInt(10_000);
+    // Check escrow balance before claim. No fee was deducted at create_milestone
+    // time — the full BUDGET is still held in the campaign_escrow PDA.
     const escrowBefore = await getAccount(provider.connection, campaignEscrow);
     assert.strictEqual(
       Number(escrowBefore.amount),
-      Number(BUDGET) - Number(GAME_FEE),
-      `Escrow should hold BUDGET - GAME_FEE (${Number(BUDGET) - Number(GAME_FEE)})`,
+      Number(BUDGET),
+      `Escrow should still hold the full BUDGET (${BUDGET}) — no fee on create_milestone`,
     );
 
     // verify_game + claim
@@ -2196,13 +2191,13 @@ describe("blockbite", () => {
       [recipient],
     );
 
-    // Check escrow balance after claim. Escrow was BUDGET - GAME_FEE; the
-    // claim drains AMOUNT, leaving BUDGET - GAME_FEE - AMOUNT.
+    // Check escrow balance after claim. Escrow held BUDGET; the claim drains
+    // AMOUNT, leaving BUDGET - AMOUNT.
     const escrowAfter = await getAccount(provider.connection, campaignEscrow);
     assert.strictEqual(
       Number(escrowAfter.amount),
-      Number(BUDGET) - Number(AMOUNT) - Number(GAME_FEE),
-      "Escrow should decrease by AMOUNT + GAME_FEE",
+      Number(BUDGET) - Number(AMOUNT),
+      "Escrow should decrease by AMOUNT (no fee on create_milestone)",
     );
   });
 

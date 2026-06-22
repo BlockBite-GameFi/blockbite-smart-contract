@@ -31,9 +31,11 @@ export const CAMPAIGN_PROGRAM_ID = new PublicKey(
   '9UipodjT55vBd8zZmEPvcFc8dVCveV1CMzYW2zsDHceX',
 );
 
-// CampaignAccount: 98 bytes = 8 disc + 32 founder + 32 title_hash + 8 total_budget
-//                             + 8 allocated_amount + 8 allocated_fees + 1 milestone_count + 1 bump
-export const CAMPAIGN_ACCOUNT_SIZE = 98;
+// CampaignAccount: 90 bytes = 8 disc + 32 founder + 32 title_hash + 8 total_budget
+//                             + 8 allocated_amount + 1 milestone_count + 1 bump
+// (previously held an 8-byte `allocated_fees`; the 0.1% game-verification
+//  fee was removed — game verification is now free.)
+export const CAMPAIGN_ACCOUNT_SIZE = 90;
 export const MILESTONE_ACCOUNT_SIZE = 180;
 
 // Instruction discriminators: sha256("global:<name>")[0..8]
@@ -91,7 +93,6 @@ export interface CampaignInfo {
   titleHash:       Uint8Array;
   totalBudget:     BN;
   allocatedAmount: BN;
-  allocatedFees:   BN;
   milestoneCount:  number;
   bump:            number;
 }

@@ -487,6 +487,8 @@ console.log("Campaign PDA:", campaignPda.toBase58());
 
 Founder adds a milestone to a campaign. The milestone defines a game target, reward amount, the player who can claim, and the game server keypair authorised to verify completion.
 
+> **Fee:** `create_milestone` charges **no protocol fee**. Game verification is free — founders only pay the 0.9% `STREAM_FEE_BPS` on the amounts they distribute via streams. The full `token_amount` is reserved from the campaign budget and paid out to the recipient on `claim_milestone`.
+
 **Parameters**
 
 | Parameter | Type | Description |
@@ -507,7 +509,10 @@ Founder adds a milestone to a campaign. The milestone defines a game target, rew
 | 0 | `founder` | ✅ | ✅ | Must match `campaign.founder` |
 | 1 | `campaign` | ❌ | ✅ | Parent campaign PDA — `allocated_amount` incremented |
 | 2 | `milestone` | ❌ | ✅ | **Init** — milestone PDA (seeds: `["milestone", campaign_pubkey, milestone_seed_le]`) |
-| 3 | `system_program` | ❌ | ❌ | System program |
+| 3 | `mint` | ❌ | ❌ | SPL mint of the campaign's reward token |
+| 4 | `campaign_escrow` | ❌ | ✅ | PDA vault that backs the milestone payout (no fee is debited here on `create_milestone`) |
+| 5 | `token_program` | ❌ | ❌ | SPL token program |
+| 6 | `system_program` | ❌ | ❌ | System program |
 
 **Error Codes**
 
@@ -515,7 +520,7 @@ Founder adds a milestone to a campaign. The milestone defines a game target, rew
 |---|---|
 | `Unauthorized` | Signer is not `campaign.founder` |
 | `InvalidAmount` | `token_amount == 0` |
-| `InsufficientBudget` | `token_amount > campaign.total_budget - campaign.allocated_amount` |
+| `InsufficientBudget` | `campaign.allocated_amount + token_amount > campaign.total_budget` |
 | `InvalidLevel` | `target_level < 1 || target_level > 30` |
 | `InvalidDifficulty` | `difficulty` not in `{1, 2, 3}` |
 
@@ -543,7 +548,7 @@ const tx = await program.methods
     descHash,                         // description_hash
     campaignSeed,                     // campaign_seed (parent)
     milestoneSeed,                    // milestone_seed (this milestone)
-    new anchor.BN(100_000),           // token_amount: reward
+    new anchor.BN(100_000),           // token_amount: reward (no fee)
     gameAuthority.publicKey,          // game_authority: game server hot wallet
     player.publicKey,                 // recipient: player who can claim
     10,                               // target_level: must reach level 10
@@ -553,6 +558,9 @@ const tx = await program.methods
     founder: founder.publicKey,
     campaign: campaignPda,
     milestone: milestonePda,
+    mint,
+    campaignEscrow,
+    tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
     systemProgram: anchor.web3.SystemProgram.programId,
   })
   .signers([founder])

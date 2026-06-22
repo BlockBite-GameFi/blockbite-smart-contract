@@ -3,7 +3,7 @@
  *
  * Target: Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq  (deployed 2026-05-20, slot 463647969)
  *
- * StreamAccount layout — 196 bytes total (after 8-byte discriminator):
+ * StreamAccount layout — 220 bytes total (after 8-byte discriminator):
  *   [8..40]   creator              Pubkey
  *   [40..72]  recipient            Pubkey
  *   [72..104] mint                 Pubkey
@@ -17,14 +17,19 @@
  *   [177]     bump                 u8
  *   [178..186]seed                 u64
  *   [186]     milestone_reached    bool
- *   [187]     velocity_strikes     u8
- *   [188..196]last_action_ts       i64
+ *   [187]     milestone_enabled    bool
+ *   [188..220]name                 [u8; 32]
  *
- * create_stream instruction — 48 bytes data, 9 accounts:
+ * create_stream instruction — 81 bytes data, 10 accounts:
  *   data: [disc(8)] [total_amount u64 LE(8)] [start_time i64 LE(8)]
  *         [end_time i64 LE(8)] [cliff_time i64 LE(8)] [seed u64 LE(8)]
+ *         [milestone_enabled bool(1)] [name [u8; 32]]
  *   accounts: creator, recipient, mint, creator_ta, escrow_ta,
- *             stream, developer_ta, token_program, system_program
+ *             stream, protocol_config, treasury_token_account,
+ *             token_program, system_program
+ *
+ * Protocol fee: 0.9% of total_amount (STREAM_FEE_BPS = 90) paid into
+ * the treasury ATA for the stream's mint. create_milestone charges no fee.
  *
  * unlock logic (mirrors Rust calculate_unlocked):
  *   cliff_time == 0: pure linear start→end
@@ -126,8 +131,8 @@ export interface StreamInfo {
   cancelled:          boolean;
   bump:               number;
   milestoneReached:   boolean;
-  velocityStrikes:    number;
-  lastActionTs:       BN;
+  milestoneEnabled:   boolean;
+  name:               string;   // decoded 32-byte UTF-8 label, '' if unset
   // Compatibility fields for blockblast page components
   requiredTier:       number;
   milestoneCount:     number;
@@ -160,11 +165,9 @@ function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null
     const seed               = data.readBigUInt64LE(off); off += 8;
     const milestoneReached   = data[off] !== 0;           off++; // 186
     const milestoneEnabled   = data[off] !== 0;           off++; // 187
-    // name [u8;32] follows at 188..220 (not surfaced here)
-    void milestoneEnabled;
-    // velocity_strikes / last_action_ts were removed in the upgrade
-    const velocityStrikes    = 0;
-    const lastActionTs       = 0n;
+    // name [u8;32] at 188..220 — zero-padded UTF-8, trimmed
+    const nameBytes          = data.slice(off, off + 32);
+    const name               = new TextDecoder().decode(nameBytes).replace(/\0/g, '').trim();
 
     return {
       pubkey,
@@ -181,8 +184,8 @@ function decodeStream(pubkey: PublicKey, rawData: Uint8Array): StreamInfo | null
       cancelled:          isCancelled,
       bump,
       milestoneReached,
-      velocityStrikes,
-      lastActionTs:       new BN(lastActionTs.toString()),
+      milestoneEnabled,
+      name,
       requiredTier:       cliffTime > 0n ? 1 : 0,
       milestoneCount:     cliffTime > 0n ? 1 : 0,
       milestonesVerified: [milestoneReached],
@@ -309,17 +312,19 @@ export async function ensureAtaIx(
 // ─── Raw instruction builders ─────────────────────────────────────────────────
 
 /**
- * build create_stream: 48 bytes, 9 accounts.
+ * build create_stream: 81 bytes, 8 instruction accounts + 2 programs.
  * Args: total_amount(u64) start_time(i64) end_time(i64) cliff_time(i64) seed(u64)
- * Account 6: developer_token_account — receives DEV_FEE_BPS (1%) of total_amount
+ *       milestone_enabled(bool) name([u8;32])
+ * Account 6: protocol_config — PDA holding the treasury pubkey.
+ * Account 7: treasury_token_account — receives the 0.9% STREAM_FEE_BPS fee.
  */
 // Matches the UPGRADED on-chain Aso25 program (verified via on-chain simulation,
 // not the stale published IDL). create_stream takes:
 //   data: 81 bytes = disc(8) + total_amount u64(8) + start_time i64(8) + end_time i64(8)
 //         + cliff_time i64(8) + seed u64(8) + milestone_enabled bool(1) + name [u8;32]
-//   accounts: 8 — creator, recipient, mint, creator_ta, escrow_ta, stream,
-//             token_program, system_program. (developer_token_account / 1% dev fee was
-//             REMOVED in the upgrade — token_program now sits at slot 6.)
+//   accounts: 10 — creator, recipient, mint, creator_ta, escrow_ta, stream,
+//             protocol_config, treasury_token_account, token_program, system_program.
+// Protocol fee: 0.9% of total_amount (STREAM_FEE_BPS=90). create_milestone is free.
 function mkCreateIx(
   creator:          PublicKey,
   recipient:        PublicKey,

@@ -10,7 +10,6 @@ fn make_campaign(
         title_hash: [1u8; 32],
         total_budget,
         allocated_amount: 0,
-        allocated_fees: 0,
         milestone_count: 0,
         bump: 0,
     }

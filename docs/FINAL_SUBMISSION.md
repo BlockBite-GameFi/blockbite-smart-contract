@@ -48,7 +48,7 @@ Creator   ──► close_stream ──► (accounts closed, rent returned)
 
 | Constant | Value | Purpose |
 |---|---|---|
-| `DEV_FEE_BPS` | 100 (1%) | Protocol fee on `create_stream` |
+| `STREAM_FEE_BPS` | 90 (0.9%) | Protocol fee on `create_stream` |
 | `MIN_CLAIM_AMOUNT` | 1_000 | Dust / bot filter on `withdraw` |
 | `MIN_LEVEL` / `MAX_LEVEL` | 1 / 30 | Game target level range |
 | `DIFFICULTY_EASY` / `MEDIUM` / `HARD` | 1 / 2 / 3 | Milestone difficulty IDs |
@@ -62,7 +62,8 @@ Creator   ──► close_stream ──► (accounts closed, rent returned)
 ### `create_stream(total_amount, start_time, end_time, cliff_time, seed, milestone_enabled, name)`
 - Validates timestamps and amount
 - Transfers `total_amount` tokens from creator to escrow PDA
-- Collects `DEV_FEE_BPS` (1%) to a fixed protocol treasury
+- Collects `STREAM_FEE_BPS` (0.9%) to a fixed protocol treasury
+- Game verification on `create_milestone` is free — no protocol fee charged
 - Initializes `StreamAccount` with all vesting parameters (incl. `name: [u8; 32]`)
 
 ### `withdraw()`
@@ -163,7 +164,8 @@ See [`SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md) for full details.
 
 ## Known Limitations
 
-- `DEV_FEE_BPS` is hardcoded at 1% (no governance for fee adjustment yet)
+- `STREAM_FEE_BPS` is hardcoded at 0.9% (no governance for fee adjustment yet)
+- `create_milestone` charges no protocol fee — game verification is free for founders
 - No referral tracking on-chain (off-chain only)
 - Formal security audit pending before Mainnet
 
@@ -174,7 +176,7 @@ See [`SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md) for full details.
 | Commit | Description |
 |---|---|
 | Week 5 | Core instructions: create_stream, withdraw, cancel, set_milestone |
-| Week 6 | DEV_FEE, MIN_CLAIM_AMOUNT, milestone_enabled flag, dispatch pattern |
+| Week 6 | STREAM_FEE (0.9%), MIN_CLAIM_AMOUNT, milestone_enabled flag, dispatch pattern |
 | Week 7 | Edge-case integration tests + SECURITY_CHECKLIST.md |
 | Week 8 | Campaign & Milestone system (4 new instructions) + stable program ID + devnet CI/CD |
 | Week 9 | `close_stream` instruction + 4 close_stream tests + `name` field on stream + 8 MAX_LEVEL boundary tests |

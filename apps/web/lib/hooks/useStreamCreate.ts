@@ -32,6 +32,7 @@ export interface StreamCreateInput {
   cliffTs:     number;   // 0 = no cliff
   endTs:       number;
   requiredTier?: 0 | 1 | 2;
+  name?:       string;   // optional on-chain label, max 32 bytes UTF-8
 }
 
 // Native SOL mint address — used for wSOL wrapping flow
@@ -84,14 +85,14 @@ export function useStreamCreate() {
 
     const rawAmount = BigInt(Math.round(amountNum * 10 ** p.decimals));
 
-    // Deployed program (Aso25…) charges a 1% dev fee ON TOP of total_amount:
-    //   dev_fee = total_amount * DEV_FEE_BPS(100) / 10_000   → 1%
+    // Deployed program (Aso25…) charges a 0.9% protocol fee ON TOP of total_amount:
+    //   fee = total_amount * STREAM_FEE_BPS(90) / 10_000   → 0.9%
     // It then transfers the FULL total_amount into escrow. So the creator's
-    // token account must hold total_amount * 1.01, not just total_amount.
+    // token account must hold total_amount * 1.009, not just total_amount.
     // The SOL-wrap and SPL balance check below MUST account for this fee or the
     // escrow transfer_checked reverts ("Simulation failed" / "Internal error").
-    const devFee      = rawAmount / 100n;          // matches on-chain *100/10000
-    const totalNeeded = rawAmount + devFee;        // 101% pulled from creator
+    const devFee      = rawAmount * 90n / 10_000n; // matches on-chain STREAM_FEE_BPS
+    const totalNeeded = rawAmount + devFee;        // 100.9% pulled from creator
 
     // All transaction sends/reads below go through a verified-healthy endpoint
     // rather than the wallet-adapter's static api.devnet.solana.com connection,
@@ -106,7 +107,7 @@ export function useStreamCreate() {
     if (isNativeSol) {
       // 1. Check native SOL balance (wallet has SOL, not wSOL)
       // Uses withRpcFallback so a rate-limited Ankr endpoint auto-switches
-      const lamportsNeeded = totalNeeded + BigInt(20_000_000); // amount + 1% dev fee + 0.02 SOL fee buffer
+      const lamportsNeeded = totalNeeded + BigInt(20_000_000); // amount + 0.9% dev fee + 0.02 SOL fee buffer
       let solBalance: number;
       try {
         solBalance = await withRpcFallback(conn => conn.getBalance(publicKey));
@@ -217,7 +218,7 @@ export function useStreamCreate() {
       if (acctAmount < totalNeeded) {
         const have = (Number(acctAmount) / 10 ** p.decimals).toLocaleString();
         const need = (Number(totalNeeded) / 10 ** p.decimals).toLocaleString();
-        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need} (incl. 1% dev fee)`);
+        setTxErr(`Insufficient balance: you have ${have} ${p.symbol}, need ${need} (incl. 0.9% dev fee)`);
         setTxStatus('error');
         return false;
       }
@@ -243,6 +244,7 @@ export function useStreamCreate() {
         cliffTs:      p.cliffTs,
         endTs:        p.endTs,
         requiredTier: p.requiredTier ?? 0,
+        streamName:   p.name?.trim() || undefined,
         sendTransaction: async (tx, conn) => {
           const s = await sendTransaction(tx, conn);
           setTxStatus('confirming');

@@ -124,7 +124,8 @@ This week I focused on:
 
 | Issue | Severity | Status |
 |---|---|---|
-| Fixed `DEV_FEE_BPS` (1% hardcoded) | Low | Known limitation — governance mechanism planned for Phase 3 |
+| Fixed `STREAM_FEE_BPS` (0.9% hardcoded) | Low | Known limitation — governance mechanism planned for Phase 3 |
+| `create_milestone` charges no protocol fee | Resolved | Game verification is free; only `create_stream` (0.9%) collects a protocol fee |
 | No on-chain referral tracking | Low | Referral system is currently off-chain; on-chain PDA planned |
 | `getProgramAccounts` disabled on official devnet | Medium | Mitigated by `withRpcFallback`; not fixable without RPC API key |
 | Milestone gate requires `set_milestone` call | Medium | Creator must call `set_milestone` manually to unlock cliff-gated streams; no automation yet |
@@ -156,7 +157,7 @@ This week I focused on:
 
 ## Recommendations for Phase 3
 
-1. **Governance for `DEV_FEE_BPS`** — replace hardcoded 1% with an on-chain config account updatable via multisig proposal
+1. **Governance for `STREAM_FEE_BPS`** — replace hardcoded 0.9% with an on-chain config account updatable via multisig proposal
 2. **On-chain referral PDAs** — add `ReferralAccount` PDA so BD team can track partner-driven stream creation on-chain
 3. **Squads multisig authority** — the `MultisigAuthorityField` UI component is already built; Phase 3 needs the Squads CPI integration so creators can submit `create_stream` through a Squads vault (M-of-N cancel protection)
 4. **Recipient notifications** — integrate Dialect or custom webhook to notify recipients when streams are created for them

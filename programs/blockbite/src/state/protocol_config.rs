@@ -3,9 +3,9 @@ use anchor_lang::prelude::*;
 /// Protocol-wide configuration. Single PDA, init once by the deployer.
 ///
 /// Stores the canonical treasury wallet that owns the per-mint treasury ATAs.
-/// Both `create_stream` (0.9% fee) and `create_milestone` (0.1% fee, when a
-/// game authority is set) transfer their fee to the treasury ATA for the
-/// stream/milestone's mint.
+/// `create_stream` charges a 0.9% fee and routes it to the treasury ATA for
+/// the stream's mint. `create_milestone` charges no protocol fee — game
+/// verification is free.
 ///
 /// PDA seeds: `["protocol_config"]`.
 #[account]
