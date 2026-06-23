@@ -158,7 +158,7 @@ function IconBtn({
 }
 
 export default function StreamsPage() {
-  const tx = I18N.streams;
+  const tx = I18N.streams as any;
   const router = useRouter();
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();

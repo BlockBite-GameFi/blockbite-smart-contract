@@ -38,7 +38,7 @@ function streamStatus(s: StreamInfo, nowSec: number): string {
 }
 
 export default function AnalyticsPage() {
-  const tx = I18N.analytics;
+  const tx = I18N.analytics as any;
 
   const { connection } = useConnection();
   const [streams,  setStreams]  = useState<StreamInfo[]>([]);
@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
       <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontSize: 11, letterSpacing: 2, color: T.accent, fontWeight: 800, marginBottom: 8, textTransform: 'uppercase' }}>
-            {tx.badge}
+            TDP · Protocol Analytics
           </div>
           <h1 style={{ fontFamily: T.serif, fontSize: 'clamp(24px,5vw,36px)', fontWeight: 800, color: T.text, margin: 0 }}>
             {tx.title}

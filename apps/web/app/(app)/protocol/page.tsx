@@ -39,7 +39,7 @@ function fmt(n: bigint): string {
 }
 
 export default function ProtocolPage() {
-  const tx = I18N.protocol;
+  const tx = I18N.protocol as any;
   const id = false;
 
   const [liveStats, setLiveStats] = useState<LiveStats | null>(null);

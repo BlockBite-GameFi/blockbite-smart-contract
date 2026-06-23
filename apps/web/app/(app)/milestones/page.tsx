@@ -47,7 +47,7 @@ function fmtAmt(n: BN | undefined): string {
 }
 
 export default function MilestonesPage() {
-  const tx = I18N.milestones;
+  const tx = I18N.milestones as any;
 
   const { connection } = useConnection();
   const { publicKey, connected } = useWallet();
@@ -281,7 +281,7 @@ export default function MilestonesPage() {
                   </div>
                   <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 14, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ fontSize: 10, color: T.textDim, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>{tx.related}</div>
-                    {tx.relatedLinks.map(l => (
+                    {(tx as any).relatedLinks.map((l: any) => (
                       <Link key={l.href} href={l.href} style={{ fontSize: 12.5, color: T.accent, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 5, height: 5, borderRadius: '50%', background: T.accent, flexShrink: 0 }} />
                         {l.label}

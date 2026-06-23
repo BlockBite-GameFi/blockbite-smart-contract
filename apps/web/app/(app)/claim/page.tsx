@@ -48,7 +48,7 @@ export default function ClaimPage() {
   const { publicKey, connected, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const { setVisible } = useWalletModal();
-  const tx = I18N.claim;
+  const tx = I18N.claim as any;
   const txCommon = I18N.common;
 
   const [streams,     setStreams]     = useState<StreamInfo[]>([]);
