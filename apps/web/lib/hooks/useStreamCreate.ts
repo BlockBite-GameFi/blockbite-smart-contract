@@ -163,7 +163,9 @@ export function useStreamCreate() {
           await txConn.getLatestBlockhash('confirmed');
         wrapTx.recentBlockhash = wrapBlockhash;
         wrapTx.feePayer = publicKey;
-        const wrapSig = await sendTransaction(wrapTx, txConn);
+        // skipPreflight for the same reason as the create tx: avoid an extra
+        // simulation call to the overloaded public devnet RPC ("Internal error").
+        const wrapSig = await sendTransaction(wrapTx, txConn, { skipPreflight: true, maxRetries: 5 });
 
         // 4. Wait for wrap to confirm before creating stream
         setTxStatus('confirming');
@@ -246,7 +248,12 @@ export function useStreamCreate() {
         requiredTier: p.requiredTier ?? 0,
         streamName:   p.name?.trim() || undefined,
         sendTransaction: async (tx, conn) => {
-          const s = await sendTransaction(tx, conn);
+          // skipPreflight: the create_stream instruction layout is verified
+          // against the live program, so Phantom's preflight simulation adds no
+          // safety — it only routes an extra call through the overloaded public
+          // devnet RPC, which returns "Internal error"/429 and blocks valid txs.
+          // We still confirm on-chain below, so a genuine revert is still caught.
+          const s = await sendTransaction(tx, conn, { skipPreflight: true, maxRetries: 5 });
           setTxStatus('confirming');
           return s;
         },
@@ -271,6 +278,16 @@ export function humanizeError(e: unknown): string {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
   if (msg.includes('user rejected') || msg.includes('user cancelled') || msg.includes('user denied'))
     return 'Transaction cancelled — you rejected the wallet prompt.';
+  // The free public devnet RPC (api.devnet.solana.com) rate-limits (429) and
+  // returns JSON-RPC -32603 "Internal error" under load. Phantom runs its
+  // preflight simulation through this endpoint, so an overloaded RPC surfaces
+  // in the wallet as a bare "Internal error". Map it to something actionable.
+  if (msg.includes('internal error') || msg.includes('-32603') ||
+      msg.includes('429') || msg.includes('too many requests') ||
+      msg.includes('rate limit') || msg.includes('failed to query'))
+    return 'Devnet RPC is overloaded right now (Internal error / rate-limited). ' +
+           'Wait ~15 seconds and press Create again. Permanent fix: set a dedicated ' +
+           'endpoint via NEXT_PUBLIC_RPC_URL in the Vercel dashboard.';
   if (msg.includes('insufficient funds') || msg.includes('insufficient balance'))
     return 'Insufficient SOL for transaction fees. Get devnet SOL from faucet.';
   if (msg.includes('blockhash not found') || msg.includes('expired'))
