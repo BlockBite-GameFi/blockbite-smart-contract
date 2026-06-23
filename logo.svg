@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Outer hexagon shape -->
+  <polygon points="24,2 44,13 44,35 24,46 4,35 4,13" fill="#7C3AED" />
+  <!-- Inner coin/bite mark -->
+  <circle cx="24" cy="24" r="13" fill="#1a0a2e" />
+  <!-- Stylized B letter -->
+  <rect x="17" y="15" width="4" height="18" fill="#7C3AED" rx="1" />
+  <path d="M21 15 h5 a5 5 0 0 1 0 9 h-5z" fill="#A78BFA" />
+  <path d="M21 24 h6 a5 5 0 0 1 0 9 h-6z" fill="#C4B5FD" />
+  <!-- Bite mark notch -->
+  <circle cx="39" cy="10" r="6" fill="#0d1117" />
+</svg>
