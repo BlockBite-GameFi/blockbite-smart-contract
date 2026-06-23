@@ -1,0 +1,67 @@
+name: Auto Create Week 9 PR
+
+on:
+  push:
+    branches: [week9-documentation]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR via GitHub REST API
+        env:
+          # PAT_TOKEN is a repo secret with repo+pull_request scope.
+          # Falls back to GITHUB_TOKEN if PAT_TOKEN is not set.
+          # NOTE: GITHUB_TOKEN requires org "Allow Actions to create PRs" to be enabled.
+          AUTH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          GITHUB_TOKEN="$AUTH_TOKEN"
+          echo "Checking for existing PR..."
+          EXISTING=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/BlockBite-GameFi/blockbite-smart-contract/pulls?head=BlockBite-GameFi:week9-documentation&base=main&state=open" \
+            | jq -r '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            PR_URL="https://github.com/BlockBite-GameFi/blockbite-smart-contract/pull/$EXISTING"
+            echo "PR already exists: $PR_URL"
+            exit 0
+          fi
+
+          echo "Creating PR..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/BlockBite-GameFi/blockbite-smart-contract/pulls" \
+            -d '{
+              "title": "Week 9: Technical Documentation — BlockBite Protocol",
+              "head": "week9-documentation",
+              "base": "main",
+              "body": "## Week 9 — Technical Documentation\n\n### Summary\nComplete documentation suite for the BlockBite Solana token vesting + game milestone protocol (Anchor 1.0, Program ID: `Aso25jcqxjZ2X3A1QSV4ZgZkj4B8pw6JNd4jNVcpB7pq`).\n\n### Deliverables\n- **Instruction Reference** (`docs/INSTRUCTION_REFERENCE.md`) — All 9 on-chain instructions with params, accounts, TypeScript examples, 21 error codes, PDA derivation table\n- **Integration Guide** (`docs/INTEGRATION_GUIDE.md`) — 15-step devnet integration walkthrough with working TypeScript code including Campaign/Milestone flow and state polling\n- **6 Architecture Decision Records** (`docs/ARCHITECTURE_DECISIONS.md`) — ADR-001 through ADR-006 with alternatives-considered and consequences\n- **VitePress Docs Site** (`docs-site/`) — 9-page site built and deployed to `gh-pages` branch\n- **Docsify SPA** (`docs/index.html`) — Single-file docs site with search, syntax highlighting\n- **README Updated** — Quick Integrate in 5 minutes section, corrected StreamAccount=220 bytes, 9 instructions\n\n### Docs Site\n**URL:** https://blockbite-gamefi.github.io/blockbite-smart-contract/\n\n### Acceptance Criteria\n- [x] Instruction reference: all 9 instructions with params, behavior, errors, examples\n- [x] Integration guide: 15-step with working TypeScript (verified against `_dispatch.rs`)\n- [x] Architecture decision records: 6 ADRs (minimum was 3)\n- [x] README updated with Quick Integrate section and accurate account sizes\n- [x] Marketing teammate reviewed integration guide for clarity\n\n### Metrics\n| Metric | Value |\n|--------|-------|\n| Doc files | 9 new files |\n| Lines written | 3,100+ |\n| Instructions documented | 9 / 9 (100%) |\n| Error codes | 21 / 21 (100%) |\n| ADRs | 6 |\n| TypeScript examples | 20+ |\n| VitePress pages | 9 HTML pages |\n"
+            }')
+
+          HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_STATUS" = "201" ]; then
+            PR_URL=$(echo "$BODY" | jq -r '.html_url')
+            echo "SUCCESS: PR created at $PR_URL"
+          elif [ "$HTTP_STATUS" = "422" ]; then
+            echo "422 Unprocessable — PR may already exist or no commits differ"
+            echo "$BODY" | jq -r '.errors[]?.message // .message'
+          else
+            echo "FAILED with HTTP $HTTP_STATUS"
+            echo "$BODY"
+            exit 1
+          fi

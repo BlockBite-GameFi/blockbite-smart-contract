@@ -1,0 +1,101 @@
+name: Deploy to Devnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm devnet deployment'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    name: Anchor deploy → Devnet
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y pkg-config build-essential libudev-dev libssl-dev
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor CLI (avm 1.0.0)
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 1.0.0
+          avm use 1.0.0
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          anchor --version
+
+      - name: Restore deployer keypair
+        run: |
+          mkdir -p ~/.config/solana
+          echo '${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}' > ~/.config/solana/id.json
+          solana-keygen pubkey ~/.config/solana/id.json
+
+      - name: Restore program keypair
+        run: |
+          mkdir -p target/deploy
+          echo '${{ secrets.ANCHOR_PROGRAM_KEYPAIR }}' > target/deploy/blockbite-keypair.json
+
+      - name: Sync program ID
+        run: anchor keys sync
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: yarn.lock
+
+      - name: Install Node dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build program
+        run: anchor build
+
+      - name: Check devnet balance
+        run: |
+          PUBKEY=$(solana-keygen pubkey ~/.config/solana/id.json)
+          BALANCE=$(solana balance "$PUBKEY" --url devnet 2>/dev/null || echo "ERROR")
+          echo "Deployer: $PUBKEY"
+          echo "Balance:  $BALANCE"
+          if echo "$BALANCE" | grep -q "ERROR\|0 SOL"; then
+            echo "::error::Deployer has insufficient SOL on devnet. Fund it first."
+            exit 1
+          fi
+
+      - name: Deploy to Devnet
+        run: |
+          anchor deploy \
+            --provider.cluster devnet \
+            --provider.wallet ~/.config/solana/id.json
+          echo "✅ Deployed to Devnet"
+          echo "Program ID: $(anchor keys list | grep blockbite | awk '{print $2}')"
+
+      - name: Verify deployment
+        run: |
+          PROGRAM_ID=$(anchor keys list | grep blockbite | awk '{print $2}')
+          echo "Verifying program $PROGRAM_ID on devnet..."
+          solana program show "$PROGRAM_ID" --url devnet
